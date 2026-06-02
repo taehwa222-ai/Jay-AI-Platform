@@ -109,3 +109,31 @@ The frontend listens on port `80` and proxies `/api`, `/docs`, and
 `/openapi.json` to the FastAPI backend container.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Ubuntu VPS flow.
+
+## Local Docker Operations
+
+Start or redeploy:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\start-server.ps1
+```
+
+Check status:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\status-server.ps1
+```
+
+Stop:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\stop-server.ps1
+```
+
+Configure OpenAI and Telegram keys:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\configure-production.ps1
+```
+
+See [docs/SERVER_OPERATIONS.md](docs/SERVER_OPERATIONS.md) for daily operations.
