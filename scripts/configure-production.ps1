@@ -27,8 +27,6 @@ $volumeMultiplier = Prompt-WithDefault "DEFAULT_VOLUME_MULTIPLIER" "2.0"
 $openaiBaseUrl = Prompt-WithDefault "OPENAI_BASE_URL" "https://api.openai.com/v1"
 $openaiModel = Read-Host "OPENAI_MODEL"
 $openaiApiKey = Read-Host "OPENAI_API_KEY"
-$telegramBotToken = Read-Host "TELEGRAM_BOT_TOKEN"
-$telegramChatId = Read-Host "TELEGRAM_CHAT_ID"
 
 @(
     "APP_NAME=$appName"
@@ -42,9 +40,6 @@ $telegramChatId = Read-Host "TELEGRAM_CHAT_ID"
     "OPENAI_API_KEY=$openaiApiKey"
     "OPENAI_BASE_URL=$openaiBaseUrl"
     "OPENAI_MODEL=$openaiModel"
-    ""
-    "TELEGRAM_BOT_TOKEN=$telegramBotToken"
-    "TELEGRAM_CHAT_ID=$telegramChatId"
 ) | Set-Content -Path $envPath -Encoding UTF8
 
 Write-Host ""

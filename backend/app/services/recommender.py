@@ -12,7 +12,6 @@ from app.schemas.stocks import (
 from app.services.indicators import calculate_indicators
 from app.services.openai_analyzer import OpenAIAnalyzer
 from app.services.stock_data import StockDataError, StockDataProvider
-from app.services.telegram import TelegramNotifier
 
 
 class RecommendationEngine:
@@ -20,12 +19,10 @@ class RecommendationEngine:
         self,
         data_provider: StockDataProvider,
         analyzer: OpenAIAnalyzer,
-        notifier: TelegramNotifier,
         settings: Settings,
     ):
         self.data_provider = data_provider
         self.analyzer = analyzer
-        self.notifier = notifier
         self.settings = settings
 
     async def run(self, request: RecommendationRequest) -> RecommendationResponse:
@@ -50,17 +47,11 @@ class RecommendationEngine:
 
         candidates.sort(key=lambda item: item.volume_ratio, reverse=True)
         analysis = await self.analyzer.analyze(request=request, candidates=candidates)
-        telegram = await self.notifier.send(
-            candidates=candidates,
-            analysis=analysis,
-            enabled=request.send_telegram,
-        )
         return RecommendationResponse(
             scanned=symbols,
             candidates=candidates,
             analysis=analysis,
             errors=errors,
-            telegram=telegram,
         )
 
 

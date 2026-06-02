@@ -15,7 +15,6 @@ async def recommendation_defaults() -> dict[str, object]:
         "volume_multiplier": settings.default_volume_multiplier,
         "period": "6mo",
         "interval": "1d",
-        "telegram_configured": settings.has_telegram,
         "model_provider": "openai-compatible" if settings.has_model_provider else "local-demo",
     }
 

@@ -15,7 +15,6 @@ The custom recommendation logic lives mainly in:
 - `backend/app/services/recommender.py`
 - `backend/app/services/indicators.py`
 - `backend/app/services/openai_analyzer.py`
-- `backend/app/services/telegram.py`
 
 ## Current Custom Features
 
@@ -23,7 +22,6 @@ The custom recommendation logic lives mainly in:
 - RSI calculation is included in each candidate.
 - MACD, MACD signal, and MACD histogram are included in each candidate.
 - OpenAI prompt receives the filtered candidates plus RSI/MACD context.
-- If Telegram is configured and requested, scan output is sent to the bot chat.
 - If OpenAI is not configured, the server returns a local rule-based analysis so development still works.
 
 This server is a screening tool, not financial advice.
@@ -32,11 +30,10 @@ This server is a screening tool, not financial advice.
 
 1. Make the backend run locally.
 2. Confirm `/api/v1/health` works.
-3. Run one recommendation scan without OpenAI or Telegram.
+3. Run one recommendation scan without OpenAI.
 4. Add OpenAI credentials.
-5. Add Telegram credentials.
-6. Customize `build_candidate()` and `build_prompt()` for your own strategy.
-7. Add persistence, scheduling, auth, and deployment.
+5. Customize `build_candidate()` and `build_prompt()` for your own strategy.
+6. Add persistence, scheduling, auth, and deployment.
 
 ## Backend
 
@@ -60,7 +57,7 @@ Invoke-RestMethod `
   -Method Post `
   -Uri http://127.0.0.1:8000/api/v1/recommendations/run `
   -ContentType "application/json" `
-  -Body '{"tickers":["AAPL","MSFT","NVDA"],"volume_multiplier":2.0,"period":"6mo","interval":"1d","send_telegram":false}'
+  -Body '{"tickers":["AAPL","MSFT","NVDA"],"volume_multiplier":2.0,"period":"6mo","interval":"1d"}'
 ```
 
 Smoke test with live `yfinance` data:
@@ -90,8 +87,6 @@ Copy `.env.example` to `.env`.
 ```text
 OPENAI_API_KEY=
 OPENAI_MODEL=
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
 ```
 
 `OPENAI_MODEL` can be any chat-completions-compatible model exposed by your configured `OPENAI_BASE_URL`.
@@ -130,7 +125,7 @@ Stop:
 powershell.exe -ExecutionPolicy Bypass -File scripts\stop-server.ps1
 ```
 
-Configure OpenAI and Telegram keys:
+Configure OpenAI key:
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\configure-production.ps1

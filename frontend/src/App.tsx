@@ -24,7 +24,6 @@ export default function App() {
   const [tickers, setTickers] = useState('AAPL,MSFT,NVDA,TSLA,AMD');
   const [volumeMultiplier, setVolumeMultiplier] = useState(2);
   const [period, setPeriod] = useState('6mo');
-  const [sendTelegram, setSendTelegram] = useState(false);
   const [result, setResult] = useState<RecommendationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +61,6 @@ export default function App() {
         period,
         interval: '1d',
         volume_multiplier: volumeMultiplier,
-        send_telegram: sendTelegram,
       });
       setResult(response);
     } catch (requestError) {
@@ -142,14 +140,6 @@ export default function App() {
                 </select>
               </label>
             </div>
-            <label className="toggle-row">
-              <input
-                checked={sendTelegram}
-                onChange={(event) => setSendTelegram(event.target.checked)}
-                type="checkbox"
-              />
-              <span>Telegram</span>
-            </label>
             <button className="primary-button" disabled={loading} type="submit">
               <RocketOutlined />
               {loading ? 'Scanning' : 'Run Scan'}
@@ -166,8 +156,8 @@ export default function App() {
               <strong>{defaults?.model_provider ?? 'checking'}</strong>
             </div>
             <div>
-              <span>Telegram</span>
-              <strong>{defaults?.telegram_configured ? 'ready' : 'off'}</strong>
+              <span>Rule</span>
+              <strong>{volumeMultiplier.toFixed(1)}x volume</strong>
             </div>
           </div>
         </section>
@@ -211,11 +201,6 @@ export default function App() {
               <h2>AI Analysis</h2>
             </div>
             <pre>{result?.analysis ?? 'Analysis will appear after a scan.'}</pre>
-            {result && (
-              <div className={`telegram-status ${result.telegram.status}`}>
-                {result.telegram.status}: {result.telegram.message}
-              </div>
-            )}
             {result?.errors.length ? (
               <div className="error-list">
                 {result.errors.map((item) => (

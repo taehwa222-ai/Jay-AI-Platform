@@ -203,17 +203,6 @@ select:focus {
   gap: 12px;
 }
 
-.toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.toggle-row input {
-  width: 18px;
-  height: 18px;
-}
-
 .primary-button,
 .icon-button {
   display: inline-flex;
@@ -309,7 +298,6 @@ th {
   white-space: pre-wrap;
 }
 
-.telegram-status,
 .error-list,
 .error-box,
 .empty-state {
@@ -318,17 +306,6 @@ th {
   padding: 12px;
 }
 
-.telegram-status {
-  color: #4f3f13;
-  background: #f7e7bd;
-}
-
-.telegram-status.sent {
-  color: #164a35;
-  background: #cdebdc;
-}
-
-.telegram-status.failed,
 .error-box,
 .error-list {
   color: #7c2d2d;

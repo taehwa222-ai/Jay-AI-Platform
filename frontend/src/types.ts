@@ -4,7 +4,6 @@ export type HealthStatus = {
   env: string;
   time: string;
   model_provider: string;
-  telegram: string;
   default_tickers: string[];
   volume_multiplier: number;
 };
@@ -21,7 +20,6 @@ export type RecommendationDefaults = {
   volume_multiplier: number;
   period: string;
   interval: string;
-  telegram_configured: boolean;
   model_provider: string;
 };
 
@@ -30,7 +28,6 @@ export type RecommendationRequest = {
   period: string;
   interval: string;
   volume_multiplier: number;
-  send_telegram: boolean;
 };
 
 export type TechnicalIndicators = {
@@ -57,16 +54,10 @@ export type TickerError = {
   message: string;
 };
 
-export type TelegramResult = {
-  status: string;
-  message: string;
-};
-
 export type RecommendationResponse = {
   generated_at: string;
   scanned: string[];
   candidates: StockCandidate[];
   analysis: string;
   errors: TickerError[];
-  telegram: TelegramResult;
 };

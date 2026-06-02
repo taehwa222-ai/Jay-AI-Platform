@@ -17,7 +17,6 @@ def main() -> None:
         "volume_multiplier": 1.0,
         "period": "6mo",
         "interval": "1d",
-        "send_telegram": False,
     }
     with TestClient(app) as client:
         response = client.post("/api/v1/recommendations/run", json=payload)
@@ -26,7 +25,6 @@ def main() -> None:
         print(f"status={response.status_code}")
         print(f"scanned={','.join(body['scanned'])}")
         print(f"candidates={len(body['candidates'])}")
-        print(f"telegram={body['telegram']['status']}")
 
 
 if __name__ == "__main__":

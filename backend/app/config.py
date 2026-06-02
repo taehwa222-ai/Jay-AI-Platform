@@ -22,9 +22,6 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = Field(default="")
 
-    telegram_bot_token: str = ""
-    telegram_chat_id: str = ""
-
     model_config = SettingsConfigDict(
         env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
@@ -46,10 +43,6 @@ class Settings(BaseSettings):
     @property
     def has_model_provider(self) -> bool:
         return bool(self.openai_api_key and self.openai_model)
-
-    @property
-    def has_telegram(self) -> bool:
-        return bool(self.telegram_bot_token and self.telegram_chat_id)
 
 
 @lru_cache

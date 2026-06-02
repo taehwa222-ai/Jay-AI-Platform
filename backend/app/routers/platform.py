@@ -17,7 +17,7 @@ async def roadmap() -> dict[str, object]:
                 "id": "alerts",
                 "title": "Alert Automation",
                 "status": "next",
-                "items": ["Telegram", "scheduled runs", "watchlists", "alert logs"],
+                "items": ["scheduled runs", "watchlists", "email/webhook alerts", "alert logs"],
             },
             {
                 "id": "portfolio",

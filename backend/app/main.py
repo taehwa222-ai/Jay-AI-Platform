@@ -8,7 +8,6 @@ from app.routers import health, platform, stocks
 from app.services.openai_analyzer import OpenAIAnalyzer
 from app.services.recommender import RecommendationEngine
 from app.services.stock_data import YFinanceStockDataProvider
-from app.services.telegram import TelegramNotifier
 
 
 @asynccontextmanager
@@ -18,7 +17,6 @@ async def lifespan(app: FastAPI):
     app.state.recommender = RecommendationEngine(
         data_provider=YFinanceStockDataProvider(),
         analyzer=OpenAIAnalyzer(settings),
-        notifier=TelegramNotifier(settings),
         settings=settings,
     )
     yield

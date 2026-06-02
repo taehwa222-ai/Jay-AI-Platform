@@ -8,7 +8,6 @@ class RecommendationRequest(BaseModel):
     period: str = "6mo"
     interval: str = "1d"
     volume_multiplier: float = Field(default=2.0, ge=1.0, le=20.0)
-    send_telegram: bool = False
 
 
 class StockCandle(BaseModel):
@@ -44,15 +43,9 @@ class TickerError(BaseModel):
     message: str
 
 
-class TelegramResult(BaseModel):
-    status: str
-    message: str
-
-
 class RecommendationResponse(BaseModel):
     generated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     scanned: list[str]
     candidates: list[StockCandidate]
     analysis: str
     errors: list[TickerError] = Field(default_factory=list)
-    telegram: TelegramResult

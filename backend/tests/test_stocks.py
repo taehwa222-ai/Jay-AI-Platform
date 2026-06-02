@@ -1,11 +1,10 @@
 import pytest
 
 from app.config import Settings
-from app.schemas.stocks import RecommendationRequest, StockCandle, TelegramResult
+from app.schemas.stocks import RecommendationRequest, StockCandle
 from app.services.indicators import calculate_macd, calculate_rsi
 from app.services.openai_analyzer import OpenAIAnalyzer
 from app.services.recommender import RecommendationEngine, build_candidate
-from app.services.telegram import TelegramNotifier
 
 
 class FakeProvider:
@@ -25,11 +24,6 @@ class FakeProvider:
         ]
         candles[-1] = candles[-1].model_copy(update={"volume": latest_volume, "close": 145.0})
         return candles
-
-
-class FakeNotifier(TelegramNotifier):
-    async def send(self, candidates, analysis: str, enabled: bool) -> TelegramResult:
-        return TelegramResult(status="skipped", message="fake")
 
 
 def test_health_endpoint():
@@ -75,7 +69,6 @@ async def test_recommendation_engine_filters_by_custom_volume_rule():
     engine = RecommendationEngine(
         data_provider=FakeProvider(),
         analyzer=OpenAIAnalyzer(settings),
-        notifier=FakeNotifier(settings),
         settings=settings,
     )
 

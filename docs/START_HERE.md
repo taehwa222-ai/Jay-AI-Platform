@@ -4,7 +4,7 @@ The first goal is one working vertical slice:
 
 ```text
 Ticker input -> FastAPI route -> yfinance data -> custom filter -> RSI/MACD
--> OpenAI analysis -> web result -> optional Telegram message
+-> OpenAI analysis -> web result
 ```
 
 ## Architecture
@@ -16,7 +16,6 @@ backend/app/main.py
       services/stock_data.py
       services/indicators.py
       services/openai_analyzer.py
-      services/telegram.py
 ```
 
 ## Where To Customize
@@ -32,10 +31,6 @@ backend/app/main.py
 3. `backend/app/services/openai_analyzer.py`
 
    Change `build_prompt()` to control what the AI sees and how it ranks candidates.
-
-4. `backend/app/services/telegram.py`
-
-   Change the alert format.
 
 ## Next Build Steps
 
