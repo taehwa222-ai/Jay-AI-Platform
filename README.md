@@ -104,6 +104,8 @@ The frontend listens on port `80` and proxies `/api`, `/docs`, and
 `/openapi.json` to the FastAPI backend container.
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Ubuntu VPS flow.
+For a step-by-step first server deployment, see
+[docs/VPS_DEPLOYMENT_STEP_BY_STEP.md](docs/VPS_DEPLOYMENT_STEP_BY_STEP.md).
 
 ## Local Docker Operations
 

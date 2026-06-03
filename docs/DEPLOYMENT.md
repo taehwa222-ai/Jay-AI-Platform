@@ -6,21 +6,24 @@ This is the recommended first deployment path:
 GitHub repository -> Ubuntu VPS -> Docker Compose -> Nginx container -> FastAPI backend
 ```
 
+For a beginner-friendly checklist, see
+[VPS_DEPLOYMENT_STEP_BY_STEP.md](VPS_DEPLOYMENT_STEP_BY_STEP.md).
+
 ## 1. Prepare The Server
 
 On a new Ubuntu server:
 
 ```bash
 sudo apt update
-sudo apt install -y git docker.io docker-compose-plugin
-sudo systemctl enable --now docker
+sudo apt install -y git
 ```
 
 ## 2. Clone The Repository
 
 ```bash
-git clone https://github.com/YOUR_ACCOUNT/YOUR_REPO.git
-cd YOUR_REPO
+git clone https://github.com/taehwa222-ai/Jay-AI-Platform.git
+cd Jay-AI-Platform
+bash scripts/bootstrap-ubuntu.sh
 ```
 
 ## 3. Create The Environment File
@@ -42,6 +45,12 @@ CORS_ORIGINS=http://YOUR_DOMAIN
 
 ```bash
 docker compose up -d --build
+```
+
+Or use the included deploy script:
+
+```bash
+bash scripts/deploy-ubuntu.sh
 ```
 
 Check status:
@@ -76,6 +85,12 @@ curl http://YOUR_SERVER_IP/api/v1/health
 ```bash
 git pull
 docker compose up -d --build
+```
+
+Or:
+
+```bash
+bash scripts/deploy-ubuntu.sh
 ```
 
 ## 7. HTTPS Later
