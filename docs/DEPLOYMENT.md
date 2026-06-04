@@ -29,11 +29,10 @@ bash scripts/bootstrap-ubuntu.sh
 ## 3. Create The Environment File
 
 ```bash
-cp .env.production.example .env
-nano .env
+bash scripts/configure-ubuntu-env.sh
 ```
 
-Fill these values:
+The script writes `.env` and asks for these values:
 
 ```text
 OPENAI_API_KEY=

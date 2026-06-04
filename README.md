@@ -160,4 +160,12 @@ Configure OpenAI key:
 powershell.exe -ExecutionPolicy Bypass -File scripts\configure-production.ps1
 ```
 
+On an Ubuntu VPS:
+
+```bash
+bash scripts/bootstrap-ubuntu.sh
+bash scripts/configure-ubuntu-env.sh
+bash scripts/deploy-ubuntu.sh
+```
+
 See [docs/SERVER_OPERATIONS.md](docs/SERVER_OPERATIONS.md) for daily operations.

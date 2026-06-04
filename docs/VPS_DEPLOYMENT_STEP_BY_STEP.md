@@ -47,6 +47,13 @@ git clone https://github.com/taehwa222-ai/Jay-AI-Platform.git
 cd Jay-AI-Platform
 ```
 
+If the repository is private, add a GitHub deploy key first and clone with SSH:
+
+```bash
+git clone git@github.com:taehwa222-ai/Jay-AI-Platform.git
+cd Jay-AI-Platform
+```
+
 ## 4. Prepare Docker
 
 Run the bootstrap script once:
@@ -63,16 +70,15 @@ or keep using the deploy script as-is. It falls back to `sudo docker`.
 Create the production environment file:
 
 ```bash
-cp .env.production.example .env
-nano .env
+bash scripts/configure-ubuntu-env.sh
 ```
 
-Fill at least these values:
+The script asks for:
 
 ```text
-OPENAI_API_KEY=your_new_openai_key
-OPENAI_MODEL=gpt-4o-mini
-CORS_ORIGINS=http://YOUR_SERVER_IP
+CORS_ORIGINS
+OPENAI_MODEL
+OPENAI_API_KEY
 ```
 
 Do not put real API keys in GitHub, screenshots, chat messages, or commit
