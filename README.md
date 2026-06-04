@@ -80,6 +80,33 @@ Open:
 http://localhost:5173
 ```
 
+## Local Development Without Docker
+
+Install backend and frontend dependencies once:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\setup-local-dev.ps1
+```
+
+Start both backend and frontend directly on Windows:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\start-local-dev.ps1
+```
+
+Open:
+
+```text
+http://127.0.0.1:5173
+```
+
+Check or stop the local dev servers:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\status-local-dev.ps1
+powershell.exe -ExecutionPolicy Bypass -File scripts\stop-local-dev.ps1
+```
+
 ## Environment
 
 Copy `.env.example` to `.env`.
