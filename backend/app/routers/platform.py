@@ -13,6 +13,7 @@ async def overview() -> dict[str, object]:
             "member-auth",
             "admin-console",
             "operation-manual",
+            "auto-deploy",
             "korea-stock-lab",
             "portfolio-manager",
             "revenue-lab",
@@ -48,6 +49,13 @@ async def modules() -> dict[str, object]:
                     "로컬 개발부터 GitHub, VPS 배포까지 반복 가능한 절차를 화면에서 제공합니다."
                 ),
                 "items": ["local setup", "local run", "git push", "vps deploy"],
+            },
+            {
+                "id": "auto-deploy",
+                "title": "자동 배포",
+                "status": "active",
+                "description": "로컬 한 줄 배포와 GitHub push 자동 배포를 지원합니다.",
+                "items": ["local deploy script", "GitHub Actions", "SSH deploy", "health check"],
             },
             {
                 "id": "korea-stock-lab",
@@ -123,6 +131,20 @@ async def manual() -> dict[str, object]:
                 ],
                 "checks": ["public IP opens", "API docs opens", "health API returns ok"],
             },
+            {
+                "id": "auto-deploy",
+                "title": "5. 자동 배포",
+                "summary": "로컬에서 한 명령으로 배포하거나 GitHub push 후 자동 배포합니다.",
+                "commands": [
+                    (
+                        "powershell.exe -ExecutionPolicy Bypass "
+                        "-File scripts\\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP"
+                    ),
+                    "GitHub Settings -> Secrets and variables -> Actions",
+                    "Set AUTO_DEPLOY_ENABLED=true after adding VPS secrets",
+                ],
+                "checks": ["local deploy script works", "GitHub Actions deploy succeeds"],
+            },
         ]
     }
 
@@ -185,9 +207,9 @@ async def roadmap() -> dict[str, object]:
             },
             {
                 "id": "manual",
-                "title": "Operation Manual",
+                "title": "Manual And Deploy",
                 "status": "planned",
-                "items": ["local development", "GitHub flow", "VPS deployment", "rollback notes"],
+                "items": ["local development", "GitHub flow", "VPS deployment", "auto deploy"],
             },
             {
                 "id": "revenue",

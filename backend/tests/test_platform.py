@@ -41,7 +41,7 @@ def test_platform_manual_endpoint():
     assert response.status_code == 200
     sections = response.json()["sections"]
     assert sections[0]["id"] == "local-setup"
-    assert sections[-1]["id"] == "vps-deploy"
+    assert sections[-1]["id"] == "auto-deploy"
 
 
 def test_platform_monetization_endpoint():

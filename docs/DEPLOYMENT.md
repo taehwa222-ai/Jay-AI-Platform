@@ -96,7 +96,36 @@ Or:
 bash scripts/deploy-ubuntu.sh
 ```
 
-## 7. HTTPS Later
+## 7. Deploy From Local PC
+
+From your Windows project folder:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
+```
+
+This runs checks, pushes to GitHub, SSHes into the VPS, pulls the latest code,
+rebuilds containers, and checks `/api/v1/health`.
+
+## 8. Auto Deploy From GitHub
+
+The workflow `.github/workflows/deploy-vps.yml` can deploy automatically after
+every push to `main`. Add these GitHub Actions values:
+
+```text
+Variable:
+AUTO_DEPLOY_ENABLED=true
+
+Secrets:
+VPS_HOST=YOUR_SERVER_IP
+VPS_USER=ubuntu
+VPS_DEPLOY_PATH=/home/ubuntu/Jay-AI-Platform
+VPS_SSH_KEY=your private deploy key
+```
+
+You can also run the workflow manually from the GitHub Actions tab.
+
+## 9. HTTPS Later
 
 For the first version, plain HTTP is enough to verify the system. After that,
 point a domain to the server and add HTTPS through Caddy, Nginx, or a cloud

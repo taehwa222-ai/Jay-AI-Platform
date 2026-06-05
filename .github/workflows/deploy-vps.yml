@@ -1,0 +1,40 @@
+name: Deploy VPS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || vars.AUTO_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+    steps:
+      - name: Validate secrets
+        run: |
+          test -n "$VPS_HOST" || (echo "Missing secret: VPS_HOST" && exit 1)
+          test -n "$VPS_SSH_KEY" || (echo "Missing secret: VPS_SSH_KEY" && exit 1)
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/jay_ai_platform
+          chmod 600 ~/.ssh/jay_ai_platform
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy on VPS
+        run: |
+          REMOTE_USER="${VPS_USER:-ubuntu}"
+          REMOTE_PATH="${VPS_DEPLOY_PATH:-/home/${REMOTE_USER}/Jay-AI-Platform}"
+          ssh -i ~/.ssh/jay_ai_platform "${REMOTE_USER}@${VPS_HOST}" \
+            "cd '${REMOTE_PATH}' && git fetch origin main && git checkout main && git pull --ff-only origin main && bash scripts/deploy-ubuntu.sh"

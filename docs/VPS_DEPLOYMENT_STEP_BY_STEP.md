@@ -117,6 +117,25 @@ cd Jay-AI-Platform
 bash scripts/deploy-ubuntu.sh
 ```
 
+Or deploy from your local PC in one command:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
+```
+
+For full push-to-deploy automation, add the GitHub Actions values below:
+
+```text
+Variable:
+AUTO_DEPLOY_ENABLED=true
+
+Secrets:
+VPS_HOST=YOUR_SERVER_IP
+VPS_USER=ubuntu
+VPS_DEPLOY_PATH=/home/ubuntu/Jay-AI-Platform
+VPS_SSH_KEY=your private deploy key
+```
+
 ## 8. Domain And HTTPS Later
 
 For the first version, public HTTP is enough to verify deployment. Later, point

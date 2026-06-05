@@ -129,6 +129,39 @@ docker compose up -d --build
 The frontend listens on port `80` and proxies `/api`, `/docs`, and
 `/openapi.json` to the FastAPI backend container.
 
+## One Command VPS Deployment
+
+After SSH access from your PC to the VPS is configured, this command verifies,
+pushes, deploys, and checks the public health endpoint:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
+```
+
+If there are local changes, pass a commit message:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
+  -ServerHost YOUR_SERVER_IP `
+  -CommitMessage "Your change"
+```
+
+## GitHub Push Auto Deploy
+
+The repository includes `.github/workflows/deploy-vps.yml`. To enable automatic
+deployment after every push to `main`, add these GitHub Actions values:
+
+```text
+Repository variable:
+AUTO_DEPLOY_ENABLED=true
+
+Repository secrets:
+VPS_HOST=YOUR_SERVER_IP
+VPS_USER=ubuntu
+VPS_DEPLOY_PATH=/home/ubuntu/Jay-AI-Platform
+VPS_SSH_KEY=your private deploy key
+```
+
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Ubuntu VPS flow.
 For a step-by-step first server deployment, see
 [docs/VPS_DEPLOYMENT_STEP_BY_STEP.md](docs/VPS_DEPLOYMENT_STEP_BY_STEP.md).

@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 if [ ! -f ".env" ]; then
   cp .env.production.example .env
   echo "Created .env from .env.production.example."
-  echo "Edit .env first and add OPENAI_API_KEY, OPENAI_MODEL, and CORS_ORIGINS."
+  echo "Edit .env first and set CORS_ORIGINS."
   exit 1
 fi
 
