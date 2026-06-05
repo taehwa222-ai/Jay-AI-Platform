@@ -65,7 +65,7 @@ bash scripts/bootstrap-ubuntu.sh
 If Docker group permissions do not apply immediately, either reconnect to SSH
 or keep using the deploy script as-is. It falls back to `sudo docker`.
 
-## 5. Create Server Secrets
+## 5. Create Server Environment
 
 Create the production environment file:
 
@@ -77,11 +77,9 @@ The script asks for:
 
 ```text
 CORS_ORIGINS
-OPENAI_MODEL
-OPENAI_API_KEY
 ```
 
-Do not put real API keys in GitHub, screenshots, chat messages, or commit
+Do not put real service keys in GitHub, screenshots, chat messages, or commit
 history. `.env` is ignored by Git.
 
 ## 6. Start The Server

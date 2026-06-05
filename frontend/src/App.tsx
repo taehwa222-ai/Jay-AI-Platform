@@ -1,30 +1,20 @@
 import {
   ApiOutlined,
-  BarChartOutlined,
-  BellOutlined,
-  FundProjectionScreenOutlined,
+  AppstoreOutlined,
+  CheckCircleOutlined,
+  CloudServerOutlined,
+  CodeOutlined,
+  DeploymentUnitOutlined,
   ReloadOutlined,
-  RocketOutlined,
-  StockOutlined,
 } from '@ant-design/icons';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { getDefaults, getHealth, getRoadmap, runRecommendations } from './api';
-import type {
-  HealthStatus,
-  RecommendationDefaults,
-  RecommendationResponse,
-  RoadmapPhase,
-  StockCandidate,
-} from './types';
+import { useEffect, useState } from 'react';
+import { getHealth, getOverview, getRoadmap } from './api';
+import type { HealthStatus, PlatformOverview, RoadmapPhase } from './types';
 
 export default function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [defaults, setDefaults] = useState<RecommendationDefaults | null>(null);
+  const [overview, setOverview] = useState<PlatformOverview | null>(null);
   const [roadmap, setRoadmap] = useState<RoadmapPhase[]>([]);
-  const [tickers, setTickers] = useState('AAPL,MSFT,NVDA,TSLA,AMD');
-  const [volumeMultiplier, setVolumeMultiplier] = useState(2);
-  const [period, setPeriod] = useState('6mo');
-  const [result, setResult] = useState<RecommendationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,37 +22,19 @@ export default function App() {
     void refreshState();
   }, []);
 
-  const scannedLabel = useMemo(() => {
-    if (!result) return 'ready';
-    return `${result.scanned.length} scanned`;
-  }, [result]);
-
   async function refreshState() {
-    const [healthResult, defaultResult, roadmapResult] = await Promise.all([
-      getHealth(),
-      getDefaults(),
-      getRoadmap(),
-    ]);
-    setHealth(healthResult);
-    setDefaults(defaultResult);
-    setRoadmap(roadmapResult);
-    setTickers(defaultResult.tickers.join(','));
-    setVolumeMultiplier(defaultResult.volume_multiplier);
-    setPeriod(defaultResult.period);
-  }
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
-      const response = await runRecommendations({
-        tickers: parseTickers(tickers),
-        period,
-        interval: '1d',
-        volume_multiplier: volumeMultiplier,
-      });
-      setResult(response);
+      const [healthResult, overviewResult, roadmapResult] = await Promise.all([
+        getHealth(),
+        getOverview(),
+        getRoadmap(),
+      ]);
+      setHealth(healthResult);
+      setOverview(overviewResult);
+      setRoadmap(roadmapResult);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Request failed.');
     } finally {
@@ -74,146 +46,86 @@ export default function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <StockOutlined />
-          <span>Jay Stock AI</span>
+          <DeploymentUnitOutlined />
+          <span>Jay AI Platform</span>
         </div>
         <nav className="nav-list" aria-label="Primary">
-          <a href="#scan">
-            <RocketOutlined />
-            Scan
+          <a href="#foundation">
+            <CloudServerOutlined />
+            Foundation
           </a>
-          <a href="#signals">
-            <BarChartOutlined />
-            Signals
+          <a href="#modules">
+            <AppstoreOutlined />
+            Modules
           </a>
-          <a href="#server">
-            <ApiOutlined />
-            Server
+          <a href="#roadmap">
+            <CodeOutlined />
+            Roadmap
           </a>
         </nav>
         <div className="sidebar-status">
           <span className={`status-dot ${health?.ok ? 'online' : ''}`} />
-          <span>{health?.model_provider ?? 'checking'}</span>
+          <span>{health?.ok ? 'server online' : 'checking server'}</span>
         </div>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
           <div>
-            <span className="eyebrow">Stock Recommendation Server</span>
-            <h1>Custom Signal Scanner</h1>
+            <span className="eyebrow">Custom AI Platform</span>
+            <h1>Clean Platform Base</h1>
           </div>
-          <button className="icon-button" onClick={() => void refreshState()} type="button" title="Refresh">
+          <button
+            className="icon-button"
+            disabled={loading}
+            onClick={() => void refreshState()}
+            title="Refresh"
+            type="button"
+          >
             <ReloadOutlined />
           </button>
         </header>
 
-        <section className="grid scanner-grid" id="scan">
-          <form className="tool-pane scan-form" onSubmit={(event) => void handleSubmit(event)}>
-            <div className="pane-title">
-              <FundProjectionScreenOutlined />
-              <h2>Scan Setup</h2>
-            </div>
-            <label>
-              <span>Tickers</span>
-              <textarea value={tickers} onChange={(event) => setTickers(event.target.value)} rows={5} />
-            </label>
-            <div className="field-row">
-              <label>
-                <span>Volume Spike</span>
-                <input
-                  min="1"
-                  max="20"
-                  step="0.1"
-                  type="number"
-                  value={volumeMultiplier}
-                  onChange={(event) => setVolumeMultiplier(Number(event.target.value))}
-                />
-              </label>
-              <label>
-                <span>Period</span>
-                <select value={period} onChange={(event) => setPeriod(event.target.value)}>
-                  <option value="1mo">1mo</option>
-                  <option value="3mo">3mo</option>
-                  <option value="6mo">6mo</option>
-                  <option value="1y">1y</option>
-                </select>
-              </label>
-            </div>
-            <button className="primary-button" disabled={loading} type="submit">
-              <RocketOutlined />
-              {loading ? 'Scanning' : 'Run Scan'}
-            </button>
-          </form>
+        {error && <div className="error-box">{error}</div>}
 
-          <div className="metric-band">
-            <div>
-              <span>State</span>
-              <strong>{scannedLabel}</strong>
-            </div>
-            <div>
-              <span>Provider</span>
-              <strong>{defaults?.model_provider ?? 'checking'}</strong>
-            </div>
-            <div>
-              <span>Rule</span>
-              <strong>{volumeMultiplier.toFixed(1)}x volume</strong>
-            </div>
-          </div>
+        <section className="metric-band" id="foundation">
+          <StatusTile label="API" value={health?.ok ? 'Online' : 'Checking'} tone={health?.ok ? 'good' : 'muted'} />
+          <StatusTile label="Environment" value={health?.env ?? 'loading'} />
+          <StatusTile label="Deployment" value="VPS Ready" tone="steady" />
         </section>
 
-        <section className="results-layout" id="signals">
-          <div className="tool-pane results-pane">
+        <section className="dashboard-grid">
+          <article className="tool-pane overview-pane">
             <div className="pane-title">
-              <BarChartOutlined />
-              <h2>Signals</h2>
+              <ApiOutlined />
+              <h2>{overview?.name ?? 'Jay AI Platform'}</h2>
             </div>
-            {error && <div className="error-box">{error}</div>}
-            {!result && !error && <div className="empty-state">No scan result yet.</div>}
-            {result && (
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Symbol</th>
-                      <th>Close</th>
-                      <th>Change</th>
-                      <th>Volume</th>
-                      <th>Ratio</th>
-                      <th>RSI</th>
-                      <th>MACD Hist</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.candidates.map((candidate) => (
-                      <SignalRow candidate={candidate} key={candidate.symbol} />
-                    ))}
-                  </tbody>
-                </table>
-                {result.candidates.length === 0 && <div className="empty-state">No candidates passed.</div>}
-              </div>
-            )}
-          </div>
+            <div className="pane-body">
+              <span className="state-chip">{overview?.status ?? 'loading'}</span>
+              <p>{overview?.message ?? 'Loading platform overview.'}</p>
+            </div>
+          </article>
 
-          <div className="tool-pane analysis-pane">
+          <article className="tool-pane module-pane" id="modules">
             <div className="pane-title">
-              <BellOutlined />
-              <h2>AI Analysis</h2>
+              <AppstoreOutlined />
+              <h2>Custom Modules</h2>
             </div>
-            <pre>{result?.analysis ?? 'Analysis will appear after a scan.'}</pre>
-            {result?.errors.length ? (
-              <div className="error-list">
-                {result.errors.map((item) => (
-                  <div key={item.symbol}>
-                    <strong>{item.symbol}</strong> {item.message}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
+            <div className="pane-body">
+              {overview?.modules.length ? (
+                <ul className="module-list">
+                  {overview.modules.map((module) => (
+                    <li key={module}>{module}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="empty-state">No custom modules yet.</div>
+              )}
+            </div>
+          </article>
         </section>
 
-        <section className="phase-list" id="server">
+        <section className="phase-list" id="roadmap">
           {roadmap.map((phase) => (
             <article className="phase-card" key={phase.id}>
               <div className="phase-head">
@@ -222,7 +134,10 @@ export default function App() {
               </div>
               <ul>
                 {phase.items.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li key={item}>
+                    <CheckCircleOutlined />
+                    <span>{item}</span>
+                  </li>
                 ))}
               </ul>
             </article>
@@ -233,33 +148,19 @@ export default function App() {
   );
 }
 
-function SignalRow({ candidate }: { candidate: StockCandidate }) {
+function StatusTile({
+  label,
+  value,
+  tone = 'muted',
+}: {
+  label: string;
+  value: string;
+  tone?: 'good' | 'muted' | 'steady';
+}) {
   return (
-    <tr>
-      <td>{candidate.symbol}</td>
-      <td>{formatNumber(candidate.close)}</td>
-      <td className={candidate.change_percent >= 0 ? 'positive' : 'negative'}>
-        {candidate.change_percent.toFixed(2)}%
-      </td>
-      <td>{candidate.volume.toLocaleString()}</td>
-      <td>{candidate.volume_ratio.toFixed(2)}x</td>
-      <td>{formatNullable(candidate.indicators.rsi)}</td>
-      <td>{formatNullable(candidate.indicators.macd_histogram)}</td>
-    </tr>
+    <div className={`status-tile ${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
   );
-}
-
-function parseTickers(value: string): string[] {
-  return value
-    .split(/[\s,]+/)
-    .map((ticker) => ticker.trim().toUpperCase())
-    .filter(Boolean);
-}
-
-function formatNullable(value: number | null): string {
-  return value === null ? 'n/a' : value.toFixed(2);
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 }

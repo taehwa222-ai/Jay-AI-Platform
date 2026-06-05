@@ -3,33 +3,43 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/api/v1/platform", tags=["platform"])
 
 
+@router.get("/overview")
+async def overview() -> dict[str, object]:
+    return {
+        "name": "Jay AI Platform",
+        "status": "ready",
+        "message": "Clean platform foundation is ready for new custom features.",
+        "modules": [],
+    }
+
+
 @router.get("/roadmap")
 async def roadmap() -> dict[str, object]:
     return {
         "phases": [
             {
-                "id": "mvp",
-                "title": "Stock Recommender MVP",
+                "id": "foundation",
+                "title": "Platform Foundation",
                 "status": "active",
-                "items": ["FastAPI API", "stock scan", "volume filter", "RSI/MACD", "web result"],
+                "items": ["FastAPI API", "React dashboard", "Docker deployment", "VPS scripts"],
             },
             {
-                "id": "alerts",
-                "title": "Alert Automation",
+                "id": "custom",
+                "title": "Custom Features",
                 "status": "next",
-                "items": ["scheduled runs", "watchlists", "email/webhook alerts", "alert logs"],
-            },
-            {
-                "id": "portfolio",
-                "title": "Portfolio Rules",
-                "status": "planned",
-                "items": ["risk limits", "position sizing", "excluded symbols", "backtesting"],
+                "items": ["define feature scope", "add data model", "build API", "build UI"],
             },
             {
                 "id": "operations",
                 "title": "Operations",
                 "status": "planned",
-                "items": ["auth", "logs", "database", "cloud deployment"],
+                "items": ["auth", "database", "logs", "backups"],
+            },
+            {
+                "id": "release",
+                "title": "Release",
+                "status": "planned",
+                "items": ["domain", "HTTPS", "monitoring", "deployment checklist"],
             },
         ]
     }

@@ -15,10 +15,10 @@ catch {
 }
 
 Write-Host ""
-Write-Host "Recommendation defaults"
+Write-Host "Platform overview"
 try {
-    Invoke-RestMethod http://localhost/api/v1/recommendations/defaults
+    Invoke-RestMethod http://localhost/api/v1/platform/overview
 }
 catch {
-    Write-Host "Defaults check failed: $($_.Exception.Message)"
+    Write-Host "Overview check failed: $($_.Exception.Message)"
 }

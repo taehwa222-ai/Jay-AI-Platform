@@ -1,41 +1,34 @@
 # Start Here
 
-The first goal is one working vertical slice:
+The first goal is now a clean working platform foundation:
 
 ```text
-Ticker input -> FastAPI route -> yfinance data -> custom filter -> RSI/MACD
--> OpenAI analysis -> web result
+React dashboard -> FastAPI route -> platform status -> VPS deployment
 ```
 
 ## Architecture
 
 ```text
 backend/app/main.py
-  routers/stocks.py
-    services/recommender.py
-      services/stock_data.py
-      services/indicators.py
-      services/openai_analyzer.py
+  routers/health.py
+  routers/platform.py
+frontend/src/App.tsx
+scripts/deploy-ubuntu.sh
 ```
 
-## Where To Customize
+## Where To Add New Features
 
-1. `backend/app/services/recommender.py`
-
-   Change the screening rule in `build_candidate()`.
-
-2. `backend/app/services/indicators.py`
-
-   Add Bollinger Bands, moving averages, ATR, or your own indicator.
-
-3. `backend/app/services/openai_analyzer.py`
-
-   Change `build_prompt()` to control what the AI sees and how it ranks candidates.
+1. Add a router in `backend/app/routers`.
+2. Add request and response types in `backend/app/schemas` when the route needs structured payloads.
+3. Add business logic in `backend/app/services`.
+4. Add React API calls in `frontend/src/api.ts`.
+5. Add UI state and views in `frontend/src/App.tsx` or new components.
+6. Add tests in `backend/tests`.
 
 ## Next Build Steps
 
-- Add a watchlist table in PostgreSQL.
-- Save every scan result.
-- Add a scheduler for market close scans.
-- Add auth before exposing the server.
-- Add backtesting before trusting a new rule.
+- Decide the first custom module.
+- Define the module input and output.
+- Build one backend route.
+- Add one matching frontend screen.
+- Add storage, auth, scheduling, and monitoring only after the first module works.

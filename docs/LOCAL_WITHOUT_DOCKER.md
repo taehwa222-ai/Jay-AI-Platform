@@ -22,8 +22,8 @@ This creates `.venv`, installs Python packages, and runs `npm install` for the
 frontend.
 
 When the dev server starts, it writes `.env.local` with local-only settings such
-as `APP_ENV=development`. Keep real API keys in `.env`; `.env.local` is ignored
-by Git.
+as `APP_ENV=development`. Keep real service keys in `.env`; `.env.local` is
+ignored by Git.
 
 ## 2. Start The App
 

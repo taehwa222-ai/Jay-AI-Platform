@@ -22,6 +22,7 @@ Expected URLs:
 http://localhost
 http://localhost/docs
 http://localhost/api/v1/health
+http://localhost/api/v1/platform/overview
 ```
 
 ## Stop
@@ -30,7 +31,7 @@ http://localhost/api/v1/health
 powershell.exe -ExecutionPolicy Bypass -File scripts\stop-server.ps1
 ```
 
-## Configure Keys
+## Configure Production Environment
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\configure-production.ps1

@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This is the recommended first deployment path:
+This is the first deployment path:
 
 ```text
 GitHub repository -> Ubuntu VPS -> Docker Compose -> Nginx container -> FastAPI backend
@@ -32,12 +32,10 @@ bash scripts/bootstrap-ubuntu.sh
 bash scripts/configure-ubuntu-env.sh
 ```
 
-The script writes `.env` and asks for these values:
+The script writes `.env` and asks for:
 
 ```text
-OPENAI_API_KEY=
-OPENAI_MODEL=
-CORS_ORIGINS=http://YOUR_DOMAIN
+CORS_ORIGINS=http://YOUR_SERVER_IP
 ```
 
 ## 4. Start The App
@@ -79,6 +77,12 @@ Health check:
 curl http://YOUR_SERVER_IP/api/v1/health
 ```
 
+Platform overview:
+
+```bash
+curl http://YOUR_SERVER_IP/api/v1/platform/overview
+```
+
 ## 6. Update After New Code
 
 ```bash
@@ -95,5 +99,5 @@ bash scripts/deploy-ubuntu.sh
 ## 7. HTTPS Later
 
 For the first version, plain HTTP is enough to verify the system. After that,
-put a reverse proxy such as Caddy or host Nginx in front of this app and issue
-Let's Encrypt certificates for your domain.
+point a domain to the server and add HTTPS through Caddy, Nginx, or a cloud
+proxy.

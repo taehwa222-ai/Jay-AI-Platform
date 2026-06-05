@@ -1,39 +1,32 @@
-# Jay Stock AI Server
+# Jay AI Platform
 
-FastAPI, OpenAI-compatible API, and `yfinance` based stock screening server.
+FastAPI, React, Docker Compose, and VPS deployment foundation for building a
+custom AI platform.
 
-This project uses a stable server template shape:
+The previous sample feature set has been removed. The project is now a clean
+base that you can extend with your own modules.
 
-- `routers`: HTTP endpoints
-- `services`: business logic
-- `schemas`: request and response contracts
-- `config`: environment variables
-- `frontend`: Vite React dashboard
+## Current Foundation
 
-The custom recommendation logic lives mainly in:
+- FastAPI backend with `/api/v1/health`
+- Platform overview route at `/api/v1/platform/overview`
+- Platform roadmap route at `/api/v1/platform/roadmap`
+- Vite React dashboard
+- Docker Compose deployment shape
+- Ubuntu VPS bootstrap and deploy scripts
+- Local no-Docker development scripts
 
-- `backend/app/services/recommender.py`
-- `backend/app/services/indicators.py`
-- `backend/app/services/openai_analyzer.py`
+## Project Shape
 
-## Current Custom Features
-
-- Volume spike filter: latest volume must be at least `volume_multiplier` times the previous candle.
-- RSI calculation is included in each candidate.
-- MACD, MACD signal, and MACD histogram are included in each candidate.
-- OpenAI prompt receives the filtered candidates plus RSI/MACD context.
-- If OpenAI is not configured, the server returns a local rule-based analysis so development still works.
-
-This server is a screening tool, not financial advice.
-
-## Start Order
-
-1. Make the backend run locally.
-2. Confirm `/api/v1/health` works.
-3. Run one recommendation scan without OpenAI.
-4. Add OpenAI credentials.
-5. Customize `build_candidate()` and `build_prompt()` for your own strategy.
-6. Add persistence, scheduling, auth, and deployment.
+```text
+backend/app/main.py          FastAPI app wiring
+backend/app/routers          HTTP routes
+backend/app/services         Future business logic
+backend/app/schemas          Future request/response contracts
+frontend/src                 React dashboard
+scripts                      Local and VPS operation scripts
+docs                         Beginner deployment notes
+```
 
 ## Backend
 
@@ -50,20 +43,16 @@ Health check:
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/health
 ```
 
-Run a scan:
+Platform overview:
 
 ```powershell
-Invoke-RestMethod `
-  -Method Post `
-  -Uri http://127.0.0.1:8000/api/v1/recommendations/run `
-  -ContentType "application/json" `
-  -Body '{"tickers":["AAPL","MSFT","NVDA"],"volume_multiplier":2.0,"period":"6mo","interval":"1d"}'
+Invoke-RestMethod http://127.0.0.1:8000/api/v1/platform/overview
 ```
 
-Smoke test with live `yfinance` data:
+Smoke test:
 
 ```powershell
-python scripts\smoke-recommendations.py
+python scripts\smoke-platform.py
 ```
 
 ## Frontend
@@ -109,14 +98,18 @@ powershell.exe -ExecutionPolicy Bypass -File scripts\stop-local-dev.ps1
 
 ## Environment
 
-Copy `.env.example` to `.env`.
+Copy `.env.example` to `.env` when you need to override local settings.
 
 ```text
-OPENAI_API_KEY=
-OPENAI_MODEL=
+APP_NAME=Jay AI Platform
+APP_ENV=development
+API_HOST=127.0.0.1
+API_PORT=8000
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
 
-`OPENAI_MODEL` can be any chat-completions-compatible model exposed by your configured `OPENAI_BASE_URL`.
+Keep real service keys out of GitHub, screenshots, chat messages, and commit
+history. `.env` is ignored by Git.
 
 ## Docker Deployment
 
@@ -154,7 +147,7 @@ Stop:
 powershell.exe -ExecutionPolicy Bypass -File scripts\stop-server.ps1
 ```
 
-Configure OpenAI key:
+Configure production `.env`:
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\configure-production.ps1
