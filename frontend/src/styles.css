@@ -9,6 +9,10 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -22,14 +26,17 @@ button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 252px minmax(0, 1fr);
   min-height: 100vh;
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  height: 100vh;
   padding: 20px;
   color: #f4f7fb;
   background: #17202d;
@@ -49,15 +56,19 @@ button {
   gap: 8px;
 }
 
-.nav-list a {
+.nav-list a,
+.hero-actions a {
   display: flex;
   align-items: center;
   gap: 10px;
   min-height: 42px;
   border-radius: 8px;
+  text-decoration: none;
+}
+
+.nav-list a {
   padding: 0 12px;
   color: #dbe5ef;
-  text-decoration: none;
 }
 
 .nav-list a:hover {
@@ -89,11 +100,17 @@ button {
   padding: 28px;
 }
 
-.topbar {
+.topbar,
+.section-title,
+.card-head,
+.phase-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+}
+
+.topbar {
   margin-bottom: 24px;
 }
 
@@ -107,7 +124,9 @@ button {
 h1,
 h2,
 h3,
-p {
+p,
+dl,
+dd {
   margin: 0;
 }
 
@@ -117,6 +136,10 @@ h1 {
 }
 
 h2 {
+  font-size: 21px;
+}
+
+h3 {
   font-size: 16px;
 }
 
@@ -138,7 +161,10 @@ h2 {
 }
 
 .metric-band,
-.dashboard-grid,
+.module-grid,
+.access-grid,
+.stock-grid,
+.idea-grid,
 .phase-list {
   display: grid;
   gap: 18px;
@@ -150,7 +176,12 @@ h2 {
 }
 
 .status-tile,
+.hero-panel,
 .tool-pane,
+.module-card,
+.manual-card,
+.stock-card,
+.idea-card,
 .phase-card {
   border: 1px solid #d7dde5;
   border-radius: 8px;
@@ -182,9 +213,83 @@ h2 {
   color: #8a5b15;
 }
 
-.dashboard-grid {
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  margin-bottom: 18px;
+.hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 28px;
+  padding: 22px;
+}
+
+.hero-panel h2 {
+  margin-top: 10px;
+  font-size: 26px;
+}
+
+.hero-panel p {
+  margin-top: 8px;
+  color: #536273;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.hero-actions a {
+  padding: 0 14px;
+  color: #ffffff;
+  background: #334155;
+}
+
+.hero-actions a:first-child {
+  background: #2f7d6b;
+}
+
+.state-chip,
+.card-head span,
+.phase-head span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.state-chip {
+  color: #195b42;
+  background: #dff3ea;
+}
+
+.card-head span,
+.phase-head span {
+  color: #563d17;
+  background: #f5dfb4;
+}
+
+.section-block {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  margin-bottom: 14px;
+}
+
+.section-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #2f7d6b;
+}
+
+.access-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .pane-title {
@@ -203,69 +308,115 @@ h2 {
   line-height: 1.55;
 }
 
-.state-chip {
-  width: fit-content;
-  border-radius: 999px;
-  padding: 4px 10px;
-  color: #195b42;
-  background: #dff3ea;
+.module-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.module-card,
+.stock-card,
+.idea-card,
+.phase-card {
+  padding: 16px;
+}
+
+.module-card p,
+.stock-card p {
+  margin-top: 12px;
+  color: #536273;
+  line-height: 1.55;
+}
+
+.module-card ul,
+.phase-card ul,
+.check-list {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0 0;
+  padding: 0;
+  color: #536273;
+  list-style: none;
+}
+
+.module-card li,
+.check-list li {
+  position: relative;
+  padding-left: 18px;
+}
+
+.module-card li::before,
+.check-list li::before {
+  position: absolute;
+  left: 0;
+  color: #2f7d6b;
+  content: "•";
+}
+
+.manual-list {
+  display: grid;
+  gap: 14px;
+}
+
+.manual-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1fr) minmax(180px, 0.6fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.manual-card p {
+  margin-top: 8px;
+  color: #536273;
+  line-height: 1.55;
+}
+
+.command-list {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+code {
+  display: block;
+  overflow-wrap: anywhere;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #e6edf7;
+  background: #17202d;
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.stock-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.idea-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.idea-card dl {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  color: #536273;
+}
+
+.idea-card dt {
+  color: #18212f;
   font-size: 12px;
   font-weight: 700;
-  text-transform: uppercase;
 }
 
-.empty-state {
-  border-radius: 8px;
-  padding: 14px;
-  color: #667588;
-  background: #f3f6f9;
-}
-
-.error-box {
-  margin-bottom: 18px;
-  border-radius: 8px;
-  padding: 12px 14px;
-  color: #7c2d2d;
-  background: #f6dada;
-}
-
-.module-list {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding-left: 18px;
+.idea-card dd {
+  line-height: 1.55;
 }
 
 .phase-list {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.phase-card {
-  padding: 16px;
-}
-
-.phase-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.phase-head span {
-  border-radius: 999px;
-  padding: 4px 9px;
-  color: #563d17;
-  background: #f5dfb4;
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .phase-card ul {
-  display: grid;
-  gap: 10px;
-  margin: 14px 0 0;
-  padding: 0;
-  color: #536273;
   list-style: none;
 }
 
@@ -278,12 +429,25 @@ h2 {
 
 .phase-card li svg {
   margin-top: 3px;
-  color: #378f92;
+  color: #2f7d6b;
 }
 
-@media (max-width: 1050px) {
-  .dashboard-grid,
+.error-box {
+  margin-bottom: 18px;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #7c2d2d;
+  background: #f6dada;
+}
+
+@media (max-width: 1180px) {
+  .module-grid,
+  .stock-grid,
   .phase-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manual-card {
     grid-template-columns: 1fr;
   }
 }
@@ -295,10 +459,10 @@ h2 {
 
   .sidebar {
     position: sticky;
-    top: 0;
     z-index: 2;
     flex-direction: row;
     align-items: center;
+    height: auto;
     padding: 12px;
   }
 
@@ -315,7 +479,17 @@ h2 {
     padding: 18px;
   }
 
-  .metric-band {
+  .metric-band,
+  .hero-panel,
+  .access-grid,
+  .module-grid,
+  .stock-grid,
+  .idea-grid,
+  .phase-list {
     grid-template-columns: 1fr;
+  }
+
+  .hero-actions {
+    flex-wrap: wrap;
   }
 }

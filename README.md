@@ -1,7 +1,7 @@
 # Jay AI Platform
 
-FastAPI, React, Docker Compose, and VPS deployment foundation for building a
-custom AI platform.
+FastAPI, React, Docker Compose, and VPS deployment foundation for building an
+AI revenue platform.
 
 The previous sample feature set has been removed. The project is now a clean
 base that you can extend with your own modules.
@@ -9,12 +9,18 @@ base that you can extend with your own modules.
 ## Current Foundation
 
 - FastAPI backend with `/api/v1/health`
-- Platform overview route at `/api/v1/platform/overview`
-- Platform roadmap route at `/api/v1/platform/roadmap`
-- Vite React dashboard
+- Platform overview, module, manual, roadmap, and monetization routes
+- Vite React operation dashboard
 - Docker Compose deployment shape
 - Ubuntu VPS bootstrap and deploy scripts
 - Local no-Docker development scripts
+
+## Product Direction
+
+- Build member signup, login, and role-based admin pages first.
+- Provide an in-app manual for local development, GitHub flow, and VPS deployment.
+- Add Korea stock analysis and portfolio management as a later module.
+- Explore revenue models such as subscriptions, paid reports, B2B automation, and education content.
 
 ## Project Shape
 
