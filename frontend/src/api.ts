@@ -1,18 +1,23 @@
 import type {
+  AuthResponse,
   HealthStatus,
+  LoginPayload,
   ManualSection,
   MonetizationIdea,
   PlatformModule,
   PlatformOverview,
   RoadmapPhase,
+  SignupPayload,
+  UserAccount,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, token?: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -52,4 +57,26 @@ export async function getMonetizationIdeas(): Promise<MonetizationIdea[]> {
 export async function getRoadmap(): Promise<RoadmapPhase[]> {
   const response = await request<{ phases: RoadmapPhase[] }>('/api/v1/platform/roadmap');
   return response.phases;
+}
+
+export function signup(payload: SignupPayload): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/v1/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function login(payload: LoginPayload): Promise<AuthResponse> {
+  return request<AuthResponse>('/api/v1/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getMe(token: string): Promise<UserAccount> {
+  return request<UserAccount>('/api/v1/auth/me', undefined, token);
+}
+
+export function getAdminUsers(token: string): Promise<UserAccount[]> {
+  return request<UserAccount[]>('/api/v1/admin/users', undefined, token);
 }

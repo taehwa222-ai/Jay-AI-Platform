@@ -42,6 +42,17 @@ http://localhost/api/v1/health
 http://localhost/api/v1/platform/overview
 ```
 
+## Member Data
+
+The app stores member accounts in SQLite:
+
+```text
+DATA_DIR/jay_ai_platform.db
+```
+
+In Docker/VPS deployment, `./data` is mounted into the backend container. Keep
+that folder when redeploying so accounts are preserved.
+
 ## Stop
 
 ```powershell

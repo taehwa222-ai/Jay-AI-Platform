@@ -24,6 +24,31 @@ button {
   cursor: pointer;
 }
 
+input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #cfd7e2;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #18212f;
+  background: #ffffff;
+  font: inherit;
+}
+
+input:focus {
+  border-color: #2f7d6b;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(47, 125, 107, 0.14);
+}
+
+label {
+  display: grid;
+  gap: 7px;
+  color: #536273;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 252px minmax(0, 1fr);
@@ -160,6 +185,36 @@ h3 {
   opacity: 0.65;
 }
 
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border-radius: 8px;
+  padding: 0 14px;
+  font-weight: 700;
+}
+
+.primary-button {
+  border: 0;
+  color: #ffffff;
+  background: #2f7d6b;
+}
+
+.secondary-button {
+  border: 1px solid #cfd7e2;
+  color: #263445;
+  background: #ffffff;
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .metric-band,
 .module-grid,
 .access-grid,
@@ -248,6 +303,7 @@ h3 {
 }
 
 .state-chip,
+.role-chip,
 .card-head span,
 .phase-head span {
   width: fit-content;
@@ -261,6 +317,11 @@ h3 {
 .state-chip {
   color: #195b42;
   background: #dff3ea;
+}
+
+.role-chip {
+  color: #1d4d77;
+  background: #dceefc;
 }
 
 .card-head span,
@@ -306,6 +367,97 @@ h3 {
   padding: 18px;
   color: #536273;
   line-height: 1.55;
+}
+
+.auth-form,
+.account-panel,
+.admin-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid #cfd7e2;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented-control button {
+  min-height: 40px;
+  border: 0;
+  color: #536273;
+  background: #ffffff;
+}
+
+.segmented-control button.active {
+  color: #ffffff;
+  background: #334155;
+}
+
+.inline-message {
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #305b4e;
+  background: #e4f3ec;
+  font-size: 13px;
+}
+
+.empty-state {
+  border-radius: 8px;
+  padding: 14px;
+  color: #667588;
+  background: #f3f6f9;
+}
+
+.account-panel {
+  align-items: start;
+}
+
+.account-panel h3 {
+  margin-top: 4px;
+}
+
+.account-panel p {
+  margin-top: 6px;
+}
+
+.admin-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.user-list {
+  display: grid;
+  gap: 10px;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #e4e9ef;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.user-row div {
+  display: grid;
+  gap: 3px;
+}
+
+.user-row span {
+  color: #697789;
+  font-size: 13px;
+}
+
+.user-row .role-chip {
+  color: #1d4d77;
 }
 
 .module-grid {

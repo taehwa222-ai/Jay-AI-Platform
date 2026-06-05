@@ -22,6 +22,14 @@ base that you can extend with your own modules.
 - Add Korea stock analysis and portfolio management as a later module.
 - Explore revenue models such as subscriptions, paid reports, B2B automation, and education content.
 
+## Member Access
+
+- The first signed-up user automatically becomes `admin`.
+- Later signed-up users become `member`.
+- Admin users can open the member list in the dashboard.
+- User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.
+- In Docker/VPS deployment, `./data` is mounted into the backend container so user data survives rebuilds.
+
 ## Project Shape
 
 ```text
@@ -112,6 +120,9 @@ APP_ENV=development
 API_HOST=127.0.0.1
 API_PORT=8000
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+DATA_DIR=backend/data
+AUTH_SECRET_KEY=change-this-local-secret
+ACCESS_TOKEN_MINUTES=720
 ```
 
 Keep real service keys out of GitHub, screenshots, chat messages, and commit

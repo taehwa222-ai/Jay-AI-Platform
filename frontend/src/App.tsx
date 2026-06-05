@@ -8,22 +8,37 @@ import {
   CrownOutlined,
   DeploymentUnitOutlined,
   DollarOutlined,
+  LoginOutlined,
   LockOutlined,
+  LogoutOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
   TeamOutlined,
   UserAddOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
-import { getHealth, getManual, getModules, getMonetizationIdeas, getOverview, getRoadmap } from './api';
+import { FormEvent, useEffect, useState } from 'react';
+import {
+  getAdminUsers,
+  getHealth,
+  getManual,
+  getMe,
+  getModules,
+  getMonetizationIdeas,
+  getOverview,
+  getRoadmap,
+  login,
+  signup,
+} from './api';
 import type {
+  AuthResponse,
   HealthStatus,
   ManualSection,
   MonetizationIdea,
   PlatformModule,
   PlatformOverview,
   RoadmapPhase,
+  UserAccount,
 } from './types';
 
 const stockPlan = [
@@ -45,6 +60,8 @@ const stockPlan = [
   },
 ];
 
+const TOKEN_STORAGE_KEY = 'jay-ai-platform-token';
+
 export default function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
@@ -52,12 +69,27 @@ export default function App() {
   const [manual, setManual] = useState<ManualSection[]>([]);
   const [ideas, setIdeas] = useState<MonetizationIdea[]>([]);
   const [roadmap, setRoadmap] = useState<RoadmapPhase[]>([]);
+  const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_STORAGE_KEY) ?? '');
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [adminUsers, setAdminUsers] = useState<UserAccount[]>([]);
+  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void refreshState();
   }, []);
+
+  useEffect(() => {
+    if (token) {
+      void restoreSession(token);
+    }
+  }, [token]);
 
   async function refreshState() {
     setLoading(true);
@@ -84,6 +116,64 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function restoreSession(savedToken: string) {
+    try {
+      const user = await getMe(savedToken);
+      setCurrentUser(user);
+      if (user.role === 'admin') {
+        await loadAdminUsers(savedToken);
+      }
+    } catch {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      setToken('');
+      setCurrentUser(null);
+      setAdminUsers([]);
+    }
+  }
+
+  async function handleAuthSubmit(event: FormEvent) {
+    event.preventDefault();
+    setAuthLoading(true);
+    setAuthMessage(null);
+
+    try {
+      const response =
+        authMode === 'signup'
+          ? await signup({ email, password, name })
+          : await login({ email, password });
+      applyAuth(response);
+      setPassword('');
+      setAuthMessage(authMode === 'signup' ? '회원가입이 완료되었습니다.' : '로그인되었습니다.');
+    } catch (requestError) {
+      setAuthMessage(requestError instanceof Error ? requestError.message : 'Authentication failed.');
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  function applyAuth(response: AuthResponse) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token);
+    setToken(response.access_token);
+    setCurrentUser(response.user);
+    if (response.user.role === 'admin') {
+      void loadAdminUsers(response.access_token);
+    }
+  }
+
+  async function loadAdminUsers(activeToken = token) {
+    if (!activeToken) return;
+    const users = await getAdminUsers(activeToken);
+    setAdminUsers(users);
+  }
+
+  function logout() {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    setToken('');
+    setCurrentUser(null);
+    setAdminUsers([]);
+    setAuthMessage('로그아웃되었습니다.');
   }
 
   return (
@@ -169,32 +259,119 @@ export default function App() {
           <div className="access-grid">
             <article className="tool-pane">
               <div className="pane-title">
-                <UserAddOutlined />
-                <h3>회원 기능</h3>
+                {currentUser ? <TeamOutlined /> : <UserAddOutlined />}
+                <h3>{currentUser ? '내 계정' : '회원 인증'}</h3>
               </div>
               <div className="pane-body">
-                <p>다음 개발 단계에서 실제 회원가입, 로그인, 비밀번호 재설정, 세션 관리를 붙입니다.</p>
-                <ul className="check-list">
-                  <li>이메일 회원가입</li>
-                  <li>로그인/로그아웃</li>
-                  <li>JWT 또는 세션 인증</li>
-                  <li>일반 회원과 관리자 권한 분리</li>
-                </ul>
+                {currentUser ? (
+                  <div className="account-panel">
+                    <div>
+                      <span className="eyebrow">Signed In</span>
+                      <h3>{currentUser.name}</h3>
+                      <p>{currentUser.email}</p>
+                    </div>
+                    <span className="role-chip">{currentUser.role}</span>
+                    <button className="secondary-button" onClick={logout} type="button">
+                      <LogoutOutlined />
+                      로그아웃
+                    </button>
+                  </div>
+                ) : (
+                  <form className="auth-form" onSubmit={(event) => void handleAuthSubmit(event)}>
+                    <div className="segmented-control">
+                      <button
+                        className={authMode === 'signup' ? 'active' : ''}
+                        onClick={() => setAuthMode('signup')}
+                        type="button"
+                      >
+                        회원가입
+                      </button>
+                      <button
+                        className={authMode === 'login' ? 'active' : ''}
+                        onClick={() => setAuthMode('login')}
+                        type="button"
+                      >
+                        로그인
+                      </button>
+                    </div>
+                    {authMode === 'signup' && (
+                      <label>
+                        <span>이름</span>
+                        <input
+                          autoComplete="name"
+                          onChange={(event) => setName(event.target.value)}
+                          required
+                          value={name}
+                        />
+                      </label>
+                    )}
+                    <label>
+                      <span>이메일</span>
+                      <input
+                        autoComplete="email"
+                        onChange={(event) => setEmail(event.target.value)}
+                        required
+                        type="email"
+                        value={email}
+                      />
+                    </label>
+                    <label>
+                      <span>비밀번호</span>
+                      <input
+                        autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                        minLength={8}
+                        onChange={(event) => setPassword(event.target.value)}
+                        required
+                        type="password"
+                        value={password}
+                      />
+                    </label>
+                    <button className="primary-button" disabled={authLoading} type="submit">
+                      {authMode === 'signup' ? <UserAddOutlined /> : <LoginOutlined />}
+                      {authLoading ? '처리 중' : authMode === 'signup' ? '계정 만들기' : '로그인'}
+                    </button>
+                    {authMessage && <div className="inline-message">{authMessage}</div>}
+                  </form>
+                )}
               </div>
             </article>
             <article className="tool-pane">
               <div className="pane-title">
                 <CrownOutlined />
-                <h3>관리 기능</h3>
+                <h3>관리페이지</h3>
               </div>
               <div className="pane-body">
-                <p>운영자는 회원, 사용량, 권한, 기능 공개 여부, 공지사항을 관리하게 됩니다.</p>
-                <ul className="check-list">
-                  <li>회원 목록</li>
-                  <li>관리자 권한 설정</li>
-                  <li>기능별 사용량</li>
-                  <li>결제/구독 관리 준비</li>
-                </ul>
+                {currentUser?.role === 'admin' ? (
+                  <div className="admin-panel">
+                    <div className="admin-head">
+                      <p>현재 등록된 회원을 확인합니다. 첫 가입자는 자동으로 관리자입니다.</p>
+                      <button
+                        className="secondary-button"
+                        onClick={() => void loadAdminUsers()}
+                        type="button"
+                      >
+                        <ReloadOutlined />
+                        새로고침
+                      </button>
+                    </div>
+                    <div className="user-list">
+                      {adminUsers.map((user) => (
+                        <div className="user-row" key={user.id}>
+                          <div>
+                            <strong>{user.name}</strong>
+                            <span>{user.email}</span>
+                          </div>
+                          <span className="role-chip">{user.role}</span>
+                        </div>
+                      ))}
+                      {adminUsers.length === 0 && <div className="empty-state">회원 목록이 비어 있습니다.</div>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    관리자 계정으로 로그인하면 회원 목록과 운영 설정을 볼 수 있습니다.
+                  </div>
+                )}
               </div>
             </article>
           </div>
