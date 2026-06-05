@@ -2,6 +2,7 @@ param(
     [string] $ServerHost = $env:VPS_HOST,
     [string] $ServerUser = $env:VPS_USER,
     [string] $ProjectDir = $env:VPS_PROJECT_DIR,
+    [string] $IdentityFile = $env:VPS_SSH_KEY_PATH,
     [string] $Branch = "main",
     [string] $CommitMessage = "",
     [switch] $SkipTests,
@@ -60,9 +61,16 @@ if (-not $SkipPush) {
 
 $remote = "$ServerUser@$ServerHost"
 $remoteCommand = "cd '$ProjectDir' && git fetch origin $Branch && git checkout $Branch && git pull --ff-only origin $Branch && bash scripts/deploy-ubuntu.sh"
+$sshArgs = @("-o", "StrictHostKeyChecking=accept-new")
+
+if (-not [string]::IsNullOrWhiteSpace($IdentityFile)) {
+    $sshArgs += @("-i", $IdentityFile)
+}
+
+$sshArgs += @($remote, $remoteCommand)
 
 Write-Host "Deploying on VPS $remote..."
-ssh $remote $remoteCommand
+ssh @sshArgs
 
 Write-Host ""
 Write-Host "Checking public health endpoint..."

@@ -104,6 +104,14 @@ From your Windows project folder:
 powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
 ```
 
+If your SSH key is a local file:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
+  -ServerHost YOUR_SERVER_IP `
+  -IdentityFile C:\path\to\your-key.pem
+```
+
 This runs checks, pushes to GitHub, SSHes into the VPS, pulls the latest code,
 rebuilds containers, and checks `/api/v1/health`.
 

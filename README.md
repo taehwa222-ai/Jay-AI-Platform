@@ -138,6 +138,14 @@ pushes, deploys, and checks the public health endpoint:
 powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
 ```
 
+If your SSH key is a local file, pass it explicitly:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
+  -ServerHost YOUR_SERVER_IP `
+  -IdentityFile C:\path\to\your-key.pem
+```
+
 If there are local changes, pass a commit message:
 
 ```powershell

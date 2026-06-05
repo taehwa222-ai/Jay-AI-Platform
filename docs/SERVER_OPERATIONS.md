@@ -16,6 +16,14 @@ This builds the containers and starts the server.
 powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
 ```
 
+With a local SSH key file:
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
+  -ServerHost YOUR_SERVER_IP `
+  -IdentityFile C:\path\to\your-key.pem
+```
+
 This runs verification, pushes to GitHub, deploys on the VPS over SSH, and then
 checks the public health endpoint.
 
