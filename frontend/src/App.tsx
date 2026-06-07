@@ -23,7 +23,9 @@ import { FormEvent, useEffect, useState } from 'react';
 import {
   analyzeStock,
   createStockHolding,
+  createStockWatchlistItem,
   deleteStockHolding,
+  deleteStockWatchlistItem,
   getAdminUsers,
   getHealth,
   getManual,
@@ -34,6 +36,7 @@ import {
   getRoadmap,
   getStockHoldings,
   getStockMarketSnapshot,
+  getStockWatchlist,
   login,
   scanStocks,
   signup,
@@ -54,6 +57,7 @@ import type {
   StockHoldingPayload,
   StockMarketSnapshot,
   StockScanResult,
+  StockWatchlistItem,
   UserAccount,
 } from './types';
 
@@ -82,6 +86,12 @@ type AnalysisForm = {
   memo: string;
 };
 
+type WatchlistForm = {
+  ticker: string;
+  name: string;
+  note: string;
+};
+
 const emptyHoldingForm: HoldingForm = {
   ticker: '',
   name: '',
@@ -90,6 +100,12 @@ const emptyHoldingForm: HoldingForm = {
   current_price: '',
   investment_thesis: '',
   risk_memo: '',
+};
+
+const emptyWatchlistForm: WatchlistForm = {
+  ticker: '',
+  name: '',
+  note: '',
 };
 
 const defaultAnalysisForm: AnalysisForm = {
@@ -148,6 +164,11 @@ export default function App() {
   const [holdingLoading, setHoldingLoading] = useState(false);
   const [currentPriceDrafts, setCurrentPriceDrafts] = useState<Record<number, string>>({});
   const [savingCurrentPriceId, setSavingCurrentPriceId] = useState<number | null>(null);
+  const [watchlist, setWatchlist] = useState<StockWatchlistItem[]>([]);
+  const [watchlistForm, setWatchlistForm] = useState<WatchlistForm>(emptyWatchlistForm);
+  const [watchlistMessage, setWatchlistMessage] = useState<string | null>(null);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [deletingWatchlistId, setDeletingWatchlistId] = useState<number | null>(null);
   const [analysisForm, setAnalysisForm] = useState<AnalysisForm>(defaultAnalysisForm);
   const [analysisResult, setAnalysisResult] = useState<StockAnalysisResult | null>(null);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
@@ -215,6 +236,7 @@ export default function App() {
       const user = await getMe(savedToken);
       setCurrentUser(user);
       await loadStockHoldings(savedToken);
+      await loadStockWatchlist(savedToken);
       if (user.role === 'admin') {
         await loadAdminUsers(savedToken);
       }
@@ -224,6 +246,7 @@ export default function App() {
       setCurrentUser(null);
       setAdminUsers([]);
       setHoldings([]);
+      setWatchlist([]);
       setCurrentPriceDrafts({});
     }
   }
@@ -253,6 +276,7 @@ export default function App() {
     setToken(response.access_token);
     setCurrentUser(response.user);
     void loadStockHoldings(response.access_token);
+    void loadStockWatchlist(response.access_token);
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
     }
@@ -290,6 +314,12 @@ export default function App() {
     setCurrentPriceDrafts(
       Object.fromEntries(result.map((holding) => [holding.id, String(holding.current_price)])),
     );
+  }
+
+  async function loadStockWatchlist(activeToken = token) {
+    if (!activeToken) return;
+    const result = await getStockWatchlist(activeToken);
+    setWatchlist(result);
   }
 
   async function handleCreateHolding(event: FormEvent) {
@@ -348,6 +378,40 @@ export default function App() {
     }
   }
 
+  async function handleCreateWatchlistItem(event: FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    setWatchlistLoading(true);
+    setWatchlistMessage(null);
+
+    try {
+      const created = await createStockWatchlistItem(token, watchlistForm);
+      setWatchlist((items) => [created, ...items]);
+      setWatchlistForm(emptyWatchlistForm);
+      setWatchlistMessage('관심종목이 저장되었습니다.');
+    } catch (requestError) {
+      setWatchlistMessage(requestError instanceof Error ? requestError.message : 'Watchlist save failed.');
+    } finally {
+      setWatchlistLoading(false);
+    }
+  }
+
+  async function handleDeleteWatchlistItem(itemId: number) {
+    if (!token) return;
+    setDeletingWatchlistId(itemId);
+    setWatchlistMessage(null);
+
+    try {
+      await deleteStockWatchlistItem(token, itemId);
+      setWatchlist((items) => items.filter((item) => item.id !== itemId));
+      setWatchlistMessage('관심종목이 삭제되었습니다.');
+    } catch (requestError) {
+      setWatchlistMessage(requestError instanceof Error ? requestError.message : 'Watchlist delete failed.');
+    } finally {
+      setDeletingWatchlistId(null);
+    }
+  }
+
   async function handleAnalyzeStock(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
@@ -398,13 +462,28 @@ export default function App() {
 
   async function handleScanStocks(event: FormEvent) {
     event.preventDefault();
-    if (!token) return;
+    await runStockScan(parseTickerList(scanTickers), {}, scanMemo);
+  }
+
+  async function handleScanWatchlist() {
+    const tickers = watchlist.map((item) => item.ticker);
+    const nameMap = Object.fromEntries(
+      watchlist.map((item) => [item.ticker, item.name || item.ticker]),
+    );
+    setScanTickers(tickers.join(','));
+    await runStockScan(tickers, nameMap, scanMemo || '관심종목 전체 스캔');
+  }
+
+  async function runStockScan(tickers: string[], nameMap: Record<string, string>, memo: string) {
+    if (!token || tickers.length === 0) {
+      setScanMessage('스캔할 종목을 먼저 입력하거나 관심종목을 추가하세요.');
+      return;
+    }
     setScanLoading(true);
     setScanMessage(null);
 
     try {
-      const tickers = parseTickerList(scanTickers);
-      const result = await scanStocks(token, { tickers, memo: scanMemo });
+      const result = await scanStocks(token, { tickers, name_map: nameMap, memo });
       setScanResult(result);
       setScanMessage(`${result.candidates.length}개 후보를 점수순으로 정리했습니다.`);
     } catch (requestError) {
@@ -419,9 +498,11 @@ export default function App() {
     setToken('');
     setCurrentUser(null);
     setAdminUsers([]);
-    setHoldings([]);
-    setAnalysisResult(null);
-    setAuthMessage('로그아웃되었습니다.');
+      setHoldings([]);
+      setWatchlist([]);
+      setAnalysisResult(null);
+      setScanResult(null);
+      setAuthMessage('로그아웃되었습니다.');
   }
 
   return (
@@ -865,6 +946,87 @@ export default function App() {
                     )}
                   </div>
                   {holdingMessage && <div className="inline-message">{holdingMessage}</div>}
+                </div>
+              </article>
+
+              <article className="tool-pane stock-pane">
+                <div className="pane-title">
+                  <BookOutlined />
+                  <h3>관심종목</h3>
+                </div>
+                <div className="pane-body">
+                  <form className="watchlist-form" onSubmit={(event) => void handleCreateWatchlistItem(event)}>
+                    <label>
+                      <span>종목코드</span>
+                      <input
+                        onChange={(event) =>
+                          setWatchlistForm({ ...watchlistForm, ticker: event.target.value })
+                        }
+                        placeholder="005930"
+                        required
+                        value={watchlistForm.ticker}
+                      />
+                    </label>
+                    <label>
+                      <span>종목명</span>
+                      <input
+                        onChange={(event) =>
+                          setWatchlistForm({ ...watchlistForm, name: event.target.value })
+                        }
+                        placeholder="삼성전자"
+                        value={watchlistForm.name}
+                      />
+                    </label>
+                    <label className="wide-field">
+                      <span>메모</span>
+                      <input
+                        onChange={(event) =>
+                          setWatchlistForm({ ...watchlistForm, note: event.target.value })
+                        }
+                        placeholder="예: 거래량 급증 시 확인"
+                        value={watchlistForm.note}
+                      />
+                    </label>
+                    <button className="primary-button" disabled={watchlistLoading} type="submit">
+                      <PlusOutlined />
+                      관심종목 저장
+                    </button>
+                    <button
+                      className="secondary-button"
+                      disabled={scanLoading || watchlist.length === 0}
+                      onClick={() => void handleScanWatchlist()}
+                      type="button"
+                    >
+                      <BarChartOutlined />
+                      관심종목 전체 스캔
+                    </button>
+                  </form>
+
+                  <div className="watchlist-list">
+                    {watchlist.map((item) => (
+                      <div className="watchlist-row" key={item.id}>
+                        <div>
+                          <strong>
+                            {item.name || item.ticker} <span>{item.ticker}</span>
+                          </strong>
+                          {item.note && <p>{item.note}</p>}
+                        </div>
+                        <button
+                          className="icon-danger-button"
+                          disabled={deletingWatchlistId === item.id}
+                          onClick={() => void handleDeleteWatchlistItem(item.id)}
+                          title="삭제"
+                          type="button"
+                        >
+                          <DeleteOutlined />
+                        </button>
+                      </div>
+                    ))}
+                    {watchlist.length === 0 && (
+                      <div className="empty-state">아직 저장된 관심종목이 없습니다.</div>
+                    )}
+                  </div>
+                  {watchlistMessage && <div className="inline-message">{watchlistMessage}</div>}
                 </div>
               </article>
 

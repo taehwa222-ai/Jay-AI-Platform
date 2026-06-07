@@ -20,6 +20,9 @@ from app.schemas.stocks import (
     StockScanFailure,
     StockScanRequest,
     StockScanResponse,
+    StockWatchlistCreateRequest,
+    StockWatchlistItemPublic,
+    StockWatchlistUpdateRequest,
 )
 from app.services.auth import User
 
@@ -73,6 +76,27 @@ class MarketCandle:
     volume: int
 
 
+@dataclass(frozen=True)
+class StockWatchlistItem:
+    id: int
+    user_id: int
+    ticker: str
+    name: str
+    note: str
+    created_at: str
+    updated_at: str
+
+    def public(self) -> StockWatchlistItemPublic:
+        return StockWatchlistItemPublic(
+            id=self.id,
+            ticker=self.ticker,
+            name=self.name,
+            note=self.note,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
+
+
 class StockService:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -102,6 +126,25 @@ class StockService:
                 """
                 CREATE INDEX IF NOT EXISTS idx_stock_holdings_user
                 ON stock_holdings(user_id, ticker)
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS stock_watchlist_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    ticker TEXT NOT NULL,
+                    name TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_watchlist_user_ticker
+                ON stock_watchlist_items(user_id, ticker)
                 """
             )
 
@@ -204,6 +247,95 @@ class StockService:
             conn.execute(
                 "DELETE FROM stock_holdings WHERE id = ? AND user_id = ?",
                 (holding_id, user.id),
+            )
+
+    def list_watchlist(self, user: User) -> list[StockWatchlistItemPublic]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM stock_watchlist_items
+                WHERE user_id = ?
+                ORDER BY updated_at DESC, id DESC
+                """,
+                (user.id,),
+            ).fetchall()
+        return [row_to_watchlist_item(row).public() for row in rows]
+
+    def create_watchlist_item(
+        self,
+        user: User,
+        payload: StockWatchlistCreateRequest,
+    ) -> StockWatchlistItemPublic:
+        now = now_iso()
+        with self.connect() as conn:
+            try:
+                cursor = conn.execute(
+                    """
+                    INSERT INTO stock_watchlist_items (
+                        user_id, ticker, name, note, created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (user.id, payload.ticker, payload.name, payload.note, now, now),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Ticker is already in your watchlist.",
+                ) from exc
+            item = self.get_watchlist_item(cursor.lastrowid, user.id, conn)
+        return item.public()
+
+    def update_watchlist_item(
+        self,
+        item_id: int,
+        user: User,
+        payload: StockWatchlistUpdateRequest,
+    ) -> StockWatchlistItemPublic:
+        update_data = payload.model_dump(exclude_unset=True)
+        if not update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No update fields provided.",
+            )
+
+        with self.connect() as conn:
+            current = self.get_watchlist_item(item_id, user.id, conn)
+            values = {
+                "ticker": update_data.get("ticker", current.ticker),
+                "name": update_data.get("name", current.name),
+                "note": update_data.get("note", current.note),
+                "updated_at": now_iso(),
+                "id": item_id,
+                "user_id": user.id,
+            }
+            try:
+                conn.execute(
+                    """
+                    UPDATE stock_watchlist_items
+                    SET ticker = :ticker,
+                        name = :name,
+                        note = :note,
+                        updated_at = :updated_at
+                    WHERE id = :id AND user_id = :user_id
+                    """,
+                    values,
+                )
+            except sqlite3.IntegrityError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Ticker is already in your watchlist.",
+                ) from exc
+            updated = self.get_watchlist_item(item_id, user.id, conn)
+        return updated.public()
+
+    def delete_watchlist_item(self, item_id: int, user: User) -> None:
+        with self.connect() as conn:
+            self.get_watchlist_item(item_id, user.id, conn)
+            conn.execute(
+                "DELETE FROM stock_watchlist_items WHERE id = ? AND user_id = ?",
+                (item_id, user.id),
             )
 
     async def analyze(self, payload: StockAnalysisRequest) -> StockAnalysisResponse:
@@ -334,6 +466,27 @@ class StockService:
                 detail="Stock holding not found.",
             )
         return row_to_holding(row)
+
+    def get_watchlist_item(
+        self,
+        item_id: int,
+        user_id: int,
+        conn: sqlite3.Connection,
+    ) -> StockWatchlistItem:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM stock_watchlist_items
+            WHERE id = ? AND user_id = ?
+            """,
+            (item_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Watchlist item not found.",
+            )
+        return row_to_watchlist_item(row)
 
     async def build_ai_summary(
         self,
@@ -604,6 +757,18 @@ def row_to_holding(row: sqlite3.Row) -> StockHolding:
         current_price=float(row["current_price"]),
         investment_thesis=str(row["investment_thesis"]),
         risk_memo=str(row["risk_memo"]),
+        created_at=str(row["created_at"]),
+        updated_at=str(row["updated_at"]),
+    )
+
+
+def row_to_watchlist_item(row: sqlite3.Row) -> StockWatchlistItem:
+    return StockWatchlistItem(
+        id=int(row["id"]),
+        user_id=int(row["user_id"]),
+        ticker=str(row["ticker"]),
+        name=str(row["name"]),
+        note=str(row["note"]),
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
     )

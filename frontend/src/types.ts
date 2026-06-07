@@ -102,6 +102,21 @@ export type StockHoldingPayload = {
   risk_memo?: string;
 };
 
+export type StockWatchlistItem = {
+  id: number;
+  ticker: string;
+  name: string;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockWatchlistPayload = {
+  ticker: string;
+  name?: string;
+  note?: string;
+};
+
 export type StockAnalysisPayload = {
   ticker: string;
   name: string;

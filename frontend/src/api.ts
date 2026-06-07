@@ -16,6 +16,8 @@ import type {
   StockMarketSnapshot,
   StockScanPayload,
   StockScanResult,
+  StockWatchlistItem,
+  StockWatchlistPayload,
   UserAccount,
 } from './types';
 
@@ -111,6 +113,34 @@ export function updateAdminUser(
 
 export function getStockHoldings(token: string): Promise<StockHolding[]> {
   return request<StockHolding[]>('/api/v1/stocks/holdings', undefined, token);
+}
+
+export function getStockWatchlist(token: string): Promise<StockWatchlistItem[]> {
+  return request<StockWatchlistItem[]>('/api/v1/stocks/watchlist', undefined, token);
+}
+
+export function createStockWatchlistItem(
+  token: string,
+  payload: StockWatchlistPayload,
+): Promise<StockWatchlistItem> {
+  return request<StockWatchlistItem>(
+    '/api/v1/stocks/watchlist',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function deleteStockWatchlistItem(token: string, itemId: number): Promise<void> {
+  await request<void>(
+    `/api/v1/stocks/watchlist/${itemId}`,
+    {
+      method: 'DELETE',
+    },
+    token,
+  );
 }
 
 export function createStockHolding(

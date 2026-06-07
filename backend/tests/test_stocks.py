@@ -26,6 +26,13 @@ def test_holdings_require_login():
     assert response.status_code == 401
 
 
+def test_watchlist_requires_login():
+    with TestClient(app) as client:
+        response = client.get("/api/v1/stocks/watchlist")
+
+    assert response.status_code == 401
+
+
 def test_user_can_create_update_list_and_delete_holding():
     with TestClient(app) as client:
         token = signup(client)
@@ -65,6 +72,41 @@ def test_user_can_create_update_list_and_delete_holding():
     assert empty.json() == []
 
 
+def test_user_can_manage_watchlist_and_duplicates_are_rejected():
+    with TestClient(app) as client:
+        token = signup(client)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        created = client.post(
+            "/api/v1/stocks/watchlist",
+            headers=headers,
+            json={"ticker": "005930", "name": "삼성전자", "note": "반도체 대표주"},
+        )
+        duplicate = client.post(
+            "/api/v1/stocks/watchlist",
+            headers=headers,
+            json={"ticker": "005930", "name": "삼성전자"},
+        )
+        item_id = created.json()["id"]
+        updated = client.patch(
+            f"/api/v1/stocks/watchlist/{item_id}",
+            headers=headers,
+            json={"note": "실적 발표 전 체크"},
+        )
+        items = client.get("/api/v1/stocks/watchlist", headers=headers)
+        deleted = client.delete(f"/api/v1/stocks/watchlist/{item_id}", headers=headers)
+        empty = client.get("/api/v1/stocks/watchlist", headers=headers)
+
+    assert created.status_code == 201
+    assert created.json()["ticker"] == "005930"
+    assert duplicate.status_code == 409
+    assert updated.status_code == 200
+    assert updated.json()["note"] == "실적 발표 전 체크"
+    assert len(items.json()) == 1
+    assert deleted.status_code == 204
+    assert empty.json() == []
+
+
 def test_user_cannot_update_another_users_holding():
     with TestClient(app) as client:
         owner_token = signup(client, "owner@example.com")
@@ -91,6 +133,30 @@ def test_user_cannot_update_another_users_holding():
         )
 
     assert response.status_code == 404
+
+
+def test_user_cannot_manage_another_users_watchlist_item():
+    with TestClient(app) as client:
+        owner_token = signup(client, "owner@example.com")
+        other_token = signup(client, "other@example.com")
+        owner_headers = {"Authorization": f"Bearer {owner_token}"}
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+
+        created = client.post(
+            "/api/v1/stocks/watchlist",
+            headers=owner_headers,
+            json={"ticker": "000660", "name": "SK하이닉스"},
+        )
+        item_id = created.json()["id"]
+        update = client.patch(
+            f"/api/v1/stocks/watchlist/{item_id}",
+            headers=other_headers,
+            json={"note": "다른 사용자 수정"},
+        )
+        delete = client.delete(f"/api/v1/stocks/watchlist/{item_id}", headers=other_headers)
+
+    assert update.status_code == 404
+    assert delete.status_code == 404
 
 
 def test_stock_analysis_returns_rule_based_report_without_openai_key():

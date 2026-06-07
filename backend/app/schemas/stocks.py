@@ -60,6 +60,47 @@ class StockHoldingPublic(BaseModel):
     updated_at: str
 
 
+class StockWatchlistCreateRequest(BaseModel):
+    ticker: str = Field(min_length=3, max_length=20)
+    name: str = Field(default="", max_length=80)
+    note: str = Field(default="", max_length=500)
+
+    @field_validator("ticker")
+    @classmethod
+    def normalize_ticker(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @field_validator("name", "note")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class StockWatchlistUpdateRequest(BaseModel):
+    ticker: str | None = Field(default=None, min_length=3, max_length=20)
+    name: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=500)
+
+    @field_validator("ticker")
+    @classmethod
+    def normalize_optional_ticker(cls, value: str | None) -> str | None:
+        return value.strip().upper() if value is not None else None
+
+    @field_validator("name", "note")
+    @classmethod
+    def strip_optional_text(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
+
+
+class StockWatchlistItemPublic(BaseModel):
+    id: int
+    ticker: str
+    name: str
+    note: str
+    created_at: str
+    updated_at: str
+
+
 class StockAnalysisRequest(BaseModel):
     ticker: str = Field(min_length=3, max_length=20)
     name: str = Field(min_length=1, max_length=80)

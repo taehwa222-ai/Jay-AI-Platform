@@ -12,6 +12,9 @@ from app.schemas.stocks import (
     StockMarketSnapshot,
     StockScanRequest,
     StockScanResponse,
+    StockWatchlistCreateRequest,
+    StockWatchlistItemPublic,
+    StockWatchlistUpdateRequest,
 )
 from app.services.auth import User
 from app.services.stocks import StockService
@@ -57,6 +60,46 @@ async def delete_holding(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> None:
     stock_service.delete_holding(holding_id, user)
+
+
+@router.get("/watchlist", response_model=list[StockWatchlistItemPublic])
+async def watchlist(
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> list[StockWatchlistItemPublic]:
+    return stock_service.list_watchlist(user)
+
+
+@router.post(
+    "/watchlist",
+    response_model=StockWatchlistItemPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_watchlist_item(
+    payload: StockWatchlistCreateRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> StockWatchlistItemPublic:
+    return stock_service.create_watchlist_item(user, payload)
+
+
+@router.patch("/watchlist/{item_id}", response_model=StockWatchlistItemPublic)
+async def update_watchlist_item(
+    item_id: int,
+    payload: StockWatchlistUpdateRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> StockWatchlistItemPublic:
+    return stock_service.update_watchlist_item(item_id, user, payload)
+
+
+@router.delete("/watchlist/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_watchlist_item(
+    item_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> None:
+    stock_service.delete_watchlist_item(item_id, user)
 
 
 @router.get("/market/{ticker}", response_model=StockMarketSnapshot)

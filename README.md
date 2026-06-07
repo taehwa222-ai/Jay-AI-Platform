@@ -35,11 +35,13 @@ base that you can extend with your own modules.
 ## Korea Stock Lab
 
 - Logged-in users can save Korean stock holdings with ticker, quantity, average price, current price, thesis, and risk memo.
+- Logged-in users can save a separate watchlist for stocks they want to monitor before buying.
 - The portfolio screen calculates cost basis, market value, profit/loss, and profit/loss percentage.
 - The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
 - Users can load a Korean stock market snapshot by ticker; the server tries `.KS` and `.KQ` Yahoo Finance symbols.
 - The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
 - Users can scan multiple tickers at once and review ranked candidates by score.
+- Users can scan their saved watchlist with one click.
 - If `OPENAI_API_KEY` is configured on the server, the analyzer also adds an AI-generated Korean summary.
 - If the OpenAI key is empty, the same endpoint still returns a rule-based local summary.
 - Analysis results are informational only and include a non-advisory disclaimer.

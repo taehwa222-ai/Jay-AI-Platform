@@ -613,6 +613,7 @@ code {
 
 .stock-form,
 .analysis-form,
+.watchlist-form,
 .scan-form {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -631,6 +632,39 @@ code {
 .holding-list {
   display: grid;
   gap: 10px;
+}
+
+.watchlist-list {
+  display: grid;
+  gap: 10px;
+}
+
+.watchlist-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e4e9ef;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.watchlist-row div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.watchlist-row strong span,
+.watchlist-row p {
+  color: #697789;
+}
+
+.watchlist-row p {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .holding-row {
@@ -986,6 +1020,7 @@ code {
   .portfolio-summary,
   .stock-form,
   .analysis-form,
+  .watchlist-form,
   .scan-form,
   .analysis-columns {
     grid-template-columns: 1fr;
