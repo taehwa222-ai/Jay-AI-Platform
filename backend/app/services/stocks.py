@@ -15,6 +15,7 @@ from app.schemas.stocks import (
     StockHoldingCreateRequest,
     StockHoldingPublic,
     StockHoldingUpdateRequest,
+    StockMarketSnapshot,
 )
 from app.services.auth import User
 
@@ -59,6 +60,13 @@ class StockHolding:
             created_at=self.created_at,
             updated_at=self.updated_at,
         )
+
+
+@dataclass(frozen=True)
+class MarketCandle:
+    trading_day: str
+    close: float
+    volume: int
 
 
 class StockService:
@@ -214,6 +222,37 @@ class StockService:
             disclaimer=DISCLAIMER,
         )
 
+    async def market_snapshot(self, ticker: str) -> StockMarketSnapshot:
+        normalized_ticker = normalize_ticker(ticker)
+        errors: list[str] = []
+
+        for provider_symbol in yahoo_provider_symbols(normalized_ticker):
+            try:
+                candles = await self.fetch_yahoo_candles(provider_symbol)
+            except httpx.HTTPError as exc:
+                errors.append(f"{provider_symbol}: {exc}")
+                continue
+
+            if len(candles) >= 35:
+                return build_market_snapshot(normalized_ticker, provider_symbol, candles)
+
+            errors.append(f"{provider_symbol}: not enough market data")
+
+        detail = "Could not load market data for this ticker."
+        if errors:
+            detail = f"{detail} {'; '.join(errors[:2])}"
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+    async def fetch_yahoo_candles(self, provider_symbol: str) -> list[MarketCandle]:
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{provider_symbol}"
+        params = {"range": "6mo", "interval": "1d"}
+
+        async with httpx.AsyncClient(timeout=self.settings.market_data_timeout_seconds) as client:
+            response = await client.get(url, params=params)
+            response.raise_for_status()
+
+        return parse_yahoo_chart(response.json())
+
     def get_holding(
         self,
         holding_id: int,
@@ -367,6 +406,122 @@ def build_local_analysis(payload: StockAnalysisRequest) -> dict[str, Any]:
             "추천 결과를 그대로 주문으로 연결하지 말고 본인 판단으로 검토하세요.",
         ],
     }
+
+
+def build_market_snapshot(
+    ticker: str,
+    provider_symbol: str,
+    candles: list[MarketCandle],
+) -> StockMarketSnapshot:
+    if len(candles) < 35:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least 35 daily candles are required.",
+        )
+
+    latest = candles[-1]
+    previous = candles[-2]
+    closes = [candle.close for candle in candles]
+    macd, macd_signal = calculate_macd(closes)
+    price_change_percent = (latest.close - previous.close) / previous.close * 100
+    volume_multiplier = latest.volume / previous.volume if previous.volume else 0
+
+    return StockMarketSnapshot(
+        ticker=ticker,
+        provider_symbol=provider_symbol,
+        source="Yahoo Finance chart API",
+        latest_trading_day=latest.trading_day,
+        current_price=round(latest.close, 2),
+        previous_close=round(previous.close, 2),
+        volume=latest.volume,
+        previous_volume=max(previous.volume, 1),
+        rsi=round(calculate_rsi(closes), 2),
+        macd=round(macd, 4),
+        macd_signal=round(macd_signal, 4),
+        price_change_percent=round(price_change_percent, 2),
+        volume_multiplier=round(volume_multiplier, 2),
+        fetched_at=now_iso(),
+    )
+
+
+def parse_yahoo_chart(data: dict[str, Any]) -> list[MarketCandle]:
+    try:
+        result = data["chart"]["result"][0]
+        timestamps = result["timestamp"]
+        quote = result["indicators"]["quote"][0]
+        closes = quote["close"]
+        volumes = quote["volume"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Market data provider returned an unexpected response.",
+        ) from exc
+
+    candles: list[MarketCandle] = []
+    for timestamp, close, volume in zip(timestamps, closes, volumes, strict=False):
+        if close is None or volume is None:
+            continue
+        trading_day = datetime.fromtimestamp(int(timestamp), UTC).date().isoformat()
+        candles.append(
+            MarketCandle(
+                trading_day=trading_day,
+                close=float(close),
+                volume=int(volume),
+            )
+        )
+    return candles
+
+
+def calculate_rsi(closes: list[float], period: int = 14) -> float:
+    if len(closes) <= period:
+        return 50.0
+
+    deltas = [closes[index] - closes[index - 1] for index in range(1, len(closes))]
+    recent = deltas[-period:]
+    gains = [max(delta, 0) for delta in recent]
+    losses = [abs(min(delta, 0)) for delta in recent]
+    average_gain = sum(gains) / period
+    average_loss = sum(losses) / period
+
+    if average_loss == 0:
+        return 100.0 if average_gain > 0 else 50.0
+
+    relative_strength = average_gain / average_loss
+    return 100 - (100 / (1 + relative_strength))
+
+
+def calculate_macd(closes: list[float]) -> tuple[float, float]:
+    if len(closes) < 35:
+        return 0.0, 0.0
+
+    ema_12 = ema_series(closes, 12)
+    ema_26 = ema_series(closes, 26)
+    macd_values = [short - long for short, long in zip(ema_12, ema_26, strict=False)]
+    signal_values = ema_series(macd_values, 9)
+    return macd_values[-1], signal_values[-1]
+
+
+def ema_series(values: list[float], period: int) -> list[float]:
+    if not values:
+        return []
+
+    alpha = 2 / (period + 1)
+    current = values[0]
+    result = [current]
+    for value in values[1:]:
+        current = value * alpha + current * (1 - alpha)
+        result.append(current)
+    return result
+
+
+def yahoo_provider_symbols(ticker: str) -> list[str]:
+    if "." in ticker:
+        return [ticker]
+    return [f"{ticker}.KS", f"{ticker}.KQ"]
+
+
+def normalize_ticker(ticker: str) -> str:
+    return ticker.strip().upper()
 
 
 def rating_for_score(score: int) -> tuple[str, str]:

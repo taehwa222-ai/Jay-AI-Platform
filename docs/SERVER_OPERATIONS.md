@@ -60,7 +60,9 @@ roles and enable or disable accounts from the dashboard.
 
 The same SQLite database also stores each user's stock holdings. The frontend
 uses `/api/v1/stocks/holdings` for portfolio management and
-`/api/v1/stocks/analyze` for condition-based stock analysis.
+`/api/v1/stocks/analyze` for condition-based stock analysis. The endpoint
+`/api/v1/stocks/market/{ticker}` loads a market snapshot and calculates RSI and
+MACD so users do not need to enter every indicator manually.
 
 OpenAI summary generation is optional. Set these values in `.env` on the VPS
 when you want AI-generated summaries:
@@ -69,6 +71,7 @@ when you want AI-generated summaries:
 OPENAI_API_KEY=your_key_here
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
+MARKET_DATA_TIMEOUT_SECONDS=10
 ```
 
 When `OPENAI_API_KEY` is empty, the stock analyzer still returns a local

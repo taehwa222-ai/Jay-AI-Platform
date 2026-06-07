@@ -131,3 +131,20 @@ export type StockAnalysisResult = {
   action_checklist: string[];
   disclaimer: string;
 };
+
+export type StockMarketSnapshot = {
+  ticker: string;
+  provider_symbol: string;
+  source: string;
+  latest_trading_day: string;
+  current_price: number;
+  previous_close: number;
+  volume: number;
+  previous_volume: number;
+  rsi: number;
+  macd: number;
+  macd_signal: number;
+  price_change_percent: number;
+  volume_multiplier: number;
+  fetched_at: string;
+};

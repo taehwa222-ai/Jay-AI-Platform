@@ -699,6 +699,25 @@ code {
   background: #f8fafc;
 }
 
+.market-snapshot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.market-snapshot span {
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #334155;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .analysis-result.candidate {
   border-color: #9bd2bf;
   background: #f0faf6;

@@ -9,6 +9,7 @@ from app.schemas.stocks import (
     StockHoldingCreateRequest,
     StockHoldingPublic,
     StockHoldingUpdateRequest,
+    StockMarketSnapshot,
 )
 from app.services.auth import User
 from app.services.stocks import StockService
@@ -54,6 +55,15 @@ async def delete_holding(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> None:
     stock_service.delete_holding(holding_id, user)
+
+
+@router.get("/market/{ticker}", response_model=StockMarketSnapshot)
+async def market_snapshot(
+    ticker: str,
+    _: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> StockMarketSnapshot:
+    return await stock_service.market_snapshot(ticker)
 
 
 @router.post("/analyze", response_model=StockAnalysisResponse)

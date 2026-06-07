@@ -13,6 +13,7 @@ import type {
   StockAnalysisResult,
   StockHolding,
   StockHoldingPayload,
+  StockMarketSnapshot,
   UserAccount,
 } from './types';
 
@@ -159,6 +160,17 @@ export function analyzeStock(
       method: 'POST',
       body: JSON.stringify(payload),
     },
+    token,
+  );
+}
+
+export function getStockMarketSnapshot(
+  token: string,
+  ticker: string,
+): Promise<StockMarketSnapshot> {
+  return request<StockMarketSnapshot>(
+    `/api/v1/stocks/market/${encodeURIComponent(ticker)}`,
+    undefined,
     token,
   );
 }

@@ -33,6 +33,7 @@ import {
   getOverview,
   getRoadmap,
   getStockHoldings,
+  getStockMarketSnapshot,
   login,
   signup,
   updateAdminUser,
@@ -50,6 +51,7 @@ import type {
   StockAnalysisResult,
   StockHolding,
   StockHoldingPayload,
+  StockMarketSnapshot,
   UserAccount,
 } from './types';
 
@@ -148,6 +150,8 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState<StockAnalysisResult | null>(null);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -350,6 +354,38 @@ export default function App() {
       setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Analysis failed.');
     } finally {
       setAnalysisLoading(false);
+    }
+  }
+
+  async function handleLoadMarketSnapshot() {
+    if (!token || !analysisForm.ticker.trim()) return;
+    setMarketLoading(true);
+    setAnalysisMessage(null);
+
+    try {
+      const snapshot = await getStockMarketSnapshot(token, analysisForm.ticker);
+      setMarketSnapshot(snapshot);
+      setAnalysisForm((form) => ({
+        ...form,
+        ticker: snapshot.ticker,
+        name: form.name.trim() || snapshot.ticker,
+        current_price: String(snapshot.current_price),
+        previous_close: String(snapshot.previous_close),
+        volume: String(snapshot.volume),
+        previous_volume: String(snapshot.previous_volume),
+        rsi: String(snapshot.rsi),
+        macd: String(snapshot.macd),
+        macd_signal: String(snapshot.macd_signal),
+      }));
+      setAnalysisMessage(
+        `${snapshot.provider_symbol} 기준 ${snapshot.latest_trading_day} 시세와 보조지표를 불러왔습니다.`,
+      );
+    } catch (requestError) {
+      setAnalysisMessage(
+        requestError instanceof Error ? requestError.message : 'Market data load failed.',
+      );
+    } finally {
+      setMarketLoading(false);
     }
   }
 
@@ -915,6 +951,15 @@ export default function App() {
                         value={analysisForm.memo}
                       />
                     </label>
+                    <button
+                      className="secondary-button"
+                      disabled={marketLoading || !analysisForm.ticker.trim()}
+                      onClick={() => void handleLoadMarketSnapshot()}
+                      type="button"
+                    >
+                      <ReloadOutlined />
+                      시세/지표 불러오기
+                    </button>
                     <button className="primary-button" disabled={analysisLoading} type="submit">
                       <LineChartOutlined />
                       분석 실행
@@ -922,6 +967,15 @@ export default function App() {
                   </form>
 
                   {analysisMessage && <div className="inline-message">{analysisMessage}</div>}
+                  {marketSnapshot && (
+                    <div className="market-snapshot">
+                      <span>{marketSnapshot.provider_symbol}</span>
+                      <span>{marketSnapshot.latest_trading_day}</span>
+                      <span>거래량 {marketSnapshot.volume_multiplier}배</span>
+                      <span>RSI {marketSnapshot.rsi}</span>
+                      <span>MACD {marketSnapshot.macd}</span>
+                    </div>
+                  )}
                   {analysisResult && (
                     <div className={`analysis-result ${analysisResult.rating}`}>
                       <div className="analysis-score">

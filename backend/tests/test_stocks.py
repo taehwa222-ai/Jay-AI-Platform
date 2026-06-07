@@ -1,6 +1,13 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.stocks import (
+    MarketCandle,
+    StockService,
+    build_market_snapshot,
+    calculate_macd,
+    calculate_rsi,
+)
 
 
 def signup(client: TestClient, email: str = "owner@example.com") -> str:
@@ -114,3 +121,62 @@ def test_stock_analysis_returns_rule_based_report_without_openai_key():
     assert body["ai_powered"] is False
     assert body["volume_multiplier"] == 3
     assert body["disclaimer"]
+
+
+def test_market_snapshot_requires_login():
+    with TestClient(app) as client:
+        response = client.get("/api/v1/stocks/market/005930")
+
+    assert response.status_code == 401
+
+
+def test_market_snapshot_endpoint_uses_service(monkeypatch):
+    async def fake_market_snapshot(self: StockService, ticker: str):
+        candles = [
+            MarketCandle(
+                trading_day=f"2026-01-{day:02d}",
+                close=70000 + day * 100,
+                volume=1_000_000 + day * 10_000,
+            )
+            for day in range(1, 41)
+        ]
+        return build_market_snapshot(ticker, "005930.KS", candles)
+
+    monkeypatch.setattr(StockService, "market_snapshot", fake_market_snapshot)
+
+    with TestClient(app) as client:
+        token = signup(client)
+        response = client.get(
+            "/api/v1/stocks/market/005930",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ticker"] == "005930"
+    assert body["provider_symbol"] == "005930.KS"
+    assert body["current_price"] > body["previous_close"]
+    assert body["volume"] > body["previous_volume"]
+
+
+def test_indicator_calculation_and_market_snapshot():
+    closes = [100 + index for index in range(40)]
+    rsi = calculate_rsi(closes)
+    macd, macd_signal = calculate_macd(closes)
+    candles = [
+        MarketCandle(
+            trading_day=f"2026-02-{(index % 28) + 1:02d}",
+            close=float(100 + index),
+            volume=1_000 + index * 100,
+        )
+        for index in range(40)
+    ]
+
+    snapshot = build_market_snapshot("000660", "000660.KS", candles)
+
+    assert rsi == 100
+    assert macd > macd_signal
+    assert snapshot.current_price == 139
+    assert snapshot.previous_close == 138
+    assert snapshot.rsi == 100
+    assert snapshot.volume_multiplier > 1

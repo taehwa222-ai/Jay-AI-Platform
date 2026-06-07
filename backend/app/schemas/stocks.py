@@ -98,3 +98,20 @@ class StockAnalysisResponse(BaseModel):
     risk_notes: list[str]
     action_checklist: list[str]
     disclaimer: str
+
+
+class StockMarketSnapshot(BaseModel):
+    ticker: str
+    provider_symbol: str
+    source: str
+    latest_trading_day: str
+    current_price: float
+    previous_close: float
+    volume: int
+    previous_volume: int
+    rsi: float
+    macd: float
+    macd_signal: float
+    price_change_percent: float
+    volume_multiplier: float
+    fetched_at: str

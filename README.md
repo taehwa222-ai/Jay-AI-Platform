@@ -37,6 +37,8 @@ base that you can extend with your own modules.
 - Logged-in users can save Korean stock holdings with ticker, quantity, average price, current price, thesis, and risk memo.
 - The portfolio screen calculates cost basis, market value, profit/loss, and profit/loss percentage.
 - The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
+- Users can load a Korean stock market snapshot by ticker; the server tries `.KS` and `.KQ` Yahoo Finance symbols.
+- The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
 - If `OPENAI_API_KEY` is configured on the server, the analyzer also adds an AI-generated Korean summary.
 - If the OpenAI key is empty, the same endpoint still returns a rule-based local summary.
 - Analysis results are informational only and include a non-advisory disclaimer.
@@ -137,6 +139,7 @@ ACCESS_TOKEN_MINUTES=720
 OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
+MARKET_DATA_TIMEOUT_SECONDS=10
 ```
 
 Keep real service keys out of GitHub, screenshots, chat messages, and commit
