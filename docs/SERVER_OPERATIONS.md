@@ -56,6 +56,24 @@ that folder when redeploying so accounts are preserved.
 The first registered account becomes `admin`. Admin users can change member
 roles and enable or disable accounts from the dashboard.
 
+## Stock And Portfolio Data
+
+The same SQLite database also stores each user's stock holdings. The frontend
+uses `/api/v1/stocks/holdings` for portfolio management and
+`/api/v1/stocks/analyze` for condition-based stock analysis.
+
+OpenAI summary generation is optional. Set these values in `.env` on the VPS
+when you want AI-generated summaries:
+
+```text
+OPENAI_API_KEY=your_key_here
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+```
+
+When `OPENAI_API_KEY` is empty, the stock analyzer still returns a local
+rule-based summary.
+
 ## Stop
 
 ```powershell

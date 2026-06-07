@@ -1,0 +1,397 @@
+from __future__ import annotations
+
+import sqlite3
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
+
+import httpx
+from fastapi import HTTPException, status
+
+from app.config import Settings
+from app.schemas.stocks import (
+    StockAnalysisRequest,
+    StockAnalysisResponse,
+    StockHoldingCreateRequest,
+    StockHoldingPublic,
+    StockHoldingUpdateRequest,
+)
+from app.services.auth import User
+
+DISCLAIMER = (
+    "이 결과는 투자 판단을 돕기 위한 정보 정리이며, 수익을 보장하거나 매수/매도 지시를 "
+    "제공하지 않습니다."
+)
+
+
+@dataclass(frozen=True)
+class StockHolding:
+    id: int
+    user_id: int
+    ticker: str
+    name: str
+    quantity: float
+    average_price: float
+    current_price: float
+    investment_thesis: str
+    risk_memo: str
+    created_at: str
+    updated_at: str
+
+    def public(self) -> StockHoldingPublic:
+        cost_basis = self.quantity * self.average_price
+        market_value = self.quantity * self.current_price
+        profit_loss = market_value - cost_basis
+        profit_loss_percent = (profit_loss / cost_basis * 100) if cost_basis else 0
+        return StockHoldingPublic(
+            id=self.id,
+            ticker=self.ticker,
+            name=self.name,
+            quantity=round(self.quantity, 4),
+            average_price=round(self.average_price, 2),
+            current_price=round(self.current_price, 2),
+            cost_basis=round(cost_basis, 2),
+            market_value=round(market_value, 2),
+            profit_loss=round(profit_loss, 2),
+            profit_loss_percent=round(profit_loss_percent, 2),
+            investment_thesis=self.investment_thesis,
+            risk_memo=self.risk_memo,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+        )
+
+
+class StockService:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.db_path = settings.database_path
+
+    def init_db(self) -> None:
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.connect() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS stock_holdings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    ticker TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    quantity REAL NOT NULL,
+                    average_price REAL NOT NULL,
+                    current_price REAL NOT NULL,
+                    investment_thesis TEXT NOT NULL DEFAULT '',
+                    risk_memo TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_stock_holdings_user
+                ON stock_holdings(user_id, ticker)
+                """
+            )
+
+    def connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+    def list_holdings(self, user: User) -> list[StockHoldingPublic]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM stock_holdings
+                WHERE user_id = ?
+                ORDER BY updated_at DESC, id DESC
+                """,
+                (user.id,),
+            ).fetchall()
+        return [row_to_holding(row).public() for row in rows]
+
+    def create_holding(self, user: User, payload: StockHoldingCreateRequest) -> StockHoldingPublic:
+        now = now_iso()
+        with self.connect() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO stock_holdings (
+                    user_id, ticker, name, quantity, average_price, current_price,
+                    investment_thesis, risk_memo, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user.id,
+                    payload.ticker,
+                    payload.name,
+                    payload.quantity,
+                    payload.average_price,
+                    payload.current_price,
+                    payload.investment_thesis,
+                    payload.risk_memo,
+                    now,
+                    now,
+                ),
+            )
+            holding = self.get_holding(cursor.lastrowid, user.id, conn)
+        return holding.public()
+
+    def update_holding(
+        self,
+        holding_id: int,
+        user: User,
+        payload: StockHoldingUpdateRequest,
+    ) -> StockHoldingPublic:
+        update_data = payload.model_dump(exclude_unset=True)
+        if not update_data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No update fields provided.",
+            )
+
+        with self.connect() as conn:
+            current = self.get_holding(holding_id, user.id, conn)
+            values = {
+                "ticker": update_data.get("ticker", current.ticker),
+                "name": update_data.get("name", current.name),
+                "quantity": update_data.get("quantity", current.quantity),
+                "average_price": update_data.get("average_price", current.average_price),
+                "current_price": update_data.get("current_price", current.current_price),
+                "investment_thesis": update_data.get(
+                    "investment_thesis",
+                    current.investment_thesis,
+                ),
+                "risk_memo": update_data.get("risk_memo", current.risk_memo),
+                "updated_at": now_iso(),
+                "id": holding_id,
+                "user_id": user.id,
+            }
+            conn.execute(
+                """
+                UPDATE stock_holdings
+                SET ticker = :ticker,
+                    name = :name,
+                    quantity = :quantity,
+                    average_price = :average_price,
+                    current_price = :current_price,
+                    investment_thesis = :investment_thesis,
+                    risk_memo = :risk_memo,
+                    updated_at = :updated_at
+                WHERE id = :id AND user_id = :user_id
+                """,
+                values,
+            )
+            updated = self.get_holding(holding_id, user.id, conn)
+        return updated.public()
+
+    def delete_holding(self, holding_id: int, user: User) -> None:
+        with self.connect() as conn:
+            self.get_holding(holding_id, user.id, conn)
+            conn.execute(
+                "DELETE FROM stock_holdings WHERE id = ? AND user_id = ?",
+                (holding_id, user.id),
+            )
+
+    async def analyze(self, payload: StockAnalysisRequest) -> StockAnalysisResponse:
+        metrics = build_local_analysis(payload)
+        ai_summary, ai_powered = await self.build_ai_summary(payload, metrics)
+        return StockAnalysisResponse(
+            ticker=payload.ticker,
+            name=payload.name,
+            score=metrics["score"],
+            rating=metrics["rating"],
+            rating_label=metrics["rating_label"],
+            summary=metrics["summary"],
+            ai_summary=ai_summary,
+            ai_powered=ai_powered,
+            price_change_percent=metrics["price_change_percent"],
+            volume_multiplier=metrics["volume_multiplier"],
+            signals=metrics["signals"],
+            risk_notes=metrics["risk_notes"],
+            action_checklist=metrics["action_checklist"],
+            disclaimer=DISCLAIMER,
+        )
+
+    def get_holding(
+        self,
+        holding_id: int,
+        user_id: int,
+        conn: sqlite3.Connection,
+    ) -> StockHolding:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM stock_holdings
+            WHERE id = ? AND user_id = ?
+            """,
+            (holding_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Stock holding not found.",
+            )
+        return row_to_holding(row)
+
+    async def build_ai_summary(
+        self,
+        payload: StockAnalysisRequest,
+        metrics: dict[str, Any],
+    ) -> tuple[str, bool]:
+        fallback = (
+            f"{payload.name}({payload.ticker})은 현재 점수 {metrics['score']}점입니다. "
+            f"거래량 배수 {metrics['volume_multiplier']}배, RSI {payload.rsi} 기준으로 "
+            "관심 후보 여부를 체크하세요."
+        )
+        if not self.settings.openai_api_key:
+            return fallback, False
+
+        prompt = {
+            "ticker": payload.ticker,
+            "name": payload.name,
+            "current_price": payload.current_price,
+            "price_change_percent": metrics["price_change_percent"],
+            "volume_multiplier": metrics["volume_multiplier"],
+            "rsi": payload.rsi,
+            "macd": payload.macd,
+            "macd_signal": payload.macd_signal,
+            "signals": metrics["signals"],
+            "risk_notes": metrics["risk_notes"],
+            "memo": payload.memo,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.post(
+                    f"{self.settings.openai_base_url.rstrip('/')}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.settings.openai_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self.settings.openai_model,
+                        "temperature": 0.2,
+                        "messages": [
+                            {
+                                "role": "system",
+                                "content": (
+                                    "너는 한국 주식 리서치 보조자다. 투자 권유가 아니라 "
+                                    "조건 기반 체크리스트와 리스크를 간결하게 정리한다."
+                                ),
+                            },
+                            {
+                                "role": "user",
+                                "content": (
+                                    "다음 데이터를 바탕으로 4문장 이내 한국어 분석 요약을 "
+                                    f"작성해줘. 데이터: {prompt}"
+                                ),
+                            },
+                        ],
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
+            return fallback, False
+
+        content = data["choices"][0]["message"]["content"].strip()
+        return content or fallback, bool(content)
+
+
+def build_local_analysis(payload: StockAnalysisRequest) -> dict[str, Any]:
+    price_change_percent = (payload.current_price - payload.previous_close) / payload.previous_close
+    price_change_percent *= 100
+    volume_multiplier = payload.volume / payload.previous_volume
+
+    score = 50
+    signals: list[str] = []
+    risk_notes: list[str] = []
+
+    if volume_multiplier >= 2:
+        score += 18
+        signals.append("전일 대비 거래량이 200% 이상 증가했습니다.")
+    elif volume_multiplier >= 1.3:
+        score += 8
+        signals.append("거래량이 전일보다 의미 있게 증가했습니다.")
+    else:
+        risk_notes.append("거래량 증가가 약해 추세 확인이 더 필요합니다.")
+
+    if payload.macd > payload.macd_signal:
+        score += 12
+        signals.append("MACD가 시그널선 위에 있어 단기 모멘텀이 우호적입니다.")
+    else:
+        score -= 8
+        risk_notes.append("MACD가 시그널선 아래에 있어 모멘텀이 약합니다.")
+
+    if 45 <= payload.rsi <= 65:
+        score += 10
+        signals.append("RSI가 과열권이 아닌 구간에서 추세 확인이 가능합니다.")
+    elif payload.rsi > 70:
+        score -= 12
+        risk_notes.append("RSI가 70을 넘어 단기 과열 가능성이 있습니다.")
+    elif payload.rsi < 30:
+        score -= 8
+        risk_notes.append("RSI가 30 미만으로 약세 또는 반등 확인 구간입니다.")
+
+    if price_change_percent > 0:
+        score += 8
+        signals.append("전일 종가 대비 주가가 상승했습니다.")
+    else:
+        score -= 6
+        risk_notes.append("전일 종가 대비 주가가 하락했습니다.")
+
+    score = max(0, min(100, score))
+    rating, rating_label = rating_for_score(score)
+    summary = (
+        f"{payload.name}({payload.ticker}) 조건 점수는 {score}점입니다. "
+        f"가격 변화율 {price_change_percent:.2f}%, 거래량 배수 {volume_multiplier:.2f}배를 "
+        "기준으로 검토했습니다."
+    )
+
+    if not risk_notes:
+        risk_notes.append("현재 입력값 기준의 핵심 위험 신호는 크지 않습니다.")
+
+    return {
+        "score": score,
+        "rating": rating,
+        "rating_label": rating_label,
+        "summary": summary,
+        "price_change_percent": round(price_change_percent, 2),
+        "volume_multiplier": round(volume_multiplier, 2),
+        "signals": signals,
+        "risk_notes": risk_notes,
+        "action_checklist": [
+            "실제 공시, 뉴스, 재무 상태를 추가로 확인하세요.",
+            "손절 기준과 분할 매수 기준을 먼저 정리하세요.",
+            "추천 결과를 그대로 주문으로 연결하지 말고 본인 판단으로 검토하세요.",
+        ],
+    }
+
+
+def rating_for_score(score: int) -> tuple[str, str]:
+    if score >= 75:
+        return "candidate", "관심 후보"
+    if score >= 55:
+        return "watch", "관찰 필요"
+    return "caution", "주의"
+
+
+def row_to_holding(row: sqlite3.Row) -> StockHolding:
+    return StockHolding(
+        id=int(row["id"]),
+        user_id=int(row["user_id"]),
+        ticker=str(row["ticker"]),
+        name=str(row["name"]),
+        quantity=float(row["quantity"]),
+        average_price=float(row["average_price"]),
+        current_price=float(row["current_price"]),
+        investment_thesis=str(row["investment_thesis"]),
+        risk_memo=str(row["risk_memo"]),
+        created_at=str(row["created_at"]),
+        updated_at=str(row["updated_at"]),
+    )
+
+
+def now_iso() -> str:
+    return datetime.now(UTC).isoformat()

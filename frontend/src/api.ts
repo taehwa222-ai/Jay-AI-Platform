@@ -9,6 +9,10 @@ import type {
   PlatformOverview,
   RoadmapPhase,
   SignupPayload,
+  StockAnalysisPayload,
+  StockAnalysisResult,
+  StockHolding,
+  StockHoldingPayload,
   UserAccount,
 } from './types';
 
@@ -29,7 +33,12 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
     throw new Error(text || `Request failed: ${response.status}`);
   }
 
-  return response.json() as Promise<T>;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export function getHealth(): Promise<HealthStatus> {
@@ -91,6 +100,63 @@ export function updateAdminUser(
     `/api/v1/admin/users/${userId}`,
     {
       method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function getStockHoldings(token: string): Promise<StockHolding[]> {
+  return request<StockHolding[]>('/api/v1/stocks/holdings', undefined, token);
+}
+
+export function createStockHolding(
+  token: string,
+  payload: StockHoldingPayload,
+): Promise<StockHolding> {
+  return request<StockHolding>(
+    '/api/v1/stocks/holdings',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function updateStockHolding(
+  token: string,
+  holdingId: number,
+  payload: Partial<StockHoldingPayload>,
+): Promise<StockHolding> {
+  return request<StockHolding>(
+    `/api/v1/stocks/holdings/${holdingId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export async function deleteStockHolding(token: string, holdingId: number): Promise<void> {
+  await request<void>(
+    `/api/v1/stocks/holdings/${holdingId}`,
+    {
+      method: 'DELETE',
+    },
+    token,
+  );
+}
+
+export function analyzeStock(
+  token: string,
+  payload: StockAnalysisPayload,
+): Promise<StockAnalysisResult> {
+  return request<StockAnalysisResult>(
+    '/api/v1/stocks/analyze',
+    {
+      method: 'POST',
       body: JSON.stringify(payload),
     },
     token,

@@ -74,3 +74,60 @@ export type AdminUserUpdatePayload = {
   role?: 'admin' | 'member';
   is_active?: boolean;
 };
+
+export type StockHolding = {
+  id: number;
+  ticker: string;
+  name: string;
+  quantity: number;
+  average_price: number;
+  current_price: number;
+  cost_basis: number;
+  market_value: number;
+  profit_loss: number;
+  profit_loss_percent: number;
+  investment_thesis: string;
+  risk_memo: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type StockHoldingPayload = {
+  ticker: string;
+  name: string;
+  quantity: number;
+  average_price: number;
+  current_price: number;
+  investment_thesis?: string;
+  risk_memo?: string;
+};
+
+export type StockAnalysisPayload = {
+  ticker: string;
+  name: string;
+  current_price: number;
+  previous_close: number;
+  volume: number;
+  previous_volume: number;
+  rsi: number;
+  macd: number;
+  macd_signal: number;
+  memo?: string;
+};
+
+export type StockAnalysisResult = {
+  ticker: string;
+  name: string;
+  score: number;
+  rating: 'candidate' | 'watch' | 'caution';
+  rating_label: string;
+  summary: string;
+  ai_summary: string;
+  ai_powered: boolean;
+  price_change_percent: number;
+  volume_multiplier: number;
+  signals: string[];
+  risk_notes: string[];
+  action_checklist: string[];
+  disclaimer: string;
+};

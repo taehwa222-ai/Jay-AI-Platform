@@ -194,7 +194,8 @@ h3 {
 
 .primary-button,
 .secondary-button,
-.danger-button {
+.danger-button,
+.icon-danger-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -223,9 +224,18 @@ h3 {
   background: #fff7f7;
 }
 
+.icon-danger-button {
+  width: 42px;
+  min-height: 42px;
+  border: 1px solid #e1b9b9;
+  color: #8a2e2e;
+  background: #fff7f7;
+}
+
 .primary-button:disabled,
 .secondary-button:disabled,
 .danger-button:disabled,
+.icon-danger-button:disabled,
 select:disabled {
   cursor: wait;
   opacity: 0.7;
@@ -576,6 +586,193 @@ code {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.stock-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.stock-pane .pane-body {
+  gap: 18px;
+}
+
+.portfolio-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.portfolio-summary .status-tile {
+  box-shadow: none;
+}
+
+.stock-form,
+.analysis-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.analysis-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wide-field {
+  grid-column: span 2;
+}
+
+.holding-list {
+  display: grid;
+  gap: 10px;
+}
+
+.holding-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 130px 150px 42px;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e4e9ef;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.holding-main {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.holding-main strong {
+  color: #18212f;
+}
+
+.holding-main strong span,
+.holding-main small,
+.holding-main p {
+  color: #697789;
+}
+
+.holding-main p {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.profit-box {
+  display: grid;
+  gap: 3px;
+  justify-items: end;
+  font-size: 13px;
+}
+
+.profit-box.positive {
+  color: #217a56;
+}
+
+.profit-box.negative {
+  color: #b33a3a;
+}
+
+.profit-box strong {
+  font-size: 16px;
+}
+
+.price-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+}
+
+.price-editor .secondary-button {
+  padding: 0;
+}
+
+.analysis-result {
+  display: grid;
+  gap: 14px;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.analysis-result.candidate {
+  border-color: #9bd2bf;
+  background: #f0faf6;
+}
+
+.analysis-result.watch {
+  border-color: #e5c783;
+  background: #fff9ea;
+}
+
+.analysis-result.caution {
+  border-color: #e2aaa7;
+  background: #fff5f4;
+}
+
+.analysis-score {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.analysis-score strong {
+  font-size: 34px;
+}
+
+.analysis-score span {
+  font-weight: 800;
+}
+
+.analysis-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.analysis-copy p,
+.analysis-copy small,
+.disclaimer {
+  color: #536273;
+  line-height: 1.55;
+}
+
+.analysis-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.signal-list {
+  display: grid;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.signal-list ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 18px;
+  color: #536273;
+  line-height: 1.45;
+}
+
+.disclaimer {
+  border-top: 1px solid #e4e9ef;
+  padding-top: 12px;
+  font-size: 12px;
+}
+
+.stock-login-note {
+  margin-top: 18px;
+}
+
 .idea-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -628,8 +825,22 @@ code {
 @media (max-width: 1180px) {
   .module-grid,
   .stock-grid,
+  .stock-workspace,
   .phase-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .stock-workspace,
+  .analysis-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .holding-row {
+    grid-template-columns: minmax(0, 1fr) 120px;
+  }
+
+  .price-editor {
+    grid-column: 1 / -1;
   }
 
   .manual-card {
@@ -667,11 +878,31 @@ code {
   .metric-band,
   .hero-panel,
   .access-grid,
-  .module-grid,
-  .stock-grid,
-  .idea-grid,
-  .phase-list {
+    .module-grid,
+    .stock-grid,
+    .stock-workspace,
+    .idea-grid,
+    .phase-list {
+      grid-template-columns: 1fr;
+    }
+
+  .portfolio-summary,
+  .stock-form,
+  .analysis-form,
+  .analysis-columns {
     grid-template-columns: 1fr;
+  }
+
+  .wide-field {
+    grid-column: auto;
+  }
+
+  .holding-row {
+    grid-template-columns: 1fr;
+  }
+
+  .profit-box {
+    justify-items: start;
   }
 
   .hero-actions {

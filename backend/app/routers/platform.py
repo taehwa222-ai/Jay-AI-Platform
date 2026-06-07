@@ -60,18 +60,20 @@ async def modules() -> dict[str, object]:
             {
                 "id": "korea-stock-lab",
                 "title": "국내 주식 분석",
-                "status": "planned",
+                "status": "active",
                 "description": (
-                    "국내 종목 데이터와 공시 데이터를 모아 분석 후보를 만드는 화면입니다."
+                    "거래량, RSI, MACD, 가격 변화율을 입력해 관심 후보와 리스크를 정리합니다."
                 ),
-                "items": ["watchlist", "market data", "disclosure signal", "AI summary"],
+                "items": ["condition scoring", "volume signal", "RSI/MACD", "AI summary"],
             },
             {
                 "id": "portfolio-manager",
                 "title": "내 주식 관리",
-                "status": "planned",
-                "description": "보유 종목, 매수가, 비중, 손익, 리스크 메모를 관리하는 화면입니다.",
-                "items": ["holdings", "trade notes", "risk tags", "rebalance memo"],
+                "status": "active",
+                "description": (
+                    "보유 종목, 평단가, 현재가, 손익, 투자 근거, 리스크 메모를 관리합니다."
+                ),
+                "items": ["holdings", "profit/loss", "risk memo", "current price update"],
             },
             {
                 "id": "revenue-lab",
@@ -214,7 +216,7 @@ async def roadmap() -> dict[str, object]:
             {
                 "id": "revenue",
                 "title": "Revenue Modules",
-                "status": "planned",
+                "status": "active",
                 "items": ["Korea stock lab", "portfolio manager", "paid reports", "subscription"],
             },
         ]

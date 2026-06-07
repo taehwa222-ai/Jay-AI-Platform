@@ -32,6 +32,15 @@ base that you can extend with your own modules.
 - User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.
 - In Docker/VPS deployment, `./data` is mounted into the backend container so user data survives rebuilds.
 
+## Korea Stock Lab
+
+- Logged-in users can save Korean stock holdings with ticker, quantity, average price, current price, thesis, and risk memo.
+- The portfolio screen calculates cost basis, market value, profit/loss, and profit/loss percentage.
+- The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
+- If `OPENAI_API_KEY` is configured on the server, the analyzer also adds an AI-generated Korean summary.
+- If the OpenAI key is empty, the same endpoint still returns a rule-based local summary.
+- Analysis results are informational only and include a non-advisory disclaimer.
+
 ## Project Shape
 
 ```text
@@ -125,6 +134,9 @@ CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 DATA_DIR=backend/data
 AUTH_SECRET_KEY=change-this-local-secret
 ACCESS_TOKEN_MINUTES=720
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 Keep real service keys out of GitHub, screenshots, chat messages, and commit

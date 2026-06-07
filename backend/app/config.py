@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     data_dir: Path = PROJECT_ROOT / "data"
     auth_secret_key: str = "change-this-secret-key"
     access_token_minutes: int = 60 * 12
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o-mini"
 
     model_config = SettingsConfigDict(
         env_file=(PROJECT_ROOT / ".env", PROJECT_ROOT / ".env.local"),
