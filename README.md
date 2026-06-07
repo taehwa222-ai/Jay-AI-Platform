@@ -27,6 +27,8 @@ base that you can extend with your own modules.
 - The first signed-up user automatically becomes `admin`.
 - Later signed-up users become `member`.
 - Admin users can open the member list in the dashboard.
+- Admin users can promote/demote members and enable/disable accounts.
+- The app prevents disabling your own account or removing the last active admin.
 - User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.
 - In Docker/VPS deployment, `./data` is mounted into the backend container so user data survives rebuilds.
 

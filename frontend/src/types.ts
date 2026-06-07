@@ -69,3 +69,8 @@ export type AuthResponse = {
   token_type: string;
   user: UserAccount;
 };
+
+export type AdminUserUpdatePayload = {
+  role?: 'admin' | 'member';
+  is_active?: boolean;
+};

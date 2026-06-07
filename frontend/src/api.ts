@@ -1,4 +1,5 @@
 import type {
+  AdminUserUpdatePayload,
   AuthResponse,
   HealthStatus,
   LoginPayload,
@@ -79,4 +80,19 @@ export function getMe(token: string): Promise<UserAccount> {
 
 export function getAdminUsers(token: string): Promise<UserAccount[]> {
   return request<UserAccount[]>('/api/v1/admin/users', undefined, token);
+}
+
+export function updateAdminUser(
+  token: string,
+  userId: number,
+  payload: AdminUserUpdatePayload,
+): Promise<UserAccount> {
+  return request<UserAccount>(
+    `/api/v1/admin/users/${userId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
 }

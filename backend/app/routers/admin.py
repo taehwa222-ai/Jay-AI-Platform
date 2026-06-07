@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from app.routers.auth import require_admin
-from app.schemas.auth import UserPublic
+from app.schemas.auth import AdminUserUpdateRequest, UserPublic
 from app.services.auth import AuthService, User
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -19,3 +19,19 @@ async def users(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> list[UserPublic]:
     return [UserPublic(**user.public()) for user in auth_service.list_users()]
+
+
+@router.patch("/users/{user_id}", response_model=UserPublic)
+async def update_user(
+    user_id: int,
+    payload: AdminUserUpdateRequest,
+    actor: Annotated[User, Depends(require_admin)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> UserPublic:
+    user = auth_service.update_user(
+        user_id=user_id,
+        actor=actor,
+        role=payload.role,
+        is_active=payload.is_active,
+    )
+    return UserPublic(**user.public())

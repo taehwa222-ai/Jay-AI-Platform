@@ -29,6 +29,7 @@ import {
   getRoadmap,
   login,
   signup,
+  updateAdminUser,
 } from './api';
 import type {
   AuthResponse,
@@ -78,6 +79,8 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
+  const [adminMessage, setAdminMessage] = useState<string | null>(null);
+  const [adminUpdatingId, setAdminUpdatingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,6 +169,22 @@ export default function App() {
     if (!activeToken) return;
     const users = await getAdminUsers(activeToken);
     setAdminUsers(users);
+  }
+
+  async function handleAdminUserUpdate(userId: number, payload: { role?: 'admin' | 'member'; is_active?: boolean }) {
+    if (!token) return;
+    setAdminUpdatingId(userId);
+    setAdminMessage(null);
+
+    try {
+      const updated = await updateAdminUser(token, userId, payload);
+      setAdminUsers((users) => users.map((user) => (user.id === updated.id ? updated : user)));
+      setAdminMessage('회원 정보가 업데이트되었습니다.');
+    } catch (requestError) {
+      setAdminMessage(requestError instanceof Error ? requestError.message : 'Update failed.');
+    } finally {
+      setAdminUpdatingId(null);
+    }
   }
 
   function logout() {
@@ -356,16 +375,41 @@ export default function App() {
                     </div>
                     <div className="user-list">
                       {adminUsers.map((user) => (
-                        <div className="user-row" key={user.id}>
-                          <div>
+                        <div className={`user-row ${user.is_active ? '' : 'disabled'}`} key={user.id}>
+                          <div className="user-identity">
                             <strong>{user.name}</strong>
                             <span>{user.email}</span>
+                            {currentUser?.id === user.id && <small>내 계정</small>}
                           </div>
-                          <span className="role-chip">{user.role}</span>
+                          <div className="user-controls">
+                            <select
+                              disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
+                              onChange={(event) =>
+                                void handleAdminUserUpdate(user.id, {
+                                  role: event.target.value as 'admin' | 'member',
+                                })
+                              }
+                              value={user.role}
+                            >
+                              <option value="admin">admin</option>
+                              <option value="member">member</option>
+                            </select>
+                            <button
+                              className={user.is_active ? 'danger-button' : 'secondary-button'}
+                              disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
+                              onClick={() =>
+                                void handleAdminUserUpdate(user.id, { is_active: !user.is_active })
+                              }
+                              type="button"
+                            >
+                              {user.is_active ? '비활성화' : '활성화'}
+                            </button>
+                          </div>
                         </div>
                       ))}
                       {adminUsers.length === 0 && <div className="empty-state">회원 목록이 비어 있습니다.</div>}
                     </div>
+                    {adminMessage && <div className="inline-message">{adminMessage}</div>}
                   </div>
                 ) : (
                   <div className="empty-state">

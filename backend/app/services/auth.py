@@ -170,6 +170,67 @@ class AuthService:
             ).fetchall()
         return [row_to_user(row) for row in rows]
 
+    def update_user(
+        self,
+        user_id: int,
+        actor: User,
+        role: str | None = None,
+        is_active: bool | None = None,
+    ) -> User:
+        if role is None and is_active is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No update fields provided.",
+            )
+
+        with self.connect() as conn:
+            target = self.get_user_by_id(user_id, conn)
+            if target is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found.",
+                )
+
+            if target.id == actor.id:
+                if role is not None and role != target.role:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="You cannot change your own role.",
+                    )
+                if is_active is False:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="You cannot disable your own account.",
+                    )
+
+            removing_active_admin = target.role == "admin" and (
+                (role is not None and role != "admin") or is_active is False
+            )
+            if removing_active_admin and self.active_admin_count(conn) <= 1:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="At least one active admin is required.",
+                )
+
+            next_role = role if role is not None else target.role
+            next_active = int(is_active) if is_active is not None else int(target.is_active)
+            conn.execute(
+                """
+                UPDATE users
+                SET role = ?, is_active = ?
+                WHERE id = ?
+                """,
+                (next_role, next_active, target.id),
+            )
+
+            updated = self.get_user_by_id(target.id, conn)
+            if updated is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="User update failed.",
+                )
+            return updated
+
     def get_user_by_email(self, email: str) -> User | None:
         with self.connect() as conn:
             row = conn.execute(
@@ -202,6 +263,13 @@ class AuthService:
     @staticmethod
     def user_count(conn: sqlite3.Connection) -> int:
         row = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()
+        return int(row["count"])
+
+    @staticmethod
+    def active_admin_count(conn: sqlite3.Connection) -> int:
+        row = conn.execute(
+            "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND is_active = 1"
+        ).fetchone()
         return int(row["count"])
 
 

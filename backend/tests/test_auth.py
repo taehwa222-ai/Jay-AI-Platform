@@ -79,3 +79,63 @@ def test_duplicate_email_is_rejected():
 
     assert first.status_code == 201
     assert second.status_code == 409
+
+
+def test_admin_can_update_member_role_and_active_state():
+    with TestClient(app) as client:
+        admin_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
+        )
+        member_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "member@example.com", "password": "password123", "name": "Member"},
+        )
+
+        admin_token = admin_signup.json()["access_token"]
+        member_id = member_signup.json()["user"]["id"]
+
+        promoted = client.patch(
+            f"/api/v1/admin/users/{member_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"role": "admin"},
+        )
+        disabled = client.patch(
+            f"/api/v1/admin/users/{member_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"is_active": False},
+        )
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"email": "member@example.com", "password": "password123"},
+        )
+
+    assert promoted.status_code == 200
+    assert promoted.json()["role"] == "admin"
+    assert disabled.status_code == 200
+    assert disabled.json()["is_active"] is False
+    assert login.status_code == 403
+
+
+def test_admin_cannot_disable_self_or_remove_last_admin():
+    with TestClient(app) as client:
+        admin_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
+        )
+        admin_token = admin_signup.json()["access_token"]
+        admin_id = admin_signup.json()["user"]["id"]
+
+        disable_self = client.patch(
+            f"/api/v1/admin/users/{admin_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"is_active": False},
+        )
+        demote_self = client.patch(
+            f"/api/v1/admin/users/{admin_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"role": "member"},
+        )
+
+    assert disable_self.status_code == 400
+    assert demote_self.status_code == 400

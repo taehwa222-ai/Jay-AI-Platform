@@ -53,6 +53,9 @@ DATA_DIR/jay_ai_platform.db
 In Docker/VPS deployment, `./data` is mounted into the backend container. Keep
 that folder when redeploying so accounts are preserved.
 
+The first registered account becomes `admin`. Admin users can change member
+roles and enable or disable accounts from the dashboard.
+
 ## Stop
 
 ```powershell
