@@ -37,10 +37,18 @@ Expected URLs:
 
 ```text
 http://localhost
+http://localhost/#dashboard
+http://localhost/#access
+http://localhost/#manual
+http://localhost/#stocks
+http://localhost/#revenue
 http://localhost/docs
 http://localhost/api/v1/health
 http://localhost/api/v1/platform/overview
 ```
+
+The frontend uses hash-based screens so non-technical users can work from one
+clear page at a time without adding another routing dependency.
 
 ## Member Data
 

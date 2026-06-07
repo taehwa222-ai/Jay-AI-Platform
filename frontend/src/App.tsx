@@ -63,6 +63,18 @@ import type {
 
 const TOKEN_STORAGE_KEY = 'jay-ai-platform-token';
 
+const VIEW_IDS = ['dashboard', 'access', 'manual', 'stocks', 'revenue'] as const;
+
+type ViewId = (typeof VIEW_IDS)[number];
+
+const VIEW_META: Record<ViewId, { eyebrow: string; title: string }> = {
+  dashboard: { eyebrow: 'Overview', title: 'AI 플랫폼 대시보드' },
+  access: { eyebrow: 'Access', title: '회원·관리' },
+  manual: { eyebrow: 'Manual', title: '사용 매뉴얼' },
+  stocks: { eyebrow: 'Korea Stock Lab', title: '국내 주식 분석' },
+  revenue: { eyebrow: 'Revenue Lab', title: '수익화 아이디어' },
+};
+
 type HoldingForm = {
   ticker: string;
   name: string;
@@ -182,6 +194,7 @@ export default function App() {
   const [scanLoading, setScanLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ViewId>(() => getInitialView());
 
   const portfolioTotals = holdings.reduce(
     (totals, holding) => ({
@@ -196,6 +209,13 @@ export default function App() {
 
   useEffect(() => {
     void refreshState();
+  }, []);
+
+  useEffect(() => {
+    const syncViewFromHash = () => setActiveView(getInitialView());
+    syncViewFromHash();
+    window.addEventListener('hashchange', syncViewFromHash);
+    return () => window.removeEventListener('hashchange', syncViewFromHash);
   }, []);
 
   useEffect(() => {
@@ -498,11 +518,11 @@ export default function App() {
     setToken('');
     setCurrentUser(null);
     setAdminUsers([]);
-      setHoldings([]);
-      setWatchlist([]);
-      setAnalysisResult(null);
-      setScanResult(null);
-      setAuthMessage('로그아웃되었습니다.');
+    setHoldings([]);
+    setWatchlist([]);
+    setAnalysisResult(null);
+    setScanResult(null);
+    setAuthMessage('로그아웃되었습니다.');
   }
 
   return (
@@ -513,19 +533,23 @@ export default function App() {
           <span>Jay AI Platform</span>
         </div>
         <nav className="nav-list" aria-label="Primary">
-          <a href="#access">
+          <a className={activeView === 'dashboard' ? 'active' : ''} href="#dashboard">
+            <AppstoreOutlined />
+            대시보드
+          </a>
+          <a className={activeView === 'access' ? 'active' : ''} href="#access">
             <TeamOutlined />
             회원/관리
           </a>
-          <a href="#manual">
+          <a className={activeView === 'manual' ? 'active' : ''} href="#manual">
             <BookOutlined />
             사용 매뉴얼
           </a>
-          <a href="#stocks">
+          <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks">
             <BarChartOutlined />
             국내주식
           </a>
-          <a href="#revenue">
+          <a className={activeView === 'revenue' ? 'active' : ''} href="#revenue">
             <DollarOutlined />
             수익화
           </a>
@@ -539,8 +563,8 @@ export default function App() {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <span className="eyebrow">AI Revenue Platform</span>
-            <h1>AI 수익화 운영 콘솔</h1>
+            <span className="eyebrow">{VIEW_META[activeView].eyebrow}</span>
+            <h1>{VIEW_META[activeView].title}</h1>
           </div>
           <button
             className="icon-button"
@@ -555,13 +579,13 @@ export default function App() {
 
         {error && <div className="error-box">{error}</div>}
 
-        <section className="metric-band" id="foundation">
+        <section className={activeView === 'dashboard' ? 'metric-band' : 'screen-hidden'} id="dashboard">
           <StatusTile label="API" value={health?.ok ? 'Online' : 'Checking'} tone={health?.ok ? 'good' : 'muted'} />
           <StatusTile label="우선순위" value="회원/관리" tone="steady" />
           <StatusTile label="운영 상태" value="VPS 배포중" />
         </section>
 
-        <section className="hero-panel">
+        <section className={activeView === 'dashboard' ? 'hero-panel' : 'screen-hidden'}>
           <div>
             <span className="state-chip">{overview?.status ?? 'loading'}</span>
             <h2>{overview?.name ?? 'Jay AI Platform'}</h2>
@@ -579,7 +603,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="section-block" id="access">
+        <section className={activeView === 'access' ? 'section-block' : 'screen-hidden'} id="access">
           <SectionTitle
             eyebrow="Access First"
             icon={<SafetyCertificateOutlined />}
@@ -728,7 +752,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="section-block">
+        <section className={activeView === 'dashboard' ? 'section-block' : 'screen-hidden'}>
           <SectionTitle eyebrow="Service Map" icon={<AppstoreOutlined />} title="개발할 모듈 구조" />
           <div className="module-grid">
             {modules.map((module) => (
@@ -748,7 +772,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="section-block" id="manual">
+        <section className={activeView === 'manual' ? 'section-block' : 'screen-hidden'} id="manual">
           <SectionTitle
             eyebrow="Manual Screen"
             icon={<BookOutlined />}
@@ -776,7 +800,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="section-block" id="stocks">
+        <section className={activeView === 'stocks' ? 'section-block' : 'screen-hidden'} id="stocks">
           <SectionTitle
             eyebrow="Korea Stock Lab"
             icon={<BarChartOutlined />}
@@ -1263,7 +1287,7 @@ export default function App() {
           )}
         </section>
 
-        <section className="section-block" id="revenue">
+        <section className={activeView === 'revenue' ? 'section-block' : 'screen-hidden'} id="revenue">
           <SectionTitle eyebrow="Revenue Lab" icon={<DollarOutlined />} title="수익 창출 아이디어" />
           <div className="idea-grid">
             {ideas.map((idea) => (
@@ -1282,7 +1306,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="phase-list" id="roadmap">
+        <section className={activeView === 'dashboard' ? 'phase-list' : 'screen-hidden'} id="roadmap">
           {roadmap.map((phase) => (
             <article className="phase-card" key={phase.id}>
               <div className="phase-head">
@@ -1345,6 +1369,15 @@ function SignalList({ title, items }: { title: string; items: string[] }) {
       </ul>
     </div>
   );
+}
+
+function getInitialView(): ViewId {
+  if (typeof window === 'undefined') {
+    return 'dashboard';
+  }
+
+  const hashView = window.location.hash.replace('#', '');
+  return VIEW_IDS.includes(hashView as ViewId) ? (hashView as ViewId) : 'dashboard';
 }
 
 function buildHoldingPayload(form: HoldingForm): StockHoldingPayload {

@@ -108,6 +108,11 @@ label {
   background: #253142;
 }
 
+.nav-list a.active {
+  color: #ffffff;
+  background: #2f7d6b;
+}
+
 .sidebar-status {
   display: flex;
   align-items: center;
@@ -130,6 +135,10 @@ label {
 
 .workspace {
   padding: 28px;
+}
+
+.screen-hidden {
+  display: none !important;
 }
 
 .topbar,

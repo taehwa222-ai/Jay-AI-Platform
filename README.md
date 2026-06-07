@@ -22,6 +22,14 @@ base that you can extend with your own modules.
 - Add Korea stock analysis and portfolio management as a later module.
 - Explore revenue models such as subscriptions, paid reports, B2B automation, and education content.
 
+## Screen Structure
+
+- `Dashboard`: service status, platform overview, module map, and roadmap.
+- `Member/Admin`: signup, login, account status, and admin member controls.
+- `Manual`: local development, GitHub flow, and VPS deployment steps.
+- `Korea Stocks`: portfolio, watchlist, stock analysis, and candidate scanning.
+- `Revenue`: subscription, report, B2B automation, and education ideas.
+
 ## Member Access
 
 - The first signed-up user automatically becomes `admin`.
