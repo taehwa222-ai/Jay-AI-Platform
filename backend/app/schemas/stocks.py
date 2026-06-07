@@ -115,3 +115,62 @@ class StockMarketSnapshot(BaseModel):
     price_change_percent: float
     volume_multiplier: float
     fetched_at: str
+
+
+class StockScanRequest(BaseModel):
+    tickers: list[str] = Field(min_length=1, max_length=20)
+    name_map: dict[str, str] = Field(default_factory=dict)
+    memo: str = Field(default="", max_length=700)
+
+    @field_validator("tickers")
+    @classmethod
+    def normalize_tickers(cls, value: list[str]) -> list[str]:
+        seen: set[str] = set()
+        normalized: list[str] = []
+        for ticker in value:
+            cleaned = ticker.strip().upper()
+            if cleaned and cleaned not in seen:
+                normalized.append(cleaned)
+                seen.add(cleaned)
+        return normalized
+
+    @field_validator("name_map")
+    @classmethod
+    def normalize_name_map(cls, value: dict[str, str]) -> dict[str, str]:
+        return {key.strip().upper(): item.strip() for key, item in value.items() if item.strip()}
+
+    @field_validator("memo")
+    @classmethod
+    def strip_memo(cls, value: str) -> str:
+        return value.strip()
+
+
+class StockScanCandidate(BaseModel):
+    ticker: str
+    name: str
+    provider_symbol: str
+    latest_trading_day: str
+    current_price: float
+    previous_close: float
+    price_change_percent: float
+    volume_multiplier: float
+    rsi: float
+    macd: float
+    macd_signal: float
+    score: int
+    rating: Literal["candidate", "watch", "caution"]
+    rating_label: str
+    summary: str
+    signals: list[str]
+    risk_notes: list[str]
+
+
+class StockScanFailure(BaseModel):
+    ticker: str
+    reason: str
+
+
+class StockScanResponse(BaseModel):
+    candidates: list[StockScanCandidate]
+    failed: list[StockScanFailure]
+    disclaimer: str

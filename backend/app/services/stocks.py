@@ -16,6 +16,10 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
+    StockScanCandidate,
+    StockScanFailure,
+    StockScanRequest,
+    StockScanResponse,
 )
 from app.services.auth import User
 
@@ -242,6 +246,63 @@ class StockService:
         if errors:
             detail = f"{detail} {'; '.join(errors[:2])}"
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+    async def scan(self, payload: StockScanRequest) -> StockScanResponse:
+        candidates: list[StockScanCandidate] = []
+        failed: list[StockScanFailure] = []
+
+        for ticker in payload.tickers:
+            try:
+                snapshot = await self.market_snapshot(ticker)
+            except HTTPException as exc:
+                failed.append(StockScanFailure(ticker=ticker, reason=str(exc.detail)))
+                continue
+
+            name = payload.name_map.get(snapshot.ticker, snapshot.ticker)
+            analysis_payload = StockAnalysisRequest(
+                ticker=snapshot.ticker,
+                name=name,
+                current_price=snapshot.current_price,
+                previous_close=snapshot.previous_close,
+                volume=snapshot.volume,
+                previous_volume=snapshot.previous_volume,
+                rsi=snapshot.rsi,
+                macd=snapshot.macd,
+                macd_signal=snapshot.macd_signal,
+                memo=payload.memo,
+            )
+            metrics = build_local_analysis(analysis_payload)
+            candidates.append(
+                StockScanCandidate(
+                    ticker=snapshot.ticker,
+                    name=name,
+                    provider_symbol=snapshot.provider_symbol,
+                    latest_trading_day=snapshot.latest_trading_day,
+                    current_price=snapshot.current_price,
+                    previous_close=snapshot.previous_close,
+                    price_change_percent=snapshot.price_change_percent,
+                    volume_multiplier=snapshot.volume_multiplier,
+                    rsi=snapshot.rsi,
+                    macd=snapshot.macd,
+                    macd_signal=snapshot.macd_signal,
+                    score=metrics["score"],
+                    rating=metrics["rating"],
+                    rating_label=metrics["rating_label"],
+                    summary=metrics["summary"],
+                    signals=metrics["signals"],
+                    risk_notes=metrics["risk_notes"],
+                )
+            )
+
+        candidates.sort(
+            key=lambda candidate: (
+                candidate.score,
+                candidate.volume_multiplier,
+                candidate.price_change_percent,
+            ),
+            reverse=True,
+        )
+        return StockScanResponse(candidates=candidates, failed=failed, disclaimer=DISCLAIMER)
 
     async def fetch_yahoo_candles(self, provider_symbol: str) -> list[MarketCandle]:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{provider_symbol}"

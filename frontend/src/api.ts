@@ -14,6 +14,8 @@ import type {
   StockHolding,
   StockHoldingPayload,
   StockMarketSnapshot,
+  StockScanPayload,
+  StockScanResult,
   UserAccount,
 } from './types';
 
@@ -171,6 +173,17 @@ export function getStockMarketSnapshot(
   return request<StockMarketSnapshot>(
     `/api/v1/stocks/market/${encodeURIComponent(ticker)}`,
     undefined,
+    token,
+  );
+}
+
+export function scanStocks(token: string, payload: StockScanPayload): Promise<StockScanResult> {
+  return request<StockScanResult>(
+    '/api/v1/stocks/scan',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
     token,
   );
 }

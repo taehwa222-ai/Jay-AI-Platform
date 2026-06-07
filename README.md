@@ -39,6 +39,7 @@ base that you can extend with your own modules.
 - The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
 - Users can load a Korean stock market snapshot by ticker; the server tries `.KS` and `.KQ` Yahoo Finance symbols.
 - The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
+- Users can scan multiple tickers at once and review ranked candidates by score.
 - If `OPENAI_API_KEY` is configured on the server, the analyzer also adds an AI-generated Korean summary.
 - If the OpenAI key is empty, the same endpoint still returns a rule-based local summary.
 - Analysis results are informational only and include a non-advisory disclaimer.

@@ -130,6 +130,13 @@ def test_market_snapshot_requires_login():
     assert response.status_code == 401
 
 
+def test_stock_scan_requires_login():
+    with TestClient(app) as client:
+        response = client.post("/api/v1/stocks/scan", json={"tickers": ["005930"]})
+
+    assert response.status_code == 401
+
+
 def test_market_snapshot_endpoint_uses_service(monkeypatch):
     async def fake_market_snapshot(self: StockService, ticker: str):
         candles = [
@@ -157,6 +164,47 @@ def test_market_snapshot_endpoint_uses_service(monkeypatch):
     assert body["provider_symbol"] == "005930.KS"
     assert body["current_price"] > body["previous_close"]
     assert body["volume"] > body["previous_volume"]
+
+
+def test_stock_scan_ranks_candidates_and_reports_failures(monkeypatch):
+    async def fake_market_snapshot(self: StockService, ticker: str):
+        if ticker == "BAD":
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404, detail="not found")
+
+        volume_step = 500_000 if ticker == "000660" else 10_000
+        candles = [
+            MarketCandle(
+                trading_day=f"2026-03-{(day % 28) + 1:02d}",
+                close=60000 + day * 200,
+                volume=1_000_000 + day * volume_step,
+            )
+            for day in range(1, 41)
+        ]
+        return build_market_snapshot(ticker, f"{ticker}.KS", candles)
+
+    monkeypatch.setattr(StockService, "market_snapshot", fake_market_snapshot)
+
+    with TestClient(app) as client:
+        token = signup(client)
+        response = client.post(
+            "/api/v1/stocks/scan",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "tickers": ["005930", "000660", "BAD"],
+                "name_map": {"005930": "삼성전자", "000660": "SK하이닉스"},
+                "memo": "거래량 급증 후보 확인",
+            },
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["candidates"]) == 2
+    assert body["candidates"][0]["ticker"] == "000660"
+    assert body["candidates"][0]["score"] >= body["candidates"][1]["score"]
+    assert body["failed"] == [{"ticker": "BAD", "reason": "not found"}]
+    assert body["disclaimer"]
 
 
 def test_indicator_calculation_and_market_snapshot():

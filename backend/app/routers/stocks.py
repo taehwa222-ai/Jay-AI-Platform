@@ -10,6 +10,8 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
+    StockScanRequest,
+    StockScanResponse,
 )
 from app.services.auth import User
 from app.services.stocks import StockService
@@ -64,6 +66,15 @@ async def market_snapshot(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> StockMarketSnapshot:
     return await stock_service.market_snapshot(ticker)
+
+
+@router.post("/scan", response_model=StockScanResponse)
+async def scan_stocks(
+    payload: StockScanRequest,
+    _: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> StockScanResponse:
+    return await stock_service.scan(payload)
 
 
 @router.post("/analyze", response_model=StockAnalysisResponse)

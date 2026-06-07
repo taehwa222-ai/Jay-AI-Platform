@@ -148,3 +148,40 @@ export type StockMarketSnapshot = {
   volume_multiplier: number;
   fetched_at: string;
 };
+
+export type StockScanPayload = {
+  tickers: string[];
+  name_map?: Record<string, string>;
+  memo?: string;
+};
+
+export type StockScanCandidate = {
+  ticker: string;
+  name: string;
+  provider_symbol: string;
+  latest_trading_day: string;
+  current_price: number;
+  previous_close: number;
+  price_change_percent: number;
+  volume_multiplier: number;
+  rsi: number;
+  macd: number;
+  macd_signal: number;
+  score: number;
+  rating: 'candidate' | 'watch' | 'caution';
+  rating_label: string;
+  summary: string;
+  signals: string[];
+  risk_notes: string[];
+};
+
+export type StockScanFailure = {
+  ticker: string;
+  reason: string;
+};
+
+export type StockScanResult = {
+  candidates: StockScanCandidate[];
+  failed: StockScanFailure[];
+  disclaimer: string;
+};

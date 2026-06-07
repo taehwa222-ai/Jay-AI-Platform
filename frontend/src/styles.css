@@ -597,6 +597,10 @@ code {
   gap: 18px;
 }
 
+.scan-pane {
+  grid-column: 1 / -1;
+}
+
 .portfolio-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -608,7 +612,8 @@ code {
 }
 
 .stock-form,
-.analysis-form {
+.analysis-form,
+.scan-form {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
@@ -716,6 +721,79 @@ code {
   background: #ffffff;
   font-size: 12px;
   font-weight: 700;
+}
+
+.scan-result {
+  display: grid;
+  gap: 10px;
+}
+
+.scan-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 92px;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.scan-card.candidate {
+  border-color: #9bd2bf;
+  background: #f0faf6;
+}
+
+.scan-card.watch {
+  border-color: #e5c783;
+  background: #fff9ea;
+}
+
+.scan-card.caution {
+  border-color: #e2aaa7;
+  background: #fff5f4;
+}
+
+.scan-rank,
+.scan-score {
+  display: grid;
+  justify-items: center;
+  font-weight: 800;
+}
+
+.scan-main {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.scan-main strong span,
+.scan-main p,
+.scan-main small {
+  color: #536273;
+}
+
+.scan-main p {
+  line-height: 1.5;
+}
+
+.scan-score strong {
+  font-size: 26px;
+}
+
+.scan-score span {
+  color: #536273;
+  font-size: 12px;
+}
+
+.scan-failed {
+  display: grid;
+  gap: 5px;
+  border-radius: 8px;
+  padding: 12px;
+  color: #7c2d2d;
+  background: #fff5f4;
+  font-size: 13px;
 }
 
 .analysis-result.candidate {
@@ -908,8 +986,19 @@ code {
   .portfolio-summary,
   .stock-form,
   .analysis-form,
+  .scan-form,
   .analysis-columns {
     grid-template-columns: 1fr;
+  }
+
+  .scan-card {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .scan-rank,
+  .scan-score {
+    justify-items: start;
   }
 
   .wide-field {

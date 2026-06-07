@@ -35,6 +35,7 @@ import {
   getStockHoldings,
   getStockMarketSnapshot,
   login,
+  scanStocks,
   signup,
   updateAdminUser,
   updateStockHolding,
@@ -52,6 +53,7 @@ import type {
   StockHolding,
   StockHoldingPayload,
   StockMarketSnapshot,
+  StockScanResult,
   UserAccount,
 } from './types';
 
@@ -152,6 +154,11 @@ export default function App() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
+  const [scanTickers, setScanTickers] = useState('005930,000660,035420,035720,051910');
+  const [scanMemo, setScanMemo] = useState('');
+  const [scanResult, setScanResult] = useState<StockScanResult | null>(null);
+  const [scanMessage, setScanMessage] = useState<string | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -386,6 +393,24 @@ export default function App() {
       );
     } finally {
       setMarketLoading(false);
+    }
+  }
+
+  async function handleScanStocks(event: FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    setScanLoading(true);
+    setScanMessage(null);
+
+    try {
+      const tickers = parseTickerList(scanTickers);
+      const result = await scanStocks(token, { tickers, memo: scanMemo });
+      setScanResult(result);
+      setScanMessage(`${result.candidates.length}개 후보를 점수순으로 정리했습니다.`);
+    } catch (requestError) {
+      setScanMessage(requestError instanceof Error ? requestError.message : 'Stock scan failed.');
+    } finally {
+      setScanLoading(false);
     }
   }
 
@@ -1000,6 +1025,74 @@ export default function App() {
                   )}
                 </div>
               </article>
+
+              <article className="tool-pane stock-pane scan-pane">
+                <div className="pane-title">
+                  <LineChartOutlined />
+                  <h3>추천 후보 스캔</h3>
+                </div>
+                <div className="pane-body">
+                  <form className="scan-form" onSubmit={(event) => void handleScanStocks(event)}>
+                    <label className="wide-field">
+                      <span>스캔할 종목코드</span>
+                      <input
+                        onChange={(event) => setScanTickers(event.target.value)}
+                        placeholder="005930,000660,035720"
+                        required
+                        value={scanTickers}
+                      />
+                    </label>
+                    <label className="wide-field">
+                      <span>스캔 메모</span>
+                      <input
+                        onChange={(event) => setScanMemo(event.target.value)}
+                        placeholder="예: 거래량 급증 후보, 반도체/AI 관련주 우선 확인"
+                        value={scanMemo}
+                      />
+                    </label>
+                    <button className="primary-button" disabled={scanLoading} type="submit">
+                      <BarChartOutlined />
+                      후보 스캔 실행
+                    </button>
+                  </form>
+
+                  {scanMessage && <div className="inline-message">{scanMessage}</div>}
+                  {scanResult && (
+                    <div className="scan-result">
+                      {scanResult.candidates.map((candidate, index) => (
+                        <div className={`scan-card ${candidate.rating}`} key={candidate.ticker}>
+                          <div className="scan-rank">#{index + 1}</div>
+                          <div className="scan-main">
+                            <strong>
+                              {candidate.name} <span>{candidate.ticker}</span>
+                            </strong>
+                            <p>{candidate.summary}</p>
+                            <small>
+                              {candidate.latest_trading_day} · {candidate.provider_symbol} · 거래량{' '}
+                              {candidate.volume_multiplier}배 · RSI {candidate.rsi}
+                            </small>
+                          </div>
+                          <div className="scan-score">
+                            <strong>{candidate.score}</strong>
+                            <span>{candidate.rating_label}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {scanResult.failed.length > 0 && (
+                        <div className="scan-failed">
+                          <strong>조회 실패</strong>
+                          {scanResult.failed.map((item) => (
+                            <span key={item.ticker}>
+                              {item.ticker}: {item.reason}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="disclaimer">{scanResult.disclaimer}</div>
+                    </div>
+                  )}
+                </div>
+              </article>
             </div>
           ) : (
             <div className="empty-state stock-login-note">
@@ -1117,6 +1210,17 @@ function buildAnalysisPayload(form: AnalysisForm): StockAnalysisPayload {
     macd_signal: toNumber(form.macd_signal),
     memo: form.memo,
   };
+}
+
+function parseTickerList(value: string): string[] {
+  return Array.from(
+    new Set(
+      value
+        .split(/[\s,]+/)
+        .map((ticker) => ticker.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function toNumber(value: string | number | undefined): number {
