@@ -244,6 +244,17 @@ export default function App() {
     analysis: analysisResult ? '결과 있음' : '대기',
     scan: scanResult ? `${scanResult.candidates.length}개 후보` : '대기',
   };
+  const portfolioBreakdown = holdings
+    .map((holding) => ({
+      ...holding,
+      allocationPercent:
+        portfolioTotals.value > 0 ? (holding.market_value / portfolioTotals.value) * 100 : 0,
+    }))
+    .sort((first, second) => second.market_value - first.market_value);
+  const maxHoldingProfitPercent = Math.max(
+    1,
+    ...portfolioBreakdown.map((holding) => Math.abs(holding.profit_loss_percent)),
+  );
 
   useEffect(() => {
     void refreshState();
@@ -977,6 +988,72 @@ export default function App() {
                     />
                   </div>
 
+                  {portfolioBreakdown.length > 0 && (
+                    <div className="portfolio-visuals">
+                      <div className="portfolio-chart-panel">
+                        <div className="chart-head">
+                          <strong>보유 비중</strong>
+                          <span>평가금액 기준</span>
+                        </div>
+                        <div className="allocation-list">
+                          {portfolioBreakdown.map((holding) => (
+                            <div className="allocation-row" key={holding.id}>
+                              <div className="allocation-label">
+                                <strong>{holding.name}</strong>
+                                <span>{formatPlainPercent(holding.allocationPercent)}</span>
+                              </div>
+                              <div className="allocation-track">
+                                <div
+                                  className="allocation-fill"
+                                  style={{ width: `${Math.max(2, holding.allocationPercent)}%` }}
+                                />
+                              </div>
+                              <small>{formatWon(holding.market_value)}</small>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="portfolio-chart-panel">
+                        <div className="chart-head">
+                          <strong>수익률 비교</strong>
+                          <span>종목별 손익률</span>
+                        </div>
+                        <div className="performance-list">
+                          {portfolioBreakdown.map((holding) => {
+                            const barWidth = Math.max(
+                              4,
+                              (Math.abs(holding.profit_loss_percent) / maxHoldingProfitPercent) * 100,
+                            );
+                            return (
+                              <div className="performance-row" key={holding.id}>
+                                <div className="performance-label">
+                                  <strong>{holding.name}</strong>
+                                  <span
+                                    className={
+                                      holding.profit_loss >= 0 ? 'profit-positive' : 'profit-negative'
+                                    }
+                                  >
+                                    {formatPercent(holding.profit_loss_percent)}
+                                  </span>
+                                </div>
+                                <div className="performance-track">
+                                  <div
+                                    className={`performance-fill ${
+                                      holding.profit_loss >= 0 ? 'positive' : 'negative'
+                                    }`}
+                                    style={{ width: `${barWidth}%` }}
+                                  />
+                                </div>
+                                <small>{formatWon(holding.profit_loss)}</small>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <form className="stock-form" onSubmit={(event) => void handleCreateHolding(event)}>
                     <label>
                       <span>종목코드</span>
@@ -1600,4 +1677,8 @@ function formatWon(value: number): string {
 function formatPercent(value: number): string {
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
+}
+
+function formatPlainPercent(value: number): string {
+  return `${value.toFixed(2)}%`;
 }

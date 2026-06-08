@@ -46,6 +46,7 @@ base that you can extend with your own modules.
 - Logged-in users can save Korean stock holdings with ticker, quantity, average price, current price, thesis, and risk memo.
 - Logged-in users can save a separate watchlist for stocks they want to monitor before buying.
 - The portfolio screen calculates cost basis, market value, profit/loss, and profit/loss percentage.
+- The portfolio tab visualizes holding allocation and per-stock return rates without extra chart dependencies.
 - The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
 - Users can load a Korean stock market snapshot by ticker; the server tries `.KS` and `.KQ` Yahoo Finance symbols.
 - The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
