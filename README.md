@@ -28,7 +28,7 @@ base that you can extend with your own modules.
 - `Login`: signup, login, logout, and account status.
 - `Admin`: member list, role control, and account activation.
 - `Manual`: local development, GitHub flow, and VPS deployment steps.
-- `Korea Stocks`: portfolio, watchlist, stock analysis, and candidate scanning.
+- `Korea Stocks`: tabbed portfolio, watchlist, stock analysis, and candidate scanning.
 - `Revenue`: subscription, report, B2B automation, and education ideas.
 
 ## Member Access
@@ -51,6 +51,7 @@ base that you can extend with your own modules.
 - The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
 - Users can scan multiple tickers at once and review ranked candidates by score.
 - Users can scan their saved watchlist with one click.
+- The stock screen is split into `Holdings`, `Watchlist`, `AI Analysis`, and `Candidate Scan` tabs so each workflow stays focused.
 - If `OPENAI_API_KEY` is configured on the server, the analyzer also adds an AI-generated Korean summary.
 - If the OpenAI key is empty, the same endpoint still returns a rule-based local summary.
 - Analysis results are informational only and include a non-advisory disclaimer.

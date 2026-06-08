@@ -625,11 +625,79 @@ code {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.stock-tab-shell {
+  display: grid;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.stock-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.stock-tabs button {
+  display: grid;
+  gap: 6px;
+  min-height: 106px;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 14px;
+  color: #263445;
+  background: #ffffff;
+  text-align: left;
+}
+
+.stock-tabs button:hover {
+  border-color: #9bd2bf;
+}
+
+.stock-tabs button.active {
+  border-color: #2f7d6b;
+  background: #f0faf6;
+  box-shadow: 0 10px 24px rgba(47, 125, 107, 0.12);
+}
+
+.stock-tab-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stock-tab-title svg {
+  color: #2f7d6b;
+}
+
+.stock-tab-title span {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.stock-tabs small {
+  color: #536273;
+  line-height: 1.45;
+}
+
+.stock-tabs strong {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: #195b42;
+  background: #dff3ea;
+  font-size: 12px;
+}
+
 .stock-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
   gap: 18px;
   margin-top: 18px;
+}
+
+.stock-workspace-tabs {
+  grid-template-columns: 1fr;
+  margin-top: 0;
 }
 
 .stock-pane .pane-body {
@@ -940,7 +1008,19 @@ code {
 }
 
 .stock-login-note {
+  display: grid;
+  gap: 12px;
   margin-top: 18px;
+}
+
+.stock-login-note a {
+  width: fit-content;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #ffffff;
+  background: #2f7d6b;
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .idea-grid {
@@ -995,6 +1075,7 @@ code {
 @media (max-width: 1180px) {
   .module-grid,
   .stock-grid,
+  .stock-tabs,
   .stock-workspace,
   .phase-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1062,6 +1143,7 @@ code {
   .analysis-form,
   .watchlist-form,
   .scan-form,
+  .stock-tabs,
   .analysis-columns {
     grid-template-columns: 1fr;
   }

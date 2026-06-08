@@ -153,6 +153,31 @@ const stockWorkflows = [
   },
 ];
 
+const STOCK_TABS = [
+  {
+    id: 'holdings',
+    title: '보유종목',
+    description: '내가 실제로 보유한 주식과 손익을 관리합니다.',
+  },
+  {
+    id: 'watchlist',
+    title: '관심종목',
+    description: '아직 매수 전인 종목을 따로 저장하고 추적합니다.',
+  },
+  {
+    id: 'analysis',
+    title: 'AI 분석',
+    description: '한 종목의 시세, 거래량, RSI, MACD를 분석합니다.',
+  },
+  {
+    id: 'scan',
+    title: '후보 스캔',
+    description: '여러 종목을 한 번에 비교해 후보를 정렬합니다.',
+  },
+] as const;
+
+type StockTabId = (typeof STOCK_TABS)[number]['id'];
+
 export default function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
@@ -193,6 +218,7 @@ export default function App() {
   const [scanResult, setScanResult] = useState<StockScanResult | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
+  const [activeStockTab, setActiveStockTab] = useState<StockTabId>('holdings');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewId>(() => getInitialView());
@@ -210,6 +236,12 @@ export default function App() {
   const activeMemberCount = adminUsers.filter((user) => user.role === 'member' && user.is_active).length;
   const activeAdminCount = adminUsers.filter((user) => user.role === 'admin' && user.is_active).length;
   const inactiveUserCount = adminUsers.filter((user) => !user.is_active).length;
+  const stockTabCounts: Record<StockTabId, string> = {
+    holdings: `${holdings.length}개`,
+    watchlist: `${watchlist.length}개`,
+    analysis: analysisResult ? '결과 있음' : '대기',
+    scan: scanResult ? `${scanResult.candidates.length}개 후보` : '대기',
+  };
 
   useEffect(() => {
     void refreshState();
@@ -496,6 +528,7 @@ export default function App() {
       watchlist.map((item) => [item.ticker, item.name || item.ticker]),
     );
     setScanTickers(tickers.join(','));
+    setActiveStockTab('scan');
     await runStockScan(tickers, nameMap, scanMemo || '관심종목 전체 스캔');
   }
 
@@ -866,8 +899,30 @@ export default function App() {
           </div>
 
           {currentUser ? (
-            <div className="stock-workspace">
-              <article className="tool-pane stock-pane">
+            <div className="stock-tab-shell">
+              <div className="stock-tabs" role="tablist" aria-label="국내 주식 작업 메뉴">
+                {STOCK_TABS.map((tab) => (
+                  <button
+                    aria-selected={activeStockTab === tab.id}
+                    className={activeStockTab === tab.id ? 'active' : ''}
+                    key={tab.id}
+                    onClick={() => setActiveStockTab(tab.id)}
+                    role="tab"
+                    type="button"
+                  >
+                    <span className="stock-tab-title">
+                      {getStockTabIcon(tab.id)}
+                      <span>{tab.title}</span>
+                    </span>
+                    <small>{tab.description}</small>
+                    <strong>{stockTabCounts[tab.id]}</strong>
+                  </button>
+                ))}
+              </div>
+
+              <div className="stock-workspace stock-workspace-tabs">
+                {activeStockTab === 'holdings' && (
+                  <article className="tool-pane stock-pane">
                 <div className="pane-title">
                   <LineChartOutlined />
                   <h3>내 주식 포트폴리오</h3>
@@ -1021,9 +1076,11 @@ export default function App() {
                   </div>
                   {holdingMessage && <div className="inline-message">{holdingMessage}</div>}
                 </div>
-              </article>
+                  </article>
+                )}
 
-              <article className="tool-pane stock-pane">
+                {activeStockTab === 'watchlist' && (
+                  <article className="tool-pane stock-pane">
                 <div className="pane-title">
                   <BookOutlined />
                   <h3>관심종목</h3>
@@ -1102,9 +1159,11 @@ export default function App() {
                   </div>
                   {watchlistMessage && <div className="inline-message">{watchlistMessage}</div>}
                 </div>
-              </article>
+                  </article>
+                )}
 
-              <article className="tool-pane stock-pane">
+                {activeStockTab === 'analysis' && (
+                  <article className="tool-pane stock-pane">
                 <div className="pane-title">
                   <BarChartOutlined />
                   <h3>AI 분석 후보 만들기</h3>
@@ -1260,9 +1319,11 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </article>
+                  </article>
+                )}
 
-              <article className="tool-pane stock-pane scan-pane">
+                {activeStockTab === 'scan' && (
+                  <article className="tool-pane stock-pane scan-pane">
                 <div className="pane-title">
                   <LineChartOutlined />
                   <h3>추천 후보 스캔</h3>
@@ -1328,11 +1389,14 @@ export default function App() {
                     </div>
                   )}
                 </div>
-              </article>
+                  </article>
+                )}
+              </div>
             </div>
           ) : (
             <div className="empty-state stock-login-note">
               로그인 후 보유 종목 관리와 조건 기반 AI 분석 기능을 사용할 수 있습니다.
+              <a href="#auth">로그인 화면으로 이동</a>
             </div>
           )}
         </section>
@@ -1419,6 +1483,19 @@ function SignalList({ title, items }: { title: string; items: string[] }) {
       </ul>
     </div>
   );
+}
+
+function getStockTabIcon(tabId: StockTabId): ReactNode {
+  switch (tabId) {
+    case 'holdings':
+      return <LineChartOutlined />;
+    case 'watchlist':
+      return <BookOutlined />;
+    case 'analysis':
+      return <BarChartOutlined />;
+    case 'scan':
+      return <AppstoreOutlined />;
+  }
 }
 
 function getInitialView(): ViewId {

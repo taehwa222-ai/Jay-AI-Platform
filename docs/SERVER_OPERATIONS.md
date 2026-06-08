@@ -75,6 +75,8 @@ uses `/api/v1/stocks/holdings` for portfolio management and
 MACD so users do not need to enter every indicator manually.
 `/api/v1/stocks/scan` accepts multiple tickers and returns ranked candidates
 with failed lookups separated from successful results.
+The frontend separates this into focused stock tabs for holdings, watchlist,
+single-stock analysis, and multi-stock scanning.
 
 OpenAI summary generation is optional. Set these values in `.env` on the VPS
 when you want AI-generated summaries:
