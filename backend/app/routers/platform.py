@@ -28,18 +28,18 @@ async def modules() -> dict[str, object]:
             {
                 "id": "member-auth",
                 "title": "회원가입/로그인",
-                "status": "next",
+                "status": "active",
                 "description": "팀원이 각자 계정으로 접속하고 권한을 분리하는 기본 기능입니다.",
-                "items": ["email signup", "login", "password reset", "role based access"],
+                "items": ["email signup", "login", "logout", "role based access"],
             },
             {
                 "id": "admin-console",
                 "title": "관리페이지",
-                "status": "next",
+                "status": "active",
                 "description": (
                     "회원, 권한, 결제, 사용량, 공지, 기능 노출을 관리하는 운영 화면입니다."
                 ),
-                "items": ["member list", "role control", "usage metrics", "service settings"],
+                "items": ["member list", "role control", "account activation", "service settings"],
             },
             {
                 "id": "operation-manual",
@@ -204,8 +204,8 @@ async def roadmap() -> dict[str, object]:
             {
                 "id": "access",
                 "title": "Member Access",
-                "status": "next",
-                "items": ["signup", "login", "admin roles", "protected pages"],
+                "status": "active",
+                "items": ["signup", "login", "admin roles", "separate auth/admin screens"],
             },
             {
                 "id": "manual",

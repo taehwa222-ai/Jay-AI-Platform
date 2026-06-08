@@ -25,7 +25,8 @@ base that you can extend with your own modules.
 ## Screen Structure
 
 - `Dashboard`: service status, platform overview, module map, and roadmap.
-- `Member/Admin`: signup, login, account status, and admin member controls.
+- `Login`: signup, login, logout, and account status.
+- `Admin`: member list, role control, and account activation.
 - `Manual`: local development, GitHub flow, and VPS deployment steps.
 - `Korea Stocks`: portfolio, watchlist, stock analysis, and candidate scanning.
 - `Revenue`: subscription, report, B2B automation, and education ideas.
@@ -34,7 +35,7 @@ base that you can extend with your own modules.
 
 - The first signed-up user automatically becomes `admin`.
 - Later signed-up users become `member`.
-- Admin users can open the member list in the dashboard.
+- Admin users can open the member list from the dedicated admin screen.
 - Admin users can promote/demote members and enable/disable accounts.
 - The app prevents disabling your own account or removing the last active admin.
 - User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.

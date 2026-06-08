@@ -63,13 +63,14 @@ import type {
 
 const TOKEN_STORAGE_KEY = 'jay-ai-platform-token';
 
-const VIEW_IDS = ['dashboard', 'access', 'manual', 'stocks', 'revenue'] as const;
+const VIEW_IDS = ['dashboard', 'auth', 'admin', 'manual', 'stocks', 'revenue'] as const;
 
 type ViewId = (typeof VIEW_IDS)[number];
 
 const VIEW_META: Record<ViewId, { eyebrow: string; title: string }> = {
   dashboard: { eyebrow: 'Overview', title: 'AI 플랫폼 대시보드' },
-  access: { eyebrow: 'Access', title: '회원·관리' },
+  auth: { eyebrow: 'Access', title: '로그인·회원가입' },
+  admin: { eyebrow: 'Admin', title: '관리자 페이지' },
   manual: { eyebrow: 'Manual', title: '사용 매뉴얼' },
   stocks: { eyebrow: 'Korea Stock Lab', title: '국내 주식 분석' },
   revenue: { eyebrow: 'Revenue Lab', title: '수익화 아이디어' },
@@ -206,6 +207,9 @@ export default function App() {
   );
   const portfolioProfitPercent =
     portfolioTotals.cost > 0 ? (portfolioTotals.profit / portfolioTotals.cost) * 100 : 0;
+  const activeMemberCount = adminUsers.filter((user) => user.role === 'member' && user.is_active).length;
+  const activeAdminCount = adminUsers.filter((user) => user.role === 'admin' && user.is_active).length;
+  const inactiveUserCount = adminUsers.filter((user) => !user.is_active).length;
 
   useEffect(() => {
     void refreshState();
@@ -300,6 +304,7 @@ export default function App() {
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
     }
+    navigateToView(response.user.role === 'admin' ? 'admin' : 'stocks');
   }
 
   async function loadAdminUsers(activeToken = token) {
@@ -523,6 +528,12 @@ export default function App() {
     setAnalysisResult(null);
     setScanResult(null);
     setAuthMessage('로그아웃되었습니다.');
+    navigateToView('auth');
+  }
+
+  function navigateToView(view: ViewId) {
+    window.location.hash = view;
+    setActiveView(view);
   }
 
   return (
@@ -537,9 +548,13 @@ export default function App() {
             <AppstoreOutlined />
             대시보드
           </a>
-          <a className={activeView === 'access' ? 'active' : ''} href="#access">
+          <a className={activeView === 'auth' ? 'active' : ''} href="#auth">
             <TeamOutlined />
-            회원/관리
+            로그인
+          </a>
+          <a className={activeView === 'admin' ? 'active' : ''} href="#admin">
+            <CrownOutlined />
+            관리자
           </a>
           <a className={activeView === 'manual' ? 'active' : ''} href="#manual">
             <BookOutlined />
@@ -581,7 +596,7 @@ export default function App() {
 
         <section className={activeView === 'dashboard' ? 'metric-band' : 'screen-hidden'} id="dashboard">
           <StatusTile label="API" value={health?.ok ? 'Online' : 'Checking'} tone={health?.ok ? 'good' : 'muted'} />
-          <StatusTile label="우선순위" value="회원/관리" tone="steady" />
+          <StatusTile label="우선순위" value="로그인/관리자" tone="steady" />
           <StatusTile label="운영 상태" value="VPS 배포중" />
         </section>
 
@@ -596,18 +611,18 @@ export default function App() {
               <BookOutlined />
               매뉴얼 보기
             </a>
-            <a href="#access">
+            <a href="#auth">
               <LockOutlined />
-              권한 설정
+              로그인
             </a>
           </div>
         </section>
 
-        <section className={activeView === 'access' ? 'section-block' : 'screen-hidden'} id="access">
+        <section className={activeView === 'auth' ? 'section-block' : 'screen-hidden'} id="auth">
           <SectionTitle
             eyebrow="Access First"
             icon={<SafetyCertificateOutlined />}
-            title="회원가입, 로그인, 관리페이지"
+            title="회원가입과 로그인"
           />
           <div className="access-grid">
             <article className="tool-pane">
@@ -691,65 +706,100 @@ export default function App() {
 
             <article className="tool-pane">
               <div className="pane-title">
-                <CrownOutlined />
-                <h3>관리페이지</h3>
+                <LockOutlined />
+                <h3>로그인 후 이동</h3>
               </div>
               <div className="pane-body">
-                {currentUser?.role === 'admin' ? (
-                  <div className="admin-panel">
-                    <div className="admin-head">
-                      <p>현재 등록된 회원을 확인하고 역할과 계정 상태를 관리합니다.</p>
-                      <button className="secondary-button" onClick={() => void loadAdminUsers()} type="button">
-                        <ReloadOutlined />
-                        새로고침
-                      </button>
-                    </div>
-                    <div className="user-list">
-                      {adminUsers.map((user) => (
-                        <div className={`user-row ${user.is_active ? '' : 'disabled'}`} key={user.id}>
-                          <div className="user-identity">
-                            <strong>{user.name}</strong>
-                            <span>{user.email}</span>
-                            {currentUser?.id === user.id && <small>내 계정</small>}
-                          </div>
-                          <div className="user-controls">
-                            <select
-                              disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
-                              onChange={(event) =>
-                                void handleAdminUserUpdate(user.id, {
-                                  role: event.target.value as 'admin' | 'member',
-                                })
-                              }
-                              value={user.role}
-                            >
-                              <option value="admin">admin</option>
-                              <option value="member">member</option>
-                            </select>
-                            <button
-                              className={user.is_active ? 'danger-button' : 'secondary-button'}
-                              disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
-                              onClick={() =>
-                                void handleAdminUserUpdate(user.id, { is_active: !user.is_active })
-                              }
-                              type="button"
-                            >
-                              {user.is_active ? '비활성화' : '활성화'}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {adminUsers.length === 0 && <div className="empty-state">회원 목록이 비어 있습니다.</div>}
-                    </div>
-                    {adminMessage && <div className="inline-message">{adminMessage}</div>}
-                  </div>
-                ) : (
-                  <div className="empty-state">
-                    관리자 계정으로 로그인하면 회원 목록과 운영 설정을 볼 수 있습니다.
-                  </div>
-                )}
+                <div className="login-route-list">
+                  <a href="#stocks">
+                    <BarChartOutlined />
+                    국내 주식 분석 화면으로 이동
+                  </a>
+                  <a href="#manual">
+                    <BookOutlined />
+                    사용 매뉴얼 화면으로 이동
+                  </a>
+                  <a href="#admin">
+                    <CrownOutlined />
+                    관리자 화면으로 이동
+                  </a>
+                </div>
+                <p>
+                  첫 번째 가입자는 자동으로 관리자 권한을 받습니다. 이후 가입자는 일반 회원으로 등록되고,
+                  관리자가 역할과 활성 상태를 조정합니다.
+                </p>
               </div>
             </article>
           </div>
+        </section>
+
+        <section className={activeView === 'admin' ? 'section-block' : 'screen-hidden'} id="admin">
+          <SectionTitle eyebrow="Admin Console" icon={<CrownOutlined />} title="회원과 권한 관리" />
+          <div className="admin-grid">
+            <StatusTile label="활성 관리자" value={`${activeAdminCount}명`} tone="good" />
+            <StatusTile label="활성 회원" value={`${activeMemberCount}명`} />
+            <StatusTile label="비활성 계정" value={`${inactiveUserCount}명`} tone="steady" />
+          </div>
+          <article className="tool-pane">
+            <div className="pane-title">
+              <TeamOutlined />
+              <h3>회원 목록</h3>
+            </div>
+            <div className="pane-body">
+              {currentUser?.role === 'admin' ? (
+                <div className="admin-panel">
+                  <div className="admin-head">
+                    <p>현재 등록된 회원을 확인하고 역할과 계정 상태를 관리합니다.</p>
+                    <button className="secondary-button" onClick={() => void loadAdminUsers()} type="button">
+                      <ReloadOutlined />
+                      새로고침
+                    </button>
+                  </div>
+                  <div className="user-list">
+                    {adminUsers.map((user) => (
+                      <div className={`user-row ${user.is_active ? '' : 'disabled'}`} key={user.id}>
+                        <div className="user-identity">
+                          <strong>{user.name}</strong>
+                          <span>{user.email}</span>
+                          {currentUser?.id === user.id && <small>내 계정</small>}
+                        </div>
+                        <div className="user-controls">
+                          <select
+                            disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
+                            onChange={(event) =>
+                              void handleAdminUserUpdate(user.id, {
+                                role: event.target.value as 'admin' | 'member',
+                              })
+                            }
+                            value={user.role}
+                          >
+                            <option value="admin">admin</option>
+                            <option value="member">member</option>
+                          </select>
+                          <button
+                            className={user.is_active ? 'danger-button' : 'secondary-button'}
+                            disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
+                            onClick={() =>
+                              void handleAdminUserUpdate(user.id, { is_active: !user.is_active })
+                            }
+                            type="button"
+                          >
+                            {user.is_active ? '비활성화' : '활성화'}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {adminUsers.length === 0 && <div className="empty-state">회원 목록이 비어 있습니다.</div>}
+                  </div>
+                  {adminMessage && <div className="inline-message">{adminMessage}</div>}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  관리자 계정으로 로그인하면 회원 목록과 권한 설정을 볼 수 있습니다.
+                </div>
+              )}
+            </div>
+          </article>
         </section>
 
         <section className={activeView === 'dashboard' ? 'section-block' : 'screen-hidden'}>
@@ -1377,6 +1427,10 @@ function getInitialView(): ViewId {
   }
 
   const hashView = window.location.hash.replace('#', '');
+  if (hashView === 'access') {
+    return 'auth';
+  }
+
   return VIEW_IDS.includes(hashView as ViewId) ? (hashView as ViewId) : 'dashboard';
 }
 

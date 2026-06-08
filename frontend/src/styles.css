@@ -388,6 +388,36 @@ select:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.login-route-list {
+  display: grid;
+  gap: 10px;
+}
+
+.login-route-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #263445;
+  background: #ffffff;
+  text-decoration: none;
+}
+
+.login-route-list a:hover {
+  border-color: #2f7d6b;
+  color: #195b42;
+}
+
 .pane-title {
   display: flex;
   align-items: center;
@@ -1018,13 +1048,14 @@ code {
   .metric-band,
   .hero-panel,
   .access-grid,
-    .module-grid,
-    .stock-grid,
-    .stock-workspace,
-    .idea-grid,
-    .phase-list {
-      grid-template-columns: 1fr;
-    }
+  .admin-grid,
+  .module-grid,
+  .stock-grid,
+  .stock-workspace,
+  .idea-grid,
+  .phase-list {
+    grid-template-columns: 1fr;
+  }
 
   .portfolio-summary,
   .stock-form,

@@ -38,7 +38,8 @@ Expected URLs:
 ```text
 http://localhost
 http://localhost/#dashboard
-http://localhost/#access
+http://localhost/#auth
+http://localhost/#admin
 http://localhost/#manual
 http://localhost/#stocks
 http://localhost/#revenue
@@ -62,7 +63,7 @@ In Docker/VPS deployment, `./data` is mounted into the backend container. Keep
 that folder when redeploying so accounts are preserved.
 
 The first registered account becomes `admin`. Admin users can change member
-roles and enable or disable accounts from the dashboard.
+roles and enable or disable accounts from the admin screen.
 
 ## Stock And Portfolio Data
 
