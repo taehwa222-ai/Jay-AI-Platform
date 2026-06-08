@@ -38,6 +38,7 @@ import {
   getStockMarketSnapshot,
   getStockWatchlist,
   login,
+  refreshStockHoldingPrices,
   scanStocks,
   signup,
   updateAdminUser,
@@ -200,6 +201,7 @@ export default function App() {
   const [holdingForm, setHoldingForm] = useState<HoldingForm>(emptyHoldingForm);
   const [holdingMessage, setHoldingMessage] = useState<string | null>(null);
   const [holdingLoading, setHoldingLoading] = useState(false);
+  const [holdingRefreshLoading, setHoldingRefreshLoading] = useState(false);
   const [currentPriceDrafts, setCurrentPriceDrafts] = useState<Record<number, string>>({});
   const [savingCurrentPriceId, setSavingCurrentPriceId] = useState<number | null>(null);
   const [watchlist, setWatchlist] = useState<StockWatchlistItem[]>([]);
@@ -414,6 +416,34 @@ export default function App() {
       setHoldingMessage(requestError instanceof Error ? requestError.message : 'Price update failed.');
     } finally {
       setSavingCurrentPriceId(null);
+    }
+  }
+
+  async function handleRefreshHoldingPrices() {
+    if (!token || holdings.length === 0) return;
+    setHoldingRefreshLoading(true);
+    setHoldingMessage(null);
+
+    try {
+      const result = await refreshStockHoldingPrices(token);
+      if (result.updated.length > 0) {
+        const updatedById = new Map(result.updated.map((holding) => [holding.id, holding]));
+        const nextHoldings = holdings.map((holding) => updatedById.get(holding.id) ?? holding);
+        setHoldings(nextHoldings);
+        setCurrentPriceDrafts(
+          Object.fromEntries(nextHoldings.map((holding) => [holding.id, String(holding.current_price)])),
+        );
+      }
+      const successMessage = `${result.updated.length}개 보유종목 현재가를 갱신했습니다.`;
+      const failureMessage =
+        result.failed.length > 0 ? ` ${result.failed.length}개 종목은 시세 조회에 실패했습니다.` : '';
+      setHoldingMessage(`${successMessage}${failureMessage}`);
+    } catch (requestError) {
+      setHoldingMessage(
+        requestError instanceof Error ? requestError.message : 'Price refresh failed.',
+      );
+    } finally {
+      setHoldingRefreshLoading(false);
     }
   }
 
@@ -926,6 +956,15 @@ export default function App() {
                 <div className="pane-title">
                   <LineChartOutlined />
                   <h3>내 주식 포트폴리오</h3>
+                  <button
+                    className="secondary-button"
+                    disabled={holdingRefreshLoading || holdings.length === 0}
+                    onClick={() => void handleRefreshHoldingPrices()}
+                    type="button"
+                  >
+                    <ReloadOutlined />
+                    현재가 전체 갱신
+                  </button>
                 </div>
                 <div className="pane-body">
                   <div className="portfolio-summary">

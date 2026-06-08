@@ -7,6 +7,7 @@ from app.schemas.stocks import (
     StockAnalysisRequest,
     StockAnalysisResponse,
     StockHoldingCreateRequest,
+    StockHoldingPriceRefreshResponse,
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
@@ -51,6 +52,14 @@ async def update_holding(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> StockHoldingPublic:
     return stock_service.update_holding(holding_id, user, payload)
+
+
+@router.post("/holdings/refresh-prices", response_model=StockHoldingPriceRefreshResponse)
+async def refresh_holding_prices(
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> StockHoldingPriceRefreshResponse:
+    return await stock_service.refresh_holding_prices(user)
 
 
 @router.delete("/holdings/{holding_id}", status_code=status.HTTP_204_NO_CONTENT)

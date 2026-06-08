@@ -70,6 +70,8 @@ roles and enable or disable accounts from the admin screen.
 The same SQLite database also stores each user's stock holdings. The frontend
 uses `/api/v1/stocks/holdings` for portfolio management and
 `/api/v1/stocks/watchlist` for pre-buy monitoring lists.
+`/api/v1/stocks/holdings/refresh-prices` refreshes saved holding prices from
+the market data provider and reports failed tickers separately.
 `/api/v1/stocks/analyze` handles condition-based stock analysis. The endpoint
 `/api/v1/stocks/market/{ticker}` loads a market snapshot and calculates RSI and
 MACD so users do not need to enter every indicator manually.

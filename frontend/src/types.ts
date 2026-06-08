@@ -102,6 +102,18 @@ export type StockHoldingPayload = {
   risk_memo?: string;
 };
 
+export type StockHoldingPriceRefreshFailure = {
+  id: number;
+  ticker: string;
+  name: string;
+  reason: string;
+};
+
+export type StockHoldingPriceRefreshResult = {
+  updated: StockHolding[];
+  failed: StockHoldingPriceRefreshFailure[];
+};
+
 export type StockWatchlistItem = {
   id: number;
   ticker: string;

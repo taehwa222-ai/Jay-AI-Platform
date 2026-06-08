@@ -13,6 +13,8 @@ from app.schemas.stocks import (
     StockAnalysisRequest,
     StockAnalysisResponse,
     StockHoldingCreateRequest,
+    StockHoldingPriceRefreshFailure,
+    StockHoldingPriceRefreshResponse,
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
@@ -240,6 +242,51 @@ class StockService:
             )
             updated = self.get_holding(holding_id, user.id, conn)
         return updated.public()
+
+    async def refresh_holding_prices(self, user: User) -> StockHoldingPriceRefreshResponse:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM stock_holdings
+                WHERE user_id = ?
+                ORDER BY updated_at DESC, id DESC
+                """,
+                (user.id,),
+            ).fetchall()
+
+        updated: list[StockHoldingPublic] = []
+        failed: list[StockHoldingPriceRefreshFailure] = []
+
+        for row in rows:
+            holding = row_to_holding(row)
+            try:
+                snapshot = await self.market_snapshot(holding.ticker)
+            except HTTPException as exc:
+                failed.append(
+                    StockHoldingPriceRefreshFailure(
+                        id=holding.id,
+                        ticker=holding.ticker,
+                        name=holding.name,
+                        reason=str(exc.detail),
+                    )
+                )
+                continue
+
+            with self.connect() as conn:
+                conn.execute(
+                    """
+                    UPDATE stock_holdings
+                    SET current_price = ?,
+                        updated_at = ?
+                    WHERE id = ? AND user_id = ?
+                    """,
+                    (snapshot.current_price, now_iso(), holding.id, user.id),
+                )
+                refreshed = self.get_holding(holding.id, user.id, conn)
+            updated.append(refreshed.public())
+
+        return StockHoldingPriceRefreshResponse(updated=updated, failed=failed)
 
     def delete_holding(self, holding_id: int, user: User) -> None:
         with self.connect() as conn:

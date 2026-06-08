@@ -72,6 +72,47 @@ def test_user_can_create_update_list_and_delete_holding():
     assert empty.json() == []
 
 
+def test_user_can_refresh_holding_prices(monkeypatch):
+    async def fake_market_snapshot(self: StockService, ticker: str):
+        candles = [
+            MarketCandle(
+                trading_day=f"2026-04-{(day % 28) + 1:02d}",
+                close=80000 + day * 100,
+                volume=1_000_000 + day * 10_000,
+            )
+            for day in range(1, 41)
+        ]
+        return build_market_snapshot(ticker, f"{ticker}.KS", candles)
+
+    monkeypatch.setattr(StockService, "market_snapshot", fake_market_snapshot)
+
+    with TestClient(app) as client:
+        token = signup(client)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        created = client.post(
+            "/api/v1/stocks/holdings",
+            headers=headers,
+            json={
+                "ticker": "005930",
+                "name": "삼성전자",
+                "quantity": 10,
+                "average_price": 70000,
+                "current_price": 73500,
+            },
+        )
+        response = client.post("/api/v1/stocks/holdings/refresh-prices", headers=headers)
+        holdings = client.get("/api/v1/stocks/holdings", headers=headers)
+
+    assert created.status_code == 201
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["updated"]) == 1
+    assert body["failed"] == []
+    assert body["updated"][0]["current_price"] == 84000
+    assert holdings.json()[0]["current_price"] == 84000
+
+
 def test_user_can_manage_watchlist_and_duplicates_are_rejected():
     with TestClient(app) as client:
         token = signup(client)

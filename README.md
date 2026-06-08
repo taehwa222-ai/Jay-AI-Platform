@@ -49,6 +49,7 @@ base that you can extend with your own modules.
 - The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
 - Users can load a Korean stock market snapshot by ticker; the server tries `.KS` and `.KQ` Yahoo Finance symbols.
 - The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
+- Users can refresh all saved holding prices at once from the portfolio tab.
 - Users can scan multiple tickers at once and review ranked candidates by score.
 - Users can scan their saved watchlist with one click.
 - The stock screen is split into `Holdings`, `Watchlist`, `AI Analysis`, and `Candidate Scan` tabs so each workflow stays focused.

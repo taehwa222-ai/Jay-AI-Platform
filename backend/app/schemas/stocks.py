@@ -60,6 +60,18 @@ class StockHoldingPublic(BaseModel):
     updated_at: str
 
 
+class StockHoldingPriceRefreshFailure(BaseModel):
+    id: int
+    ticker: str
+    name: str
+    reason: str
+
+
+class StockHoldingPriceRefreshResponse(BaseModel):
+    updated: list[StockHoldingPublic]
+    failed: list[StockHoldingPriceRefreshFailure]
+
+
 class StockWatchlistCreateRequest(BaseModel):
     ticker: str = Field(min_length=3, max_length=20)
     name: str = Field(default="", max_length=80)

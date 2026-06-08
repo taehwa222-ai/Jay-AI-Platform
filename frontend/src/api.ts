@@ -13,6 +13,7 @@ import type {
   StockAnalysisResult,
   StockHolding,
   StockHoldingPayload,
+  StockHoldingPriceRefreshResult,
   StockMarketSnapshot,
   StockScanPayload,
   StockScanResult,
@@ -177,6 +178,16 @@ export async function deleteStockHolding(token: string, holdingId: number): Prom
     `/api/v1/stocks/holdings/${holdingId}`,
     {
       method: 'DELETE',
+    },
+    token,
+  );
+}
+
+export function refreshStockHoldingPrices(token: string): Promise<StockHoldingPriceRefreshResult> {
+  return request<StockHoldingPriceRefreshResult>(
+    '/api/v1/stocks/holdings/refresh-prices',
+    {
+      method: 'POST',
     },
     token,
   );
