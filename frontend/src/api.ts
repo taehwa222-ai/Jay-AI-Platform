@@ -9,6 +9,7 @@ import type {
   PlatformOverview,
   RoadmapPhase,
   SignupPayload,
+  StockAnalysisRecord,
   StockAnalysisPayload,
   StockAnalysisResult,
   StockHolding,
@@ -214,6 +215,20 @@ export function getStockMarketSnapshot(
   return request<StockMarketSnapshot>(
     `/api/v1/stocks/market/${encodeURIComponent(ticker)}`,
     undefined,
+    token,
+  );
+}
+
+export function getStockAnalysisRecords(token: string): Promise<StockAnalysisRecord[]> {
+  return request<StockAnalysisRecord[]>('/api/v1/stocks/analysis-records', undefined, token);
+}
+
+export async function deleteStockAnalysisRecord(token: string, recordId: number): Promise<void> {
+  await request<void>(
+    `/api/v1/stocks/analysis-records/${recordId}`,
+    {
+      method: 'DELETE',
+    },
     token,
   );
 }

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request, status
 
 from app.routers.auth import get_current_user
 from app.schemas.stocks import (
+    StockAnalysisRecordPublic,
     StockAnalysisRequest,
     StockAnalysisResponse,
     StockHoldingCreateRequest,
@@ -132,7 +133,24 @@ async def scan_stocks(
 @router.post("/analyze", response_model=StockAnalysisResponse)
 async def analyze_stock(
     payload: StockAnalysisRequest,
-    _: Annotated[User, Depends(get_current_user)],
+    user: Annotated[User, Depends(get_current_user)],
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> StockAnalysisResponse:
-    return await stock_service.analyze(payload)
+    return await stock_service.analyze(payload, user)
+
+
+@router.get("/analysis-records", response_model=list[StockAnalysisRecordPublic])
+async def analysis_records(
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> list[StockAnalysisRecordPublic]:
+    return stock_service.list_analysis_records(user)
+
+
+@router.delete("/analysis-records/{record_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_analysis_record(
+    record_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> None:
+    stock_service.delete_analysis_record(record_id, user)

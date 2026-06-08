@@ -230,6 +230,44 @@ def test_stock_analysis_returns_rule_based_report_without_openai_key():
     assert body["disclaimer"]
 
 
+def test_stock_analysis_is_saved_and_can_be_deleted():
+    with TestClient(app) as client:
+        token = signup(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        analysis = client.post(
+            "/api/v1/stocks/analyze",
+            headers=headers,
+            json={
+                "ticker": "005930",
+                "name": "삼성전자",
+                "current_price": 76000,
+                "previous_close": 74000,
+                "volume": 2_500_000,
+                "previous_volume": 1_000_000,
+                "rsi": 54,
+                "macd": 150,
+                "macd_signal": 100,
+                "memo": "거래량 급증 후보",
+            },
+        )
+        records = client.get("/api/v1/stocks/analysis-records", headers=headers)
+        record_id = records.json()[0]["id"]
+        deleted = client.delete(
+            f"/api/v1/stocks/analysis-records/{record_id}",
+            headers=headers,
+        )
+        empty = client.get("/api/v1/stocks/analysis-records", headers=headers)
+
+    assert analysis.status_code == 200
+    assert records.status_code == 200
+    assert len(records.json()) == 1
+    assert records.json()[0]["ticker"] == "005930"
+    assert records.json()[0]["memo"] == "거래량 급증 후보"
+    assert records.json()[0]["signals"]
+    assert deleted.status_code == 204
+    assert empty.json() == []
+
+
 def test_market_snapshot_requires_login():
     with TestClient(app) as client:
         response = client.get("/api/v1/stocks/market/005930")

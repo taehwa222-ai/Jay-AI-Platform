@@ -924,6 +924,81 @@ code {
   background: #f8fafc;
 }
 
+.analysis-history {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #e4e9ef;
+  padding-top: 18px;
+}
+
+.analysis-record-list {
+  display: grid;
+  gap: 10px;
+}
+
+.analysis-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 126px;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.analysis-record.candidate {
+  border-color: #9bd2bf;
+  background: #f0faf6;
+}
+
+.analysis-record.watch {
+  border-color: #e5c783;
+  background: #fff9ea;
+}
+
+.analysis-record.caution {
+  border-color: #e2aaa7;
+  background: #fff5f4;
+}
+
+.analysis-record-main {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.analysis-record-main div {
+  display: grid;
+  gap: 4px;
+}
+
+.analysis-record-main strong span,
+.analysis-record-main small,
+.analysis-record-main p {
+  color: #536273;
+}
+
+.analysis-record-main p {
+  line-height: 1.5;
+}
+
+.analysis-record-side {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.analysis-record-side span {
+  font-weight: 800;
+}
+
+.analysis-record-side small {
+  color: #536273;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .market-snapshot {
   display: flex;
   flex-wrap: wrap;
@@ -1236,8 +1311,13 @@ code {
     align-items: start;
   }
 
+  .analysis-record {
+    grid-template-columns: 1fr;
+  }
+
   .scan-rank,
-  .scan-score {
+  .scan-score,
+  .analysis-record-side {
     justify-items: start;
   }
 

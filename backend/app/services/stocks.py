@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -10,6 +11,7 @@ from fastapi import HTTPException, status
 
 from app.config import Settings
 from app.schemas.stocks import (
+    StockAnalysisRecordPublic,
     StockAnalysisRequest,
     StockAnalysisResponse,
     StockHoldingCreateRequest,
@@ -99,6 +101,49 @@ class StockWatchlistItem:
         )
 
 
+@dataclass(frozen=True)
+class StockAnalysisRecord:
+    id: int
+    user_id: int
+    ticker: str
+    name: str
+    score: int
+    rating: str
+    rating_label: str
+    summary: str
+    ai_summary: str
+    ai_powered: bool
+    price_change_percent: float
+    volume_multiplier: float
+    signals: str
+    risk_notes: str
+    action_checklist: str
+    memo: str
+    disclaimer: str
+    created_at: str
+
+    def public(self) -> StockAnalysisRecordPublic:
+        return StockAnalysisRecordPublic(
+            id=self.id,
+            ticker=self.ticker,
+            name=self.name,
+            score=self.score,
+            rating=self.rating,
+            rating_label=self.rating_label,
+            summary=self.summary,
+            ai_summary=self.ai_summary,
+            ai_powered=self.ai_powered,
+            price_change_percent=round(self.price_change_percent, 2),
+            volume_multiplier=round(self.volume_multiplier, 2),
+            signals=json_list(self.signals),
+            risk_notes=json_list(self.risk_notes),
+            action_checklist=json_list(self.action_checklist),
+            memo=self.memo,
+            disclaimer=self.disclaimer,
+            created_at=self.created_at,
+        )
+
+
 class StockService:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -147,6 +192,36 @@ class StockService:
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_stock_watchlist_user_ticker
                 ON stock_watchlist_items(user_id, ticker)
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS stock_analysis_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    ticker TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    score INTEGER NOT NULL,
+                    rating TEXT NOT NULL,
+                    rating_label TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    ai_summary TEXT NOT NULL,
+                    ai_powered INTEGER NOT NULL,
+                    price_change_percent REAL NOT NULL,
+                    volume_multiplier REAL NOT NULL,
+                    signals TEXT NOT NULL,
+                    risk_notes TEXT NOT NULL,
+                    action_checklist TEXT NOT NULL,
+                    memo TEXT NOT NULL DEFAULT '',
+                    disclaimer TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_stock_analysis_records_user
+                ON stock_analysis_records(user_id, created_at DESC)
                 """
             )
 
@@ -385,10 +460,48 @@ class StockService:
                 (item_id, user.id),
             )
 
-    async def analyze(self, payload: StockAnalysisRequest) -> StockAnalysisResponse:
+    def list_analysis_records(self, user: User) -> list[StockAnalysisRecordPublic]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM stock_analysis_records
+                WHERE user_id = ?
+                ORDER BY created_at DESC, id DESC
+                LIMIT 50
+                """,
+                (user.id,),
+            ).fetchall()
+        return [row_to_analysis_record(row).public() for row in rows]
+
+    def delete_analysis_record(self, record_id: int, user: User) -> None:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT id
+                FROM stock_analysis_records
+                WHERE id = ? AND user_id = ?
+                """,
+                (record_id, user.id),
+            ).fetchone()
+            if row is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Stock analysis record not found.",
+                )
+            conn.execute(
+                "DELETE FROM stock_analysis_records WHERE id = ? AND user_id = ?",
+                (record_id, user.id),
+            )
+
+    async def analyze(
+        self,
+        payload: StockAnalysisRequest,
+        user: User | None = None,
+    ) -> StockAnalysisResponse:
         metrics = build_local_analysis(payload)
         ai_summary, ai_powered = await self.build_ai_summary(payload, metrics)
-        return StockAnalysisResponse(
+        result = StockAnalysisResponse(
             ticker=payload.ticker,
             name=payload.name,
             score=metrics["score"],
@@ -404,6 +517,46 @@ class StockService:
             action_checklist=metrics["action_checklist"],
             disclaimer=DISCLAIMER,
         )
+        if user is not None:
+            self.save_analysis_record(user, payload, result)
+        return result
+
+    def save_analysis_record(
+        self,
+        user: User,
+        payload: StockAnalysisRequest,
+        result: StockAnalysisResponse,
+    ) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO stock_analysis_records (
+                    user_id, ticker, name, score, rating, rating_label, summary,
+                    ai_summary, ai_powered, price_change_percent, volume_multiplier,
+                    signals, risk_notes, action_checklist, memo, disclaimer, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user.id,
+                    result.ticker,
+                    result.name,
+                    result.score,
+                    result.rating,
+                    result.rating_label,
+                    result.summary,
+                    result.ai_summary,
+                    int(result.ai_powered),
+                    result.price_change_percent,
+                    result.volume_multiplier,
+                    json.dumps(result.signals, ensure_ascii=False),
+                    json.dumps(result.risk_notes, ensure_ascii=False),
+                    json.dumps(result.action_checklist, ensure_ascii=False),
+                    payload.memo,
+                    result.disclaimer,
+                    now_iso(),
+                ),
+            )
 
     async def market_snapshot(self, ticker: str) -> StockMarketSnapshot:
         normalized_ticker = normalize_ticker(ticker)
@@ -819,6 +972,39 @@ def row_to_watchlist_item(row: sqlite3.Row) -> StockWatchlistItem:
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
     )
+
+
+def row_to_analysis_record(row: sqlite3.Row) -> StockAnalysisRecord:
+    return StockAnalysisRecord(
+        id=int(row["id"]),
+        user_id=int(row["user_id"]),
+        ticker=str(row["ticker"]),
+        name=str(row["name"]),
+        score=int(row["score"]),
+        rating=str(row["rating"]),
+        rating_label=str(row["rating_label"]),
+        summary=str(row["summary"]),
+        ai_summary=str(row["ai_summary"]),
+        ai_powered=bool(row["ai_powered"]),
+        price_change_percent=float(row["price_change_percent"]),
+        volume_multiplier=float(row["volume_multiplier"]),
+        signals=str(row["signals"]),
+        risk_notes=str(row["risk_notes"]),
+        action_checklist=str(row["action_checklist"]),
+        memo=str(row["memo"]),
+        disclaimer=str(row["disclaimer"]),
+        created_at=str(row["created_at"]),
+    )
+
+
+def json_list(value: str) -> list[str]:
+    try:
+        loaded = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(loaded, list):
+        return []
+    return [str(item) for item in loaded]
 
 
 def now_iso() -> str:

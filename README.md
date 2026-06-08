@@ -48,6 +48,7 @@ base that you can extend with your own modules.
 - The portfolio screen calculates cost basis, market value, profit/loss, and profit/loss percentage.
 - The portfolio tab visualizes holding allocation and per-stock return rates without extra chart dependencies.
 - The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
+- Each stock analysis is saved as a history record so users can revisit prior scores, signals, risks, and notes.
 - Users can load a Korean stock market snapshot by ticker; the server tries `.KS` and `.KQ` Yahoo Finance symbols.
 - The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
 - Users can refresh all saved holding prices at once from the portfolio tab.

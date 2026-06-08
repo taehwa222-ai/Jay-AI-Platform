@@ -24,9 +24,11 @@ import {
   analyzeStock,
   createStockHolding,
   createStockWatchlistItem,
+  deleteStockAnalysisRecord,
   deleteStockHolding,
   deleteStockWatchlistItem,
   getAdminUsers,
+  getStockAnalysisRecords,
   getHealth,
   getManual,
   getMe,
@@ -52,6 +54,7 @@ import type {
   PlatformModule,
   PlatformOverview,
   RoadmapPhase,
+  StockAnalysisRecord,
   StockAnalysisPayload,
   StockAnalysisResult,
   StockHolding,
@@ -211,8 +214,10 @@ export default function App() {
   const [deletingWatchlistId, setDeletingWatchlistId] = useState<number | null>(null);
   const [analysisForm, setAnalysisForm] = useState<AnalysisForm>(defaultAnalysisForm);
   const [analysisResult, setAnalysisResult] = useState<StockAnalysisResult | null>(null);
+  const [analysisRecords, setAnalysisRecords] = useState<StockAnalysisRecord[]>([]);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [deletingAnalysisRecordId, setDeletingAnalysisRecordId] = useState<number | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
   const [scanTickers, setScanTickers] = useState('005930,000660,035420,035720,051910');
@@ -241,7 +246,7 @@ export default function App() {
   const stockTabCounts: Record<StockTabId, string> = {
     holdings: `${holdings.length}개`,
     watchlist: `${watchlist.length}개`,
-    analysis: analysisResult ? '결과 있음' : '대기',
+    analysis: analysisRecords.length > 0 ? `${analysisRecords.length}개 기록` : '대기',
     scan: scanResult ? `${scanResult.candidates.length}개 후보` : '대기',
   };
   const portfolioBreakdown = holdings
@@ -306,6 +311,7 @@ export default function App() {
       setCurrentUser(user);
       await loadStockHoldings(savedToken);
       await loadStockWatchlist(savedToken);
+      await loadStockAnalysisRecords(savedToken);
       if (user.role === 'admin') {
         await loadAdminUsers(savedToken);
       }
@@ -316,6 +322,7 @@ export default function App() {
       setAdminUsers([]);
       setHoldings([]);
       setWatchlist([]);
+      setAnalysisRecords([]);
       setCurrentPriceDrafts({});
     }
   }
@@ -346,6 +353,7 @@ export default function App() {
     setCurrentUser(response.user);
     void loadStockHoldings(response.access_token);
     void loadStockWatchlist(response.access_token);
+    void loadStockAnalysisRecords(response.access_token);
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
     }
@@ -390,6 +398,12 @@ export default function App() {
     if (!activeToken) return;
     const result = await getStockWatchlist(activeToken);
     setWatchlist(result);
+  }
+
+  async function loadStockAnalysisRecords(activeToken = token) {
+    if (!activeToken) return;
+    const result = await getStockAnalysisRecords(activeToken);
+    setAnalysisRecords(result);
   }
 
   async function handleCreateHolding(event: FormEvent) {
@@ -519,10 +533,28 @@ export default function App() {
     try {
       const result = await analyzeStock(token, buildAnalysisPayload(analysisForm));
       setAnalysisResult(result);
+      setAnalysisMessage('분석 결과를 저장했습니다.');
+      await loadStockAnalysisRecords(token);
     } catch (requestError) {
       setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Analysis failed.');
     } finally {
       setAnalysisLoading(false);
+    }
+  }
+
+  async function handleDeleteAnalysisRecord(recordId: number) {
+    if (!token) return;
+    setDeletingAnalysisRecordId(recordId);
+    setAnalysisMessage(null);
+
+    try {
+      await deleteStockAnalysisRecord(token, recordId);
+      setAnalysisRecords((records) => records.filter((record) => record.id !== recordId));
+      setAnalysisMessage('분석 기록을 삭제했습니다.');
+    } catch (requestError) {
+      setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Delete failed.');
+    } finally {
+      setDeletingAnalysisRecordId(null);
     }
   }
 
@@ -599,6 +631,7 @@ export default function App() {
     setAdminUsers([]);
     setHoldings([]);
     setWatchlist([]);
+    setAnalysisRecords([]);
     setAnalysisResult(null);
     setScanResult(null);
     setAuthMessage('로그아웃되었습니다.');
@@ -1434,6 +1467,57 @@ export default function App() {
                       <div className="disclaimer">{analysisResult.disclaimer}</div>
                     </div>
                   )}
+
+                  <div className="analysis-history">
+                    <div className="chart-head">
+                      <strong>저장된 분석 기록</strong>
+                      <button className="secondary-button" onClick={() => void loadStockAnalysisRecords()} type="button">
+                        <ReloadOutlined />
+                        새로고침
+                      </button>
+                    </div>
+                    <div className="analysis-record-list">
+                      {analysisRecords.map((record) => (
+                        <article className={`analysis-record ${record.rating}`} key={record.id}>
+                          <div className="analysis-record-main">
+                            <div>
+                              <strong>
+                                {record.name} <span>{record.ticker}</span>
+                              </strong>
+                              <small>
+                                {formatDateTime(record.created_at)} · 점수 {record.score} ·{' '}
+                                {record.rating_label}
+                              </small>
+                            </div>
+                            <p>{record.summary}</p>
+                            {record.memo && <p>메모: {record.memo}</p>}
+                          </div>
+                          <div className="analysis-record-side">
+                            <span
+                              className={
+                                record.price_change_percent >= 0 ? 'profit-positive' : 'profit-negative'
+                              }
+                            >
+                              {formatPercent(record.price_change_percent)}
+                            </span>
+                            <small>거래량 {record.volume_multiplier}배</small>
+                            <button
+                              className="icon-danger-button"
+                              disabled={deletingAnalysisRecordId === record.id}
+                              onClick={() => void handleDeleteAnalysisRecord(record.id)}
+                              title="분석 기록 삭제"
+                              type="button"
+                            >
+                              <DeleteOutlined />
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                      {analysisRecords.length === 0 && (
+                        <div className="empty-state">아직 저장된 분석 기록이 없습니다.</div>
+                      )}
+                    </div>
+                  </div>
                 </div>
                   </article>
                 )}
@@ -1681,4 +1765,18 @@ function formatPercent(value: number): string {
 
 function formatPlainPercent(value: number): string {
   return `${value.toFixed(2)}%`;
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }

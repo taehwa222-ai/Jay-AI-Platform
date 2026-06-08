@@ -153,6 +153,12 @@ class StockAnalysisResponse(BaseModel):
     disclaimer: str
 
 
+class StockAnalysisRecordPublic(StockAnalysisResponse):
+    id: int
+    memo: str
+    created_at: str
+
+
 class StockMarketSnapshot(BaseModel):
     ticker: str
     provider_symbol: str

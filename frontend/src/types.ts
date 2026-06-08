@@ -159,6 +159,12 @@ export type StockAnalysisResult = {
   disclaimer: string;
 };
 
+export type StockAnalysisRecord = StockAnalysisResult & {
+  id: number;
+  memo: string;
+  created_at: string;
+};
+
 export type StockMarketSnapshot = {
   ticker: string;
   provider_symbol: string;
