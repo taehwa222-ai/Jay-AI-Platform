@@ -37,6 +37,7 @@ base that you can extend with your own modules.
 - Later signed-up users become `member`.
 - Admin users can open the member list from the dedicated admin screen.
 - Admin users can promote/demote members and enable/disable accounts.
+- Admin users can review member analysis usage counts and latest analysis activity.
 - The app prevents disabling your own account or removing the last active admin.
 - User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.
 - In Docker/VPS deployment, `./data` is mounted into the backend container so user data survives rebuilds.

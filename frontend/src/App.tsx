@@ -27,6 +27,7 @@ import {
   deleteStockAnalysisRecord,
   deleteStockHolding,
   deleteStockWatchlistItem,
+  getAdminUserUsage,
   getAdminUsers,
   getStockAnalysisRecords,
   getHealth,
@@ -47,6 +48,7 @@ import {
   updateStockHolding,
 } from './api';
 import type {
+  AdminUserUsage,
   AuthResponse,
   HealthStatus,
   ManualSection,
@@ -192,6 +194,7 @@ export default function App() {
   const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_STORAGE_KEY) ?? '');
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [adminUsers, setAdminUsers] = useState<UserAccount[]>([]);
+  const [adminUsage, setAdminUsage] = useState<AdminUserUsage[]>([]);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -243,6 +246,14 @@ export default function App() {
   const activeMemberCount = adminUsers.filter((user) => user.role === 'member' && user.is_active).length;
   const activeAdminCount = adminUsers.filter((user) => user.role === 'admin' && user.is_active).length;
   const inactiveUserCount = adminUsers.filter((user) => !user.is_active).length;
+  const totalAnalysisCount = adminUsage.reduce((total, user) => total + user.analysis_count, 0);
+  const activeAnalysisUserCount = adminUsage.filter((user) => user.analysis_count > 0).length;
+  const latestAnalysisAt =
+    adminUsage
+      .map((user) => user.latest_analysis_at)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
   const stockTabCounts: Record<StockTabId, string> = {
     holdings: `${holdings.length}개`,
     watchlist: `${watchlist.length}개`,
@@ -314,12 +325,14 @@ export default function App() {
       await loadStockAnalysisRecords(savedToken);
       if (user.role === 'admin') {
         await loadAdminUsers(savedToken);
+        await loadAdminUsage(savedToken);
       }
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       setToken('');
       setCurrentUser(null);
       setAdminUsers([]);
+      setAdminUsage([]);
       setHoldings([]);
       setWatchlist([]);
       setAnalysisRecords([]);
@@ -356,6 +369,7 @@ export default function App() {
     void loadStockAnalysisRecords(response.access_token);
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
+      void loadAdminUsage(response.access_token);
     }
     navigateToView(response.user.role === 'admin' ? 'admin' : 'stocks');
   }
@@ -364,6 +378,12 @@ export default function App() {
     if (!activeToken) return;
     const users = await getAdminUsers(activeToken);
     setAdminUsers(users);
+  }
+
+  async function loadAdminUsage(activeToken = token) {
+    if (!activeToken) return;
+    const usage = await getAdminUserUsage(activeToken);
+    setAdminUsage(usage);
   }
 
   async function handleAdminUserUpdate(
@@ -629,6 +649,7 @@ export default function App() {
     setToken('');
     setCurrentUser(null);
     setAdminUsers([]);
+    setAdminUsage([]);
     setHoldings([]);
     setWatchlist([]);
     setAnalysisRecords([]);
@@ -846,6 +867,13 @@ export default function App() {
             <StatusTile label="활성 관리자" value={`${activeAdminCount}명`} tone="good" />
             <StatusTile label="활성 회원" value={`${activeMemberCount}명`} />
             <StatusTile label="비활성 계정" value={`${inactiveUserCount}명`} tone="steady" />
+            <StatusTile label="총 분석 횟수" value={`${totalAnalysisCount}회`} tone="good" />
+            <StatusTile label="분석 사용 회원" value={`${activeAnalysisUserCount}명`} />
+            <StatusTile
+              label="최근 분석"
+              value={latestAnalysisAt ? formatDateTime(latestAnalysisAt) : '없음'}
+              tone="steady"
+            />
           </div>
           <article className="tool-pane">
             <div className="pane-title">
@@ -903,6 +931,60 @@ export default function App() {
               ) : (
                 <div className="empty-state">
                   관리자 계정으로 로그인하면 회원 목록과 권한 설정을 볼 수 있습니다.
+                </div>
+              )}
+            </div>
+          </article>
+          <article className="tool-pane admin-usage-pane">
+            <div className="pane-title">
+              <BarChartOutlined />
+              <h3>회원별 분석 사용량</h3>
+              {currentUser?.role === 'admin' && (
+                <button
+                  className="secondary-button"
+                  onClick={() => void loadAdminUsage()}
+                  type="button"
+                >
+                  <ReloadOutlined />
+                  새로고침
+                </button>
+              )}
+            </div>
+            <div className="pane-body">
+              {currentUser?.role === 'admin' ? (
+                <div className="usage-list">
+                  {adminUsage.map((usage) => (
+                    <div className="usage-row" key={usage.id}>
+                      <div className="usage-identity">
+                        <strong>{usage.name}</strong>
+                        <span>{usage.email}</span>
+                      </div>
+                      <div className="usage-meter">
+                        <span>{usage.analysis_count}회</span>
+                        <div className="usage-track">
+                          <div
+                            className="usage-fill"
+                            style={{
+                              width: `${Math.max(
+                                usage.analysis_count > 0 ? 6 : 0,
+                                totalAnalysisCount > 0
+                                  ? (usage.analysis_count / totalAnalysisCount) * 100
+                                  : 0,
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="usage-date">
+                        {usage.latest_analysis_at ? formatDateTime(usage.latest_analysis_at) : '분석 없음'}
+                      </div>
+                    </div>
+                  ))}
+                  {adminUsage.length === 0 && <div className="empty-state">사용량 데이터가 없습니다.</div>}
+                </div>
+              ) : (
+                <div className="empty-state">
+                  관리자 계정으로 로그인하면 회원별 분석 사용량을 볼 수 있습니다.
                 </div>
               )}
             </div>

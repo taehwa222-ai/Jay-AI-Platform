@@ -1,5 +1,6 @@
 import type {
   AdminUserUpdatePayload,
+  AdminUserUsage,
   AuthResponse,
   HealthStatus,
   LoginPayload,
@@ -96,6 +97,10 @@ export function getMe(token: string): Promise<UserAccount> {
 
 export function getAdminUsers(token: string): Promise<UserAccount[]> {
   return request<UserAccount[]>('/api/v1/admin/users', undefined, token);
+}
+
+export function getAdminUserUsage(token: string): Promise<AdminUserUsage[]> {
+  return request<AdminUserUsage[]>('/api/v1/admin/user-usage', undefined, token);
 }
 
 export function updateAdminUser(

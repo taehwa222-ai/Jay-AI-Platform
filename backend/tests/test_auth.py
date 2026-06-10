@@ -66,6 +66,53 @@ def test_admin_can_list_users_and_member_cannot():
     assert member_response.status_code == 403
 
 
+def test_admin_can_view_user_usage_and_member_cannot():
+    with TestClient(app) as client:
+        admin_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
+        )
+        member_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "member@example.com", "password": "password123", "name": "Member"},
+        )
+        admin_token = admin_signup.json()["access_token"]
+        member_token = member_signup.json()["access_token"]
+
+        analysis = client.post(
+            "/api/v1/stocks/analyze",
+            headers={"Authorization": f"Bearer {member_token}"},
+            json={
+                "ticker": "005930",
+                "name": "삼성전자",
+                "current_price": 76000,
+                "previous_close": 74000,
+                "volume": 2_000_000,
+                "previous_volume": 1_000_000,
+                "rsi": 55,
+                "macd": 10,
+                "macd_signal": 8,
+            },
+        )
+        admin_response = client.get(
+            "/api/v1/admin/user-usage",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        member_response = client.get(
+            "/api/v1/admin/user-usage",
+            headers={"Authorization": f"Bearer {member_token}"},
+        )
+
+    assert analysis.status_code == 200
+    assert admin_response.status_code == 200
+    member_usage = next(
+        item for item in admin_response.json() if item["email"] == "member@example.com"
+    )
+    assert member_usage["analysis_count"] == 1
+    assert member_usage["latest_analysis_at"]
+    assert member_response.status_code == 403
+
+
 def test_duplicate_email_is_rejected():
     with TestClient(app) as client:
         first = client.post(

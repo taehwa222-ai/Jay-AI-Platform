@@ -35,3 +35,15 @@ class AuthResponse(BaseModel):
 class AdminUserUpdateRequest(BaseModel):
     role: Literal["admin", "member"] | None = None
     is_active: bool | None = None
+
+
+class AdminUserUsagePublic(BaseModel):
+    id: int
+    email: str
+    name: str
+    role: str
+    is_active: bool
+    analysis_count: int
+    latest_analysis_at: str | None = None
+    created_at: str
+    last_login_at: str | None = None

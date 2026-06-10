@@ -75,6 +75,11 @@ export type AdminUserUpdatePayload = {
   is_active?: boolean;
 };
 
+export type AdminUserUsage = UserAccount & {
+  analysis_count: number;
+  latest_analysis_at: string | null;
+};
+
 export type StockHolding = {
   id: number;
   ticker: string;

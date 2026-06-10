@@ -170,6 +170,55 @@ class AuthService:
             ).fetchall()
         return [row_to_user(row) for row in rows]
 
+    def list_user_usage(self) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    users.id,
+                    users.email,
+                    users.name,
+                    users.role,
+                    users.is_active,
+                    users.created_at,
+                    users.last_login_at,
+                    COUNT(stock_analysis_records.id) AS analysis_count,
+                    MAX(stock_analysis_records.created_at) AS latest_analysis_at
+                FROM users
+                LEFT JOIN stock_analysis_records
+                    ON stock_analysis_records.user_id = users.id
+                GROUP BY
+                    users.id,
+                    users.email,
+                    users.name,
+                    users.role,
+                    users.is_active,
+                    users.created_at,
+                    users.last_login_at
+                ORDER BY analysis_count DESC, latest_analysis_at DESC, users.created_at DESC
+                """
+            ).fetchall()
+        return [
+            {
+                "id": int(row["id"]),
+                "email": str(row["email"]),
+                "name": str(row["name"]),
+                "role": str(row["role"]),
+                "is_active": bool(row["is_active"]),
+                "analysis_count": int(row["analysis_count"]),
+                "latest_analysis_at": (
+                    str(row["latest_analysis_at"])
+                    if row["latest_analysis_at"] is not None
+                    else None
+                ),
+                "created_at": str(row["created_at"]),
+                "last_login_at": (
+                    str(row["last_login_at"]) if row["last_login_at"] is not None else None
+                ),
+            }
+            for row in rows
+        ]
+
     def update_user(
         self,
         user_id: int,

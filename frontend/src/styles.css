@@ -395,6 +395,10 @@ select:disabled {
   margin-bottom: 18px;
 }
 
+.admin-usage-pane {
+  margin-top: 18px;
+}
+
 .login-route-list {
   display: grid;
   gap: 10px;
@@ -540,6 +544,58 @@ select:disabled {
   grid-template-columns: 116px 92px;
   gap: 8px;
   align-items: center;
+}
+
+.usage-list {
+  display: grid;
+  gap: 10px;
+}
+
+.usage-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 0.8fr) minmax(150px, auto);
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e4e9ef;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.usage-identity {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.usage-identity span,
+.usage-date {
+  color: #697789;
+  font-size: 13px;
+}
+
+.usage-meter {
+  display: grid;
+  gap: 7px;
+}
+
+.usage-meter span {
+  color: #263445;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.usage-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8edf2;
+}
+
+.usage-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #2f7d6b;
 }
 
 .module-grid {
@@ -1246,6 +1302,10 @@ code {
 
   .holding-row {
     grid-template-columns: minmax(0, 1fr) 120px;
+  }
+
+  .usage-row {
+    grid-template-columns: 1fr;
   }
 
   .price-editor {
