@@ -17,6 +17,7 @@ import type {
   StockHoldingPayload,
   StockHoldingPriceRefreshResult,
   StockMarketSnapshot,
+  StockReport,
   StockScanPayload,
   StockScanResult,
   StockWatchlistItem,
@@ -231,6 +232,33 @@ export function getStockAnalysisRecords(token: string): Promise<StockAnalysisRec
 export async function deleteStockAnalysisRecord(token: string, recordId: number): Promise<void> {
   await request<void>(
     `/api/v1/stocks/analysis-records/${recordId}`,
+    {
+      method: 'DELETE',
+    },
+    token,
+  );
+}
+
+export function getStockReports(token: string): Promise<StockReport[]> {
+  return request<StockReport[]>('/api/v1/stocks/reports', undefined, token);
+}
+
+export function createStockReportFromAnalysis(
+  token: string,
+  recordId: number,
+): Promise<StockReport> {
+  return request<StockReport>(
+    `/api/v1/stocks/reports/from-analysis/${recordId}`,
+    {
+      method: 'POST',
+    },
+    token,
+  );
+}
+
+export async function deleteStockReport(token: string, reportId: number): Promise<void> {
+  await request<void>(
+    `/api/v1/stocks/reports/${reportId}`,
     {
       method: 'DELETE',
     },

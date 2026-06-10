@@ -20,6 +20,7 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
+    StockReportPublic,
     StockScanCandidate,
     StockScanFailure,
     StockScanRequest,
@@ -144,6 +145,37 @@ class StockAnalysisRecord:
         )
 
 
+@dataclass(frozen=True)
+class StockReport:
+    id: int
+    user_id: int
+    analysis_record_id: int
+    ticker: str
+    name: str
+    title: str
+    body: str
+    score: int
+    rating: str
+    rating_label: str
+    report_type: str
+    created_at: str
+
+    def public(self) -> StockReportPublic:
+        return StockReportPublic(
+            id=self.id,
+            analysis_record_id=self.analysis_record_id,
+            ticker=self.ticker,
+            name=self.name,
+            title=self.title,
+            body=self.body,
+            score=self.score,
+            rating=self.rating,
+            rating_label=self.rating_label,
+            report_type=self.report_type,
+            created_at=self.created_at,
+        )
+
+
 class StockService:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -222,6 +254,30 @@ class StockService:
                 """
                 CREATE INDEX IF NOT EXISTS idx_stock_analysis_records_user
                 ON stock_analysis_records(user_id, created_at DESC)
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS stock_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    analysis_record_id INTEGER NOT NULL,
+                    ticker TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    body TEXT NOT NULL,
+                    score INTEGER NOT NULL,
+                    rating TEXT NOT NULL,
+                    rating_label TEXT NOT NULL,
+                    report_type TEXT NOT NULL DEFAULT 'paid_report_draft',
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_stock_reports_user
+                ON stock_reports(user_id, created_at DESC)
                 """
             )
 
@@ -494,6 +550,63 @@ class StockService:
                 (record_id, user.id),
             )
 
+    def list_reports(self, user: User) -> list[StockReportPublic]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM stock_reports
+                WHERE user_id = ?
+                ORDER BY created_at DESC, id DESC
+                LIMIT 50
+                """,
+                (user.id,),
+            ).fetchall()
+        return [row_to_report(row).public() for row in rows]
+
+    def create_report_from_analysis(
+        self,
+        record_id: int,
+        user: User,
+    ) -> StockReportPublic:
+        now = now_iso()
+        with self.connect() as conn:
+            record = self.get_analysis_record(record_id, user.id, conn)
+            title = f"{record.name}({record.ticker}) AI analysis report"
+            body = build_report_body(record)
+            cursor = conn.execute(
+                """
+                INSERT INTO stock_reports (
+                    user_id, analysis_record_id, ticker, name, title, body, score,
+                    rating, rating_label, report_type, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user.id,
+                    record.id,
+                    record.ticker,
+                    record.name,
+                    title,
+                    body,
+                    record.score,
+                    record.rating,
+                    record.rating_label,
+                    "paid_report_draft",
+                    now,
+                ),
+            )
+            report = self.get_report(cursor.lastrowid, user.id, conn)
+        return report.public()
+
+    def delete_report(self, report_id: int, user: User) -> None:
+        with self.connect() as conn:
+            self.get_report(report_id, user.id, conn)
+            conn.execute(
+                "DELETE FROM stock_reports WHERE id = ? AND user_id = ?",
+                (report_id, user.id),
+            )
+
     async def analyze(
         self,
         payload: StockAnalysisRequest,
@@ -719,6 +832,48 @@ class StockService:
                 detail="Watchlist item not found.",
             )
         return row_to_watchlist_item(row)
+
+    def get_analysis_record(
+        self,
+        record_id: int,
+        user_id: int,
+        conn: sqlite3.Connection,
+    ) -> StockAnalysisRecord:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM stock_analysis_records
+            WHERE id = ? AND user_id = ?
+            """,
+            (record_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Stock analysis record not found.",
+            )
+        return row_to_analysis_record(row)
+
+    def get_report(
+        self,
+        report_id: int,
+        user_id: int,
+        conn: sqlite3.Connection,
+    ) -> StockReport:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM stock_reports
+            WHERE id = ? AND user_id = ?
+            """,
+            (report_id, user_id),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Stock report not found.",
+            )
+        return row_to_report(row)
 
     async def build_ai_summary(
         self,
@@ -1027,6 +1182,59 @@ def row_to_analysis_record(row: sqlite3.Row) -> StockAnalysisRecord:
         disclaimer=str(row["disclaimer"]),
         created_at=str(row["created_at"]),
     )
+
+
+def row_to_report(row: sqlite3.Row) -> StockReport:
+    return StockReport(
+        id=int(row["id"]),
+        user_id=int(row["user_id"]),
+        analysis_record_id=int(row["analysis_record_id"]),
+        ticker=str(row["ticker"]),
+        name=str(row["name"]),
+        title=str(row["title"]),
+        body=str(row["body"]),
+        score=int(row["score"]),
+        rating=str(row["rating"]),
+        rating_label=str(row["rating_label"]),
+        report_type=str(row["report_type"]),
+        created_at=str(row["created_at"]),
+    )
+
+
+def build_report_body(record: StockAnalysisRecord) -> str:
+    signals = json_list(record.signals)
+    risk_notes = json_list(record.risk_notes)
+    checklist = json_list(record.action_checklist)
+
+    return "\n\n".join(
+        [
+            f"# {record.name}({record.ticker}) AI analysis report",
+            (
+                "## Summary\n"
+                f"- Score: {record.score}/100 ({record.rating_label})\n"
+                f"- Price change: {record.price_change_percent:.2f}%\n"
+                f"- Volume multiplier: {record.volume_multiplier:.2f}x\n"
+                f"- Generated from analysis record #{record.id}"
+            ),
+            f"## Core View\n{record.summary}\n\n{record.ai_summary}",
+            "## Positive Signals\n" + bullet_list(signals),
+            "## Risk Notes\n" + bullet_list(risk_notes),
+            "## Action Checklist\n" + bullet_list(checklist),
+            f"## Analyst Memo\n{record.memo or 'No memo was saved for this analysis.'}",
+            (
+                "## Usage Note\n"
+                "This is a draft for a paid or member-only report. Review market news, "
+                "disclosures, liquidity, and your own investment rules before publishing."
+            ),
+            f"## Disclaimer\n{record.disclaimer}",
+        ]
+    )
+
+
+def bullet_list(items: list[str]) -> str:
+    if not items:
+        return "- No items."
+    return "\n".join(f"- {item}" for item in items)
 
 
 def json_list(value: str) -> list[str]:

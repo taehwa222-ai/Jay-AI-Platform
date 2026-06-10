@@ -12,6 +12,7 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
+    StockReportPublic,
     StockScanRequest,
     StockScanResponse,
     StockWatchlistCreateRequest,
@@ -154,3 +155,33 @@ async def delete_analysis_record(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> None:
     stock_service.delete_analysis_record(record_id, user)
+
+
+@router.get("/reports", response_model=list[StockReportPublic])
+async def reports(
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> list[StockReportPublic]:
+    return stock_service.list_reports(user)
+
+
+@router.post(
+    "/reports/from-analysis/{record_id}",
+    response_model=StockReportPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_report_from_analysis(
+    record_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> StockReportPublic:
+    return stock_service.create_report_from_analysis(record_id, user)
+
+
+@router.delete("/reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_report(
+    report_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> None:
+    stock_service.delete_report(report_id, user)

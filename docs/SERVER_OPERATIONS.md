@@ -77,6 +77,9 @@ the market data provider and reports failed tickers separately.
 MACD so users do not need to enter every indicator manually.
 `/api/v1/stocks/analysis-records` lists saved analysis history, and individual
 records can be deleted when they are no longer useful.
+`/api/v1/stocks/reports` lists paid-report drafts. Create one from a saved
+analysis record with `POST /api/v1/stocks/reports/from-analysis/{record_id}`,
+then remove old drafts with `DELETE /api/v1/stocks/reports/{report_id}`.
 `/api/v1/stocks/scan` accepts multiple tickers and returns ranked candidates
 with failed lookups separated from successful results.
 The frontend separates this into focused stock tabs for holdings, watchlist,

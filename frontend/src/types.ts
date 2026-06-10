@@ -172,6 +172,20 @@ export type StockAnalysisRecord = StockAnalysisResult & {
   created_at: string;
 };
 
+export type StockReport = {
+  id: number;
+  analysis_record_id: number;
+  ticker: string;
+  name: string;
+  title: string;
+  body: string;
+  score: number;
+  rating: 'candidate' | 'watch' | 'caution';
+  rating_label: string;
+  report_type: string;
+  created_at: string;
+};
+
 export type StockMarketSnapshot = {
   ticker: string;
   provider_symbol: string;

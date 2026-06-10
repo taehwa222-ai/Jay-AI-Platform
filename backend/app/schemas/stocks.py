@@ -159,6 +159,20 @@ class StockAnalysisRecordPublic(StockAnalysisResponse):
     created_at: str
 
 
+class StockReportPublic(BaseModel):
+    id: int
+    analysis_record_id: int
+    ticker: str
+    name: str
+    title: str
+    body: str
+    score: int
+    rating: Literal["candidate", "watch", "caution"]
+    rating_label: str
+    report_type: str
+    created_at: str
+
+
 class StockMarketSnapshot(BaseModel):
     ticker: str
     provider_symbol: str

@@ -1,4 +1,4 @@
-import {
+﻿import {
   AppstoreOutlined,
   BarChartOutlined,
   BookOutlined,
@@ -23,9 +23,11 @@ import { FormEvent, useEffect, useState } from 'react';
 import {
   analyzeStock,
   createStockHolding,
+  createStockReportFromAnalysis,
   createStockWatchlistItem,
   deleteStockAnalysisRecord,
   deleteStockHolding,
+  deleteStockReport,
   deleteStockWatchlistItem,
   getAdminUserUsage,
   getAdminUsers,
@@ -39,6 +41,7 @@ import {
   getRoadmap,
   getStockHoldings,
   getStockMarketSnapshot,
+  getStockReports,
   getStockWatchlist,
   login,
   refreshStockHoldingPrices,
@@ -62,6 +65,7 @@ import type {
   StockHolding,
   StockHoldingPayload,
   StockMarketSnapshot,
+  StockReport,
   StockScanResult,
   StockWatchlistItem,
   UserAccount,
@@ -180,6 +184,11 @@ const STOCK_TABS = [
     title: '후보 스캔',
     description: '여러 종목을 한 번에 비교해 후보를 정렬합니다.',
   },
+  {
+    id: 'reports',
+    title: 'Reports',
+    description: 'Saved analysis records become paid report drafts.',
+  },
 ] as const;
 
 type StockTabId = (typeof STOCK_TABS)[number]['id'];
@@ -218,9 +227,13 @@ export default function App() {
   const [analysisForm, setAnalysisForm] = useState<AnalysisForm>(defaultAnalysisForm);
   const [analysisResult, setAnalysisResult] = useState<StockAnalysisResult | null>(null);
   const [analysisRecords, setAnalysisRecords] = useState<StockAnalysisRecord[]>([]);
+  const [stockReports, setStockReports] = useState<StockReport[]>([]);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [deletingAnalysisRecordId, setDeletingAnalysisRecordId] = useState<number | null>(null);
+  const [reportMessage, setReportMessage] = useState<string | null>(null);
+  const [creatingReportRecordId, setCreatingReportRecordId] = useState<number | null>(null);
+  const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
   const [scanTickers, setScanTickers] = useState('005930,000660,035420,035720,051910');
@@ -261,6 +274,7 @@ export default function App() {
     watchlist: `${watchlist.length}개`,
     analysis: analysisRecords.length > 0 ? `${analysisRecords.length}개 기록` : '대기',
     scan: scanResult ? `${scanResult.candidates.length}개 후보` : '대기',
+    reports: `${stockReports.length} drafts`,
   };
   const portfolioBreakdown = holdings
     .map((holding) => ({
@@ -325,6 +339,7 @@ export default function App() {
       await loadStockHoldings(savedToken);
       await loadStockWatchlist(savedToken);
       await loadStockAnalysisRecords(savedToken);
+      await loadStockReports(savedToken);
       if (user.role === 'admin') {
         await loadAdminUsers(savedToken);
         await loadAdminUsage(savedToken);
@@ -338,6 +353,7 @@ export default function App() {
       setHoldings([]);
       setWatchlist([]);
       setAnalysisRecords([]);
+      setStockReports([]);
       setCurrentPriceDrafts({});
     }
   }
@@ -369,6 +385,7 @@ export default function App() {
     void loadStockHoldings(response.access_token);
     void loadStockWatchlist(response.access_token);
     void loadStockAnalysisRecords(response.access_token);
+    void loadStockReports(response.access_token);
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
       void loadAdminUsage(response.access_token);
@@ -426,6 +443,12 @@ export default function App() {
     if (!activeToken) return;
     const result = await getStockAnalysisRecords(activeToken);
     setAnalysisRecords(result);
+  }
+
+  async function loadStockReports(activeToken = token) {
+    if (!activeToken) return;
+    const result = await getStockReports(activeToken);
+    setStockReports(result);
   }
 
   async function handleCreateHolding(event: FormEvent) {
@@ -580,6 +603,39 @@ export default function App() {
     }
   }
 
+  async function handleCreateReport(recordId: number) {
+    if (!token) return;
+    setCreatingReportRecordId(recordId);
+    setReportMessage(null);
+
+    try {
+      const report = await createStockReportFromAnalysis(token, recordId);
+      setStockReports((reports) => [report, ...reports]);
+      setReportMessage('Report draft created.');
+      setActiveStockTab('reports');
+    } catch (requestError) {
+      setReportMessage(requestError instanceof Error ? requestError.message : 'Report create failed.');
+    } finally {
+      setCreatingReportRecordId(null);
+    }
+  }
+
+  async function handleDeleteReport(reportId: number) {
+    if (!token) return;
+    setDeletingReportId(reportId);
+    setReportMessage(null);
+
+    try {
+      await deleteStockReport(token, reportId);
+      setStockReports((reports) => reports.filter((report) => report.id !== reportId));
+      setReportMessage('Report draft deleted.');
+    } catch (requestError) {
+      setReportMessage(requestError instanceof Error ? requestError.message : 'Report delete failed.');
+    } finally {
+      setDeletingReportId(null);
+    }
+  }
+
   async function handleLoadMarketSnapshot() {
     if (!token || !analysisForm.ticker.trim()) return;
     setMarketLoading(true);
@@ -655,6 +711,7 @@ export default function App() {
     setHoldings([]);
     setWatchlist([]);
     setAnalysisRecords([]);
+    setStockReports([]);
     setAnalysisResult(null);
     setScanResult(null);
     setAuthMessage('로그아웃되었습니다.');
@@ -1603,6 +1660,15 @@ export default function App() {
                             </span>
                             <small>거래량 {record.volume_multiplier}배</small>
                             <button
+                              className="secondary-button compact-button"
+                              disabled={creatingReportRecordId === record.id}
+                              onClick={() => void handleCreateReport(record.id)}
+                              type="button"
+                            >
+                              <DollarOutlined />
+                              Report
+                            </button>
+                            <button
                               className="icon-danger-button"
                               disabled={deletingAnalysisRecordId === record.id}
                               onClick={() => void handleDeleteAnalysisRecord(record.id)}
@@ -1620,6 +1686,52 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+                  </article>
+                )}
+
+                {activeStockTab === 'reports' && (
+                  <article className="tool-pane stock-pane report-pane">
+                    <div className="pane-title">
+                      <DollarOutlined />
+                      <h3>Report drafts</h3>
+                      <button className="secondary-button" onClick={() => void loadStockReports()} type="button">
+                        <ReloadOutlined />
+                        Refresh
+                      </button>
+                    </div>
+                    <div className="pane-body">
+                      {reportMessage && <div className="inline-message">{reportMessage}</div>}
+                      <div className="report-list">
+                        {stockReports.map((report) => (
+                          <article className={`report-card ${report.rating}`} key={report.id}>
+                            <div className="report-head">
+                              <div>
+                                <strong>{report.title}</strong>
+                                <small>
+                                  {formatDateTime(report.created_at)} · Score {report.score} ·{' '}
+                                  {report.rating_label}
+                                </small>
+                              </div>
+                              <button
+                                className="icon-danger-button"
+                                disabled={deletingReportId === report.id}
+                                onClick={() => void handleDeleteReport(report.id)}
+                                title="Delete report"
+                                type="button"
+                              >
+                                <DeleteOutlined />
+                              </button>
+                            </div>
+                            <pre className="report-body">{report.body}</pre>
+                          </article>
+                        ))}
+                        {stockReports.length === 0 && (
+                          <div className="empty-state">
+                            Create a report from a saved analysis record to build paid content drafts.
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </article>
                 )}
 
@@ -1796,6 +1908,8 @@ function getStockTabIcon(tabId: StockTabId): ReactNode {
       return <BarChartOutlined />;
     case 'scan':
       return <AppstoreOutlined />;
+    case 'reports':
+      return <DollarOutlined />;
   }
 }
 
@@ -1881,3 +1995,4 @@ function formatDateTime(value: string): string {
     minute: '2-digit',
   });
 }
+

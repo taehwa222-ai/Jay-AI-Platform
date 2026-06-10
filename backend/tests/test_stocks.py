@@ -269,6 +269,81 @@ def test_stock_analysis_is_saved_and_can_be_deleted():
     assert empty.json() == []
 
 
+def test_user_can_create_list_and_delete_report_from_analysis_record():
+    with TestClient(app) as client:
+        token = signup(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        analysis = client.post(
+            "/api/v1/stocks/analyze",
+            headers=headers,
+            json={
+                "ticker": "005930",
+                "name": "Samsung Electronics",
+                "current_price": 76000,
+                "previous_close": 74000,
+                "volume": 2_500_000,
+                "previous_volume": 1_000_000,
+                "rsi": 54,
+                "macd": 150,
+                "macd_signal": 100,
+                "memo": "Volume spike candidate",
+            },
+        )
+        records = client.get("/api/v1/stocks/analysis-records", headers=headers)
+        record_id = records.json()[0]["id"]
+        created = client.post(
+            f"/api/v1/stocks/reports/from-analysis/{record_id}",
+            headers=headers,
+        )
+        reports = client.get("/api/v1/stocks/reports", headers=headers)
+        report_id = created.json()["id"]
+        deleted = client.delete(f"/api/v1/stocks/reports/{report_id}", headers=headers)
+        empty = client.get("/api/v1/stocks/reports", headers=headers)
+
+    assert analysis.status_code == 200
+    assert created.status_code == 201
+    assert created.json()["analysis_record_id"] == record_id
+    assert created.json()["ticker"] == "005930"
+    assert created.json()["report_type"] == "paid_report_draft"
+    assert "Action Checklist" in created.json()["body"]
+    assert reports.status_code == 200
+    assert len(reports.json()) == 1
+    assert deleted.status_code == 204
+    assert empty.json() == []
+
+
+def test_user_cannot_create_report_from_another_users_analysis_record():
+    with TestClient(app) as client:
+        owner_token = signup(client, "owner@example.com")
+        other_token = signup(client, "other@example.com")
+        owner_headers = {"Authorization": f"Bearer {owner_token}"}
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+        client.post(
+            "/api/v1/stocks/analyze",
+            headers=owner_headers,
+            json={
+                "ticker": "005930",
+                "name": "Samsung Electronics",
+                "current_price": 76000,
+                "previous_close": 74000,
+                "volume": 2_500_000,
+                "previous_volume": 1_000_000,
+                "rsi": 54,
+                "macd": 150,
+                "macd_signal": 100,
+            },
+        )
+        record_id = client.get("/api/v1/stocks/analysis-records", headers=owner_headers).json()[0][
+            "id"
+        ]
+        response = client.post(
+            f"/api/v1/stocks/reports/from-analysis/{record_id}",
+            headers=other_headers,
+        )
+
+    assert response.status_code == 404
+
+
 def test_free_plan_analysis_limit_and_pro_upgrade(monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "free_monthly_analysis_limit", 1)
