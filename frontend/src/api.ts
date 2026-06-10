@@ -266,6 +266,21 @@ export async function deleteStockReport(token: string, reportId: number): Promis
   );
 }
 
+export async function downloadStockReport(token: string, reportId: number): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/stocks/reports/${reportId}/download`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `Request failed: ${response.status}`);
+  }
+
+  return response.blob();
+}
+
 export function scanStocks(token: string, payload: StockScanPayload): Promise<StockScanResult> {
   return request<StockScanResult>(
     '/api/v1/stocks/scan',

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.routers.auth import get_current_user
 from app.schemas.stocks import (
@@ -185,3 +185,17 @@ async def delete_report(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> None:
     stock_service.delete_report(report_id, user)
+
+
+@router.get("/reports/{report_id}/download")
+async def download_report(
+    report_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> Response:
+    filename, body = stock_service.export_report_markdown(report_id, user)
+    return Response(
+        content=body,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

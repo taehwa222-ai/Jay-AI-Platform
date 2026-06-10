@@ -607,6 +607,12 @@ class StockService:
                 (report_id, user.id),
             )
 
+    def export_report_markdown(self, report_id: int, user: User) -> tuple[str, str]:
+        with self.connect() as conn:
+            report = self.get_report(report_id, user.id, conn)
+        filename = f"{safe_filename(report.ticker)}-report-{report.id}.md"
+        return filename, report.body
+
     async def analyze(
         self,
         payload: StockAnalysisRequest,
@@ -1235,6 +1241,11 @@ def bullet_list(items: list[str]) -> str:
     if not items:
         return "- No items."
     return "\n".join(f"- {item}" for item in items)
+
+
+def safe_filename(value: str) -> str:
+    cleaned = "".join(char if char.isalnum() or char in ("-", "_") else "-" for char in value)
+    return cleaned.strip("-_") or "stock"
 
 
 def json_list(value: str) -> list[str]:

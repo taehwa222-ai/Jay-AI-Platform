@@ -297,6 +297,7 @@ def test_user_can_create_list_and_delete_report_from_analysis_record():
         )
         reports = client.get("/api/v1/stocks/reports", headers=headers)
         report_id = created.json()["id"]
+        download = client.get(f"/api/v1/stocks/reports/{report_id}/download", headers=headers)
         deleted = client.delete(f"/api/v1/stocks/reports/{report_id}", headers=headers)
         empty = client.get("/api/v1/stocks/reports", headers=headers)
 
@@ -308,6 +309,9 @@ def test_user_can_create_list_and_delete_report_from_analysis_record():
     assert "Action Checklist" in created.json()["body"]
     assert reports.status_code == 200
     assert len(reports.json()) == 1
+    assert download.status_code == 200
+    assert "005930-report" in download.headers["content-disposition"]
+    assert "# Samsung Electronics(005930) AI analysis report" in download.text
     assert deleted.status_code == 204
     assert empty.json() == []
 
@@ -338,6 +342,42 @@ def test_user_cannot_create_report_from_another_users_analysis_record():
         ]
         response = client.post(
             f"/api/v1/stocks/reports/from-analysis/{record_id}",
+            headers=other_headers,
+        )
+
+    assert response.status_code == 404
+
+
+def test_user_cannot_download_another_users_report():
+    with TestClient(app) as client:
+        owner_token = signup(client, "owner@example.com")
+        other_token = signup(client, "other@example.com")
+        owner_headers = {"Authorization": f"Bearer {owner_token}"}
+        other_headers = {"Authorization": f"Bearer {other_token}"}
+        client.post(
+            "/api/v1/stocks/analyze",
+            headers=owner_headers,
+            json={
+                "ticker": "005930",
+                "name": "Samsung Electronics",
+                "current_price": 76000,
+                "previous_close": 74000,
+                "volume": 2_500_000,
+                "previous_volume": 1_000_000,
+                "rsi": 54,
+                "macd": 150,
+                "macd_signal": 100,
+            },
+        )
+        record_id = client.get("/api/v1/stocks/analysis-records", headers=owner_headers).json()[0][
+            "id"
+        ]
+        report = client.post(
+            f"/api/v1/stocks/reports/from-analysis/{record_id}",
+            headers=owner_headers,
+        )
+        response = client.get(
+            f"/api/v1/stocks/reports/{report.json()['id']}/download",
             headers=other_headers,
         )
 

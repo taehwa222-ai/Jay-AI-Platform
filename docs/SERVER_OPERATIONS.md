@@ -80,6 +80,8 @@ records can be deleted when they are no longer useful.
 `/api/v1/stocks/reports` lists paid-report drafts. Create one from a saved
 analysis record with `POST /api/v1/stocks/reports/from-analysis/{record_id}`,
 then remove old drafts with `DELETE /api/v1/stocks/reports/{report_id}`.
+Use `GET /api/v1/stocks/reports/{report_id}/download` to download a saved
+draft as a Markdown file for editing, sharing, or later PDF conversion.
 `/api/v1/stocks/scan` accepts multiple tickers and returns ranked candidates
 with failed lookups separated from successful results.
 The frontend separates this into focused stock tabs for holdings, watchlist,

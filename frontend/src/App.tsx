@@ -29,6 +29,7 @@ import {
   deleteStockHolding,
   deleteStockReport,
   deleteStockWatchlistItem,
+  downloadStockReport,
   getAdminUserUsage,
   getAdminUsers,
   getStockAnalysisRecords,
@@ -234,6 +235,7 @@ export default function App() {
   const [reportMessage, setReportMessage] = useState<string | null>(null);
   const [creatingReportRecordId, setCreatingReportRecordId] = useState<number | null>(null);
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
+  const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
   const [scanTickers, setScanTickers] = useState('005930,000660,035420,035720,051910');
@@ -633,6 +635,29 @@ export default function App() {
       setReportMessage(requestError instanceof Error ? requestError.message : 'Report delete failed.');
     } finally {
       setDeletingReportId(null);
+    }
+  }
+
+  async function handleDownloadReport(report: StockReport) {
+    if (!token) return;
+    setDownloadingReportId(report.id);
+    setReportMessage(null);
+
+    try {
+      const blob = await downloadStockReport(token, report.id);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${safeFileName(report.ticker)}-report-${report.id}.md`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setReportMessage('Report markdown downloaded.');
+    } catch (requestError) {
+      setReportMessage(requestError instanceof Error ? requestError.message : 'Report download failed.');
+    } finally {
+      setDownloadingReportId(null);
     }
   }
 
@@ -1712,15 +1737,26 @@ export default function App() {
                                   {report.rating_label}
                                 </small>
                               </div>
-                              <button
-                                className="icon-danger-button"
-                                disabled={deletingReportId === report.id}
-                                onClick={() => void handleDeleteReport(report.id)}
-                                title="Delete report"
-                                type="button"
-                              >
-                                <DeleteOutlined />
-                              </button>
+                              <div className="report-actions">
+                                <button
+                                  className="secondary-button compact-button"
+                                  disabled={downloadingReportId === report.id}
+                                  onClick={() => void handleDownloadReport(report)}
+                                  type="button"
+                                >
+                                  <SaveOutlined />
+                                  Download .md
+                                </button>
+                                <button
+                                  className="icon-danger-button"
+                                  disabled={deletingReportId === report.id}
+                                  onClick={() => void handleDeleteReport(report.id)}
+                                  title="Delete report"
+                                  type="button"
+                                >
+                                  <DeleteOutlined />
+                                </button>
+                              </div>
                             </div>
                             <pre className="report-body">{report.body}</pre>
                           </article>
@@ -1994,5 +2030,9 @@ function formatDateTime(value: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function safeFileName(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'stock';
 }
 

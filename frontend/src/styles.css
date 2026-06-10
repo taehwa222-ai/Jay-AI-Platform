@@ -1340,6 +1340,13 @@ code {
   justify-content: space-between;
 }
 
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .report-head strong {
   display: block;
   color: #18212f;
