@@ -40,6 +40,7 @@ async def update_user(
         user_id=user_id,
         actor=actor,
         role=payload.role,
+        plan=payload.plan,
         is_active=payload.is_active,
     )
     return UserPublic(**user.public())

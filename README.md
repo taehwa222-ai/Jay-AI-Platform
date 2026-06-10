@@ -37,7 +37,9 @@ base that you can extend with your own modules.
 - Later signed-up users become `member`.
 - Admin users can open the member list from the dedicated admin screen.
 - Admin users can promote/demote members and enable/disable accounts.
+- Admin users can switch members between `free` and `pro` plans.
 - Admin users can review member analysis usage counts and latest analysis activity.
+- Free members are limited by `FREE_MONTHLY_ANALYSIS_LIMIT`; pro members and admins are unlimited.
 - The app prevents disabling your own account or removing the last active admin.
 - User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.
 - In Docker/VPS deployment, `./data` is mounted into the backend container so user data survives rebuilds.
@@ -157,6 +159,7 @@ OPENAI_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 MARKET_DATA_TIMEOUT_SECONDS=10
+FREE_MONTHLY_ANALYSIS_LIMIT=20
 ```
 
 Keep real service keys out of GitHub, screenshots, chat messages, and commit

@@ -499,6 +499,9 @@ class StockService:
         payload: StockAnalysisRequest,
         user: User | None = None,
     ) -> StockAnalysisResponse:
+        if user is not None:
+            self.ensure_analysis_allowed(user)
+
         metrics = build_local_analysis(payload)
         ai_summary, ai_powered = await self.build_ai_summary(payload, metrics)
         result = StockAnalysisResponse(
@@ -520,6 +523,35 @@ class StockService:
         if user is not None:
             self.save_analysis_record(user, payload, result)
         return result
+
+    def ensure_analysis_allowed(self, user: User) -> None:
+        if user.role == "admin" or user.plan == "pro":
+            return
+
+        used_count = self.monthly_analysis_count(user)
+        if used_count < self.settings.free_monthly_analysis_limit:
+            return
+
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Free plan monthly analysis limit reached. "
+                "Ask an admin to upgrade this account to pro."
+            ),
+        )
+
+    def monthly_analysis_count(self, user: User) -> int:
+        month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) AS count
+                FROM stock_analysis_records
+                WHERE user_id = ? AND created_at >= ?
+                """,
+                (user.id, month_start.isoformat()),
+            ).fetchone()
+        return int(row["count"])
 
     def save_analysis_record(
         self,

@@ -22,6 +22,7 @@ class User:
     email: str
     name: str
     role: str
+    plan: str
     password_hash: str
     is_active: bool
     created_at: str
@@ -33,6 +34,7 @@ class User:
             "email": self.email,
             "name": self.name,
             "role": self.role,
+            "plan": self.plan,
             "is_active": self.is_active,
             "created_at": self.created_at,
             "last_login_at": self.last_login_at,
@@ -54,6 +56,7 @@ class AuthService:
                     email TEXT NOT NULL UNIQUE,
                     name TEXT NOT NULL,
                     role TEXT NOT NULL DEFAULT 'member',
+                    plan TEXT NOT NULL DEFAULT 'free',
                     password_hash TEXT NOT NULL,
                     is_active INTEGER NOT NULL DEFAULT 1,
                     created_at TEXT NOT NULL,
@@ -61,6 +64,7 @@ class AuthService:
                 )
                 """
             )
+            ensure_column(conn, "users", "plan", "TEXT NOT NULL DEFAULT 'free'")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
 
     def connect(self) -> sqlite3.Connection:
@@ -77,10 +81,17 @@ class AuthService:
             try:
                 cursor = conn.execute(
                     """
-                    INSERT INTO users (email, name, role, password_hash, created_at)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO users (email, name, role, plan, password_hash, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (normalized_email, name.strip(), role, hash_password(password), now),
+                    (
+                        normalized_email,
+                        name.strip(),
+                        role,
+                        "pro" if role == "admin" else "free",
+                        hash_password(password),
+                        now,
+                    ),
                 )
             except sqlite3.IntegrityError as exc:
                 raise HTTPException(
@@ -163,7 +174,9 @@ class AuthService:
         with self.connect() as conn:
             rows = conn.execute(
                 """
-                SELECT id, email, name, role, password_hash, is_active, created_at, last_login_at
+                SELECT
+                    id, email, name, role, plan, password_hash,
+                    is_active, created_at, last_login_at
                 FROM users
                 ORDER BY created_at DESC, id DESC
                 """
@@ -179,6 +192,7 @@ class AuthService:
                     users.email,
                     users.name,
                     users.role,
+                    users.plan,
                     users.is_active,
                     users.created_at,
                     users.last_login_at,
@@ -192,6 +206,7 @@ class AuthService:
                     users.email,
                     users.name,
                     users.role,
+                    users.plan,
                     users.is_active,
                     users.created_at,
                     users.last_login_at
@@ -204,6 +219,7 @@ class AuthService:
                 "email": str(row["email"]),
                 "name": str(row["name"]),
                 "role": str(row["role"]),
+                "plan": str(row["plan"]),
                 "is_active": bool(row["is_active"]),
                 "analysis_count": int(row["analysis_count"]),
                 "latest_analysis_at": (
@@ -224,9 +240,10 @@ class AuthService:
         user_id: int,
         actor: User,
         role: str | None = None,
+        plan: str | None = None,
         is_active: bool | None = None,
     ) -> User:
-        if role is None and is_active is None:
+        if role is None and plan is None and is_active is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="No update fields provided.",
@@ -262,14 +279,15 @@ class AuthService:
                 )
 
             next_role = role if role is not None else target.role
+            next_plan = plan if plan is not None else target.plan
             next_active = int(is_active) if is_active is not None else int(target.is_active)
             conn.execute(
                 """
                 UPDATE users
-                SET role = ?, is_active = ?
+                SET role = ?, plan = ?, is_active = ?
                 WHERE id = ?
                 """,
-                (next_role, next_active, target.id),
+                (next_role, next_plan, next_active, target.id),
             )
 
             updated = self.get_user_by_id(target.id, conn)
@@ -284,7 +302,9 @@ class AuthService:
         with self.connect() as conn:
             row = conn.execute(
                 """
-                SELECT id, email, name, role, password_hash, is_active, created_at, last_login_at
+                SELECT
+                    id, email, name, role, plan, password_hash,
+                    is_active, created_at, last_login_at
                 FROM users
                 WHERE email = ?
                 """,
@@ -298,7 +318,9 @@ class AuthService:
         try:
             row = active_conn.execute(
                 """
-                SELECT id, email, name, role, password_hash, is_active, created_at, last_login_at
+                SELECT
+                    id, email, name, role, plan, password_hash,
+                    is_active, created_at, last_login_at
                 FROM users
                 WHERE id = ?
                 """,
@@ -374,6 +396,7 @@ def row_to_user(row: sqlite3.Row) -> User:
         email=str(row["email"]),
         name=str(row["name"]),
         role=str(row["role"]),
+        plan=str(row["plan"]),
         password_hash=str(row["password_hash"]),
         is_active=bool(row["is_active"]),
         created_at=str(row["created_at"]),
@@ -390,3 +413,10 @@ def invalid_token() -> HTTPException:
 
 def ensure_data_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
+
+
+def ensure_column(conn: sqlite3.Connection, table_name: str, column_name: str, ddl: str) -> None:
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    if any(str(row["name"]) == column_name for row in rows):
+        return
+    conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}")

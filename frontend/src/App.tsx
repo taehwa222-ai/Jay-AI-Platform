@@ -246,6 +246,8 @@ export default function App() {
   const activeMemberCount = adminUsers.filter((user) => user.role === 'member' && user.is_active).length;
   const activeAdminCount = adminUsers.filter((user) => user.role === 'admin' && user.is_active).length;
   const inactiveUserCount = adminUsers.filter((user) => !user.is_active).length;
+  const proUserCount = adminUsers.filter((user) => user.plan === 'pro').length;
+  const freeUserCount = adminUsers.filter((user) => user.plan === 'free').length;
   const totalAnalysisCount = adminUsage.reduce((total, user) => total + user.analysis_count, 0);
   const activeAnalysisUserCount = adminUsage.filter((user) => user.analysis_count > 0).length;
   const latestAnalysisAt =
@@ -388,7 +390,7 @@ export default function App() {
 
   async function handleAdminUserUpdate(
     userId: number,
-    payload: { role?: 'admin' | 'member'; is_active?: boolean },
+    payload: { role?: 'admin' | 'member'; plan?: 'free' | 'pro'; is_active?: boolean },
   ) {
     if (!token) return;
     setAdminUpdatingId(userId);
@@ -867,6 +869,8 @@ export default function App() {
             <StatusTile label="활성 관리자" value={`${activeAdminCount}명`} tone="good" />
             <StatusTile label="활성 회원" value={`${activeMemberCount}명`} />
             <StatusTile label="비활성 계정" value={`${inactiveUserCount}명`} tone="steady" />
+            <StatusTile label="PRO 회원" value={`${proUserCount}명`} tone="good" />
+            <StatusTile label="무료 회원" value={`${freeUserCount}명`} />
             <StatusTile label="총 분석 횟수" value={`${totalAnalysisCount}회`} tone="good" />
             <StatusTile label="분석 사용 회원" value={`${activeAnalysisUserCount}명`} />
             <StatusTile
@@ -898,9 +902,9 @@ export default function App() {
                           <span>{user.email}</span>
                           {currentUser?.id === user.id && <small>내 계정</small>}
                         </div>
-                        <div className="user-controls">
-                          <select
-                            disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
+                          <div className="user-controls">
+                            <select
+                              disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
                             onChange={(event) =>
                               void handleAdminUserUpdate(user.id, {
                                 role: event.target.value as 'admin' | 'member',
@@ -908,12 +912,24 @@ export default function App() {
                             }
                             value={user.role}
                           >
-                            <option value="admin">admin</option>
-                            <option value="member">member</option>
-                          </select>
-                          <button
-                            className={user.is_active ? 'danger-button' : 'secondary-button'}
-                            disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
+                              <option value="admin">admin</option>
+                              <option value="member">member</option>
+                            </select>
+                            <select
+                              disabled={adminUpdatingId === user.id}
+                              onChange={(event) =>
+                                void handleAdminUserUpdate(user.id, {
+                                  plan: event.target.value as 'free' | 'pro',
+                                })
+                              }
+                              value={user.plan}
+                            >
+                              <option value="free">free</option>
+                              <option value="pro">pro</option>
+                            </select>
+                            <button
+                              className={user.is_active ? 'danger-button' : 'secondary-button'}
+                              disabled={currentUser?.id === user.id || adminUpdatingId === user.id}
                             onClick={() =>
                               void handleAdminUserUpdate(user.id, { is_active: !user.is_active })
                             }
@@ -958,6 +974,9 @@ export default function App() {
                       <div className="usage-identity">
                         <strong>{usage.name}</strong>
                         <span>{usage.email}</span>
+                        <small className={`plan-chip ${usage.plan === 'pro' ? 'pro' : 'free'}`}>
+                          {usage.plan.toUpperCase()}
+                        </small>
                       </div>
                       <div className="usage-meter">
                         <span>{usage.analysis_count}회</span>

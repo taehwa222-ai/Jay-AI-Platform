@@ -152,6 +152,11 @@ def test_admin_can_update_member_role_and_active_state():
             headers={"Authorization": f"Bearer {admin_token}"},
             json={"is_active": False},
         )
+        plan_updated = client.patch(
+            f"/api/v1/admin/users/{member_id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"plan": "pro"},
+        )
         login = client.post(
             "/api/v1/auth/login",
             json={"email": "member@example.com", "password": "password123"},
@@ -159,6 +164,8 @@ def test_admin_can_update_member_role_and_active_state():
 
     assert promoted.status_code == 200
     assert promoted.json()["role"] == "admin"
+    assert plan_updated.status_code == 200
+    assert plan_updated.json()["plan"] == "pro"
     assert disabled.status_code == 200
     assert disabled.json()["is_active"] is False
     assert login.status_code == 403

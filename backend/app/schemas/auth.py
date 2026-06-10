@@ -10,6 +10,7 @@ class UserPublic(BaseModel):
     email: str
     name: str
     role: str
+    plan: str
     is_active: bool
     created_at: str
     last_login_at: str | None = None
@@ -34,6 +35,7 @@ class AuthResponse(BaseModel):
 
 class AdminUserUpdateRequest(BaseModel):
     role: Literal["admin", "member"] | None = None
+    plan: Literal["free", "pro"] | None = None
     is_active: bool | None = None
 
 
@@ -42,6 +44,7 @@ class AdminUserUsagePublic(BaseModel):
     email: str
     name: str
     role: str
+    plan: str
     is_active: bool
     analysis_count: int
     latest_analysis_at: str | None = None

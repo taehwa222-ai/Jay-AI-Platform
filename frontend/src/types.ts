@@ -48,6 +48,7 @@ export type UserAccount = {
   email: string;
   name: string;
   role: 'admin' | 'member' | string;
+  plan: 'free' | 'pro' | string;
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
@@ -72,6 +73,7 @@ export type AuthResponse = {
 
 export type AdminUserUpdatePayload = {
   role?: 'admin' | 'member';
+  plan?: 'free' | 'pro';
   is_active?: boolean;
 };
 

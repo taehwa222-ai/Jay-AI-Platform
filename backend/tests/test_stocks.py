@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.main import app
 from app.services.stocks import (
     MarketCandle,
@@ -266,6 +267,50 @@ def test_stock_analysis_is_saved_and_can_be_deleted():
     assert records.json()[0]["signals"]
     assert deleted.status_code == 204
     assert empty.json() == []
+
+
+def test_free_plan_analysis_limit_and_pro_upgrade(monkeypatch):
+    settings = get_settings()
+    monkeypatch.setattr(settings, "free_monthly_analysis_limit", 1)
+
+    with TestClient(app) as client:
+        admin_token = signup(client, "admin@example.com")
+        member_token = signup(client, "member@example.com")
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        member_headers = {"Authorization": f"Bearer {member_token}"}
+        member_id = client.get("/api/v1/auth/me", headers=member_headers).json()["id"]
+        payload = {
+            "ticker": "005930",
+            "name": "삼성전자",
+            "current_price": 76000,
+            "previous_close": 74000,
+            "volume": 2_500_000,
+            "previous_volume": 1_000_000,
+            "rsi": 54,
+            "macd": 150,
+            "macd_signal": 100,
+        }
+
+        first = client.post("/api/v1/stocks/analyze", headers=member_headers, json=payload)
+        limited = client.post("/api/v1/stocks/analyze", headers=member_headers, json=payload)
+        upgrade = client.patch(
+            f"/api/v1/admin/users/{member_id}",
+            headers=admin_headers,
+            json={"plan": "pro"},
+        )
+        member_login = client.post(
+            "/api/v1/auth/login",
+            json={"email": "member@example.com", "password": "password123"},
+        )
+        pro_headers = {"Authorization": f"Bearer {member_login.json()['access_token']}"}
+        pro_analysis = client.post("/api/v1/stocks/analyze", headers=pro_headers, json=payload)
+
+    assert first.status_code == 200
+    assert limited.status_code == 403
+    assert "monthly analysis limit" in limited.json()["detail"]
+    assert upgrade.status_code == 200
+    assert upgrade.json()["plan"] == "pro"
+    assert pro_analysis.status_code == 200
 
 
 def test_market_snapshot_requires_login():

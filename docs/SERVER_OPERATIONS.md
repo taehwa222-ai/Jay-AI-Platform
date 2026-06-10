@@ -90,10 +90,14 @@ OPENAI_API_KEY=your_key_here
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 MARKET_DATA_TIMEOUT_SECONDS=10
+FREE_MONTHLY_ANALYSIS_LIMIT=20
 ```
 
 When `OPENAI_API_KEY` is empty, the stock analyzer still returns a local
 rule-based summary.
+
+Admins can switch members between `free` and `pro` plans. Free members are
+limited by `FREE_MONTHLY_ANALYSIS_LIMIT`; pro members and admins are unlimited.
 
 ## Stop
 
