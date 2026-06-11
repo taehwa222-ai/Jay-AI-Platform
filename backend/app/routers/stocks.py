@@ -12,6 +12,7 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
+    StockReportMarketItem,
     StockReportPublic,
     StockReportPublishRequest,
     StockScanRequest,
@@ -164,6 +165,14 @@ async def reports(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> list[StockReportPublic]:
     return stock_service.list_reports(user)
+
+
+@router.get("/reports/market", response_model=list[StockReportMarketItem])
+async def market_reports(
+    user: Annotated[User, Depends(get_current_user)],
+    stock_service: Annotated[StockService, Depends(get_stock_service)],
+) -> list[StockReportMarketItem]:
+    return stock_service.list_market_reports(user)
 
 
 @router.post(

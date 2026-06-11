@@ -42,6 +42,7 @@ import {
   getRoadmap,
   getStockHoldings,
   getStockMarketSnapshot,
+  getStockReportMarket,
   getStockReports,
   getStockWatchlist,
   login,
@@ -68,6 +69,7 @@ import type {
   StockHoldingPayload,
   StockMarketSnapshot,
   StockReport,
+  StockReportMarketItem,
   StockScanResult,
   StockWatchlistItem,
   UserAccount,
@@ -191,6 +193,11 @@ const STOCK_TABS = [
     title: 'Reports',
     description: 'Saved analysis records become paid report drafts.',
   },
+  {
+    id: 'market',
+    title: 'Market',
+    description: 'Published stock reports for members.',
+  },
 ] as const;
 
 type StockTabId = (typeof STOCK_TABS)[number]['id'];
@@ -230,6 +237,7 @@ export default function App() {
   const [analysisResult, setAnalysisResult] = useState<StockAnalysisResult | null>(null);
   const [analysisRecords, setAnalysisRecords] = useState<StockAnalysisRecord[]>([]);
   const [stockReports, setStockReports] = useState<StockReport[]>([]);
+  const [marketReports, setMarketReports] = useState<StockReportMarketItem[]>([]);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [deletingAnalysisRecordId, setDeletingAnalysisRecordId] = useState<number | null>(null);
@@ -238,6 +246,7 @@ export default function App() {
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
   const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null);
   const [updatingReportPublishId, setUpdatingReportPublishId] = useState<number | null>(null);
+  const [marketMessage, setMarketMessage] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
   const [scanTickers, setScanTickers] = useState('005930,000660,035420,035720,051910');
@@ -279,6 +288,7 @@ export default function App() {
     analysis: analysisRecords.length > 0 ? `${analysisRecords.length}개 기록` : '대기',
     scan: scanResult ? `${scanResult.candidates.length}개 후보` : '대기',
     reports: `${stockReports.length} drafts`,
+    market: `${marketReports.length} items`,
   };
   const portfolioBreakdown = holdings
     .map((holding) => ({
@@ -344,6 +354,7 @@ export default function App() {
       await loadStockWatchlist(savedToken);
       await loadStockAnalysisRecords(savedToken);
       await loadStockReports(savedToken);
+      await loadStockReportMarket(savedToken);
       if (user.role === 'admin') {
         await loadAdminUsers(savedToken);
         await loadAdminUsage(savedToken);
@@ -358,6 +369,7 @@ export default function App() {
       setWatchlist([]);
       setAnalysisRecords([]);
       setStockReports([]);
+      setMarketReports([]);
       setCurrentPriceDrafts({});
     }
   }
@@ -390,6 +402,7 @@ export default function App() {
     void loadStockWatchlist(response.access_token);
     void loadStockAnalysisRecords(response.access_token);
     void loadStockReports(response.access_token);
+    void loadStockReportMarket(response.access_token);
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
       void loadAdminUsage(response.access_token);
@@ -453,6 +466,16 @@ export default function App() {
     if (!activeToken) return;
     const result = await getStockReports(activeToken);
     setStockReports(result);
+  }
+
+  async function loadStockReportMarket(activeToken = token) {
+    if (!activeToken) return;
+    try {
+      const result = await getStockReportMarket(activeToken);
+      setMarketReports(result);
+    } catch (requestError) {
+      setMarketMessage(requestError instanceof Error ? requestError.message : 'Market load failed.');
+    }
   }
 
   async function handleCreateHolding(event: FormEvent) {
@@ -678,6 +701,7 @@ export default function App() {
         is_published: isPublished,
       });
       setStockReports((reports) => reports.map((item) => (item.id === updated.id ? updated : item)));
+      await loadStockReportMarket(token);
       setReportMessage('Report publish settings saved.');
     } catch (requestError) {
       setReportMessage(requestError instanceof Error ? requestError.message : 'Publish update failed.');
@@ -762,6 +786,7 @@ export default function App() {
     setWatchlist([]);
     setAnalysisRecords([]);
     setStockReports([]);
+    setMarketReports([]);
     setAnalysisResult(null);
     setScanResult(null);
     setAuthMessage('로그아웃되었습니다.');
@@ -1834,6 +1859,54 @@ export default function App() {
                   </article>
                 )}
 
+                {activeStockTab === 'market' && (
+                  <article className="tool-pane stock-pane report-pane">
+                    <div className="pane-title">
+                      <DollarOutlined />
+                      <h3>Report market</h3>
+                      <button className="secondary-button" onClick={() => void loadStockReportMarket()} type="button">
+                        <ReloadOutlined />
+                        Refresh
+                      </button>
+                    </div>
+                    <div className="pane-body">
+                      {marketMessage && <div className="inline-message">{marketMessage}</div>}
+                      <div className="report-list">
+                        {marketReports.map((report) => (
+                          <article className={`report-card ${report.rating}`} key={report.id}>
+                            <div className="report-head">
+                              <div>
+                                <strong>{report.title}</strong>
+                                <small>
+                                  {formatDateTime(report.created_at)} · Score {report.score} ·{' '}
+                                  {report.rating_label}
+                                </small>
+                                <span className={`publish-chip ${report.can_view ? 'published' : 'private'}`}>
+                                  {report.access_level.toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+                            {report.can_view ? (
+                              <pre className="report-body">{report.body}</pre>
+                            ) : (
+                              <div className="locked-report">
+                                <LockOutlined />
+                                <strong>Pro members only</strong>
+                                <p>{report.locked_reason}</p>
+                              </div>
+                            )}
+                          </article>
+                        ))}
+                        {marketReports.length === 0 && (
+                          <div className="empty-state">
+                            Published stock reports will appear here after you publish drafts.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </article>
+                )}
+
                 {activeStockTab === 'scan' && (
                   <article className="tool-pane stock-pane scan-pane">
                 <div className="pane-title">
@@ -2009,6 +2082,8 @@ function getStockTabIcon(tabId: StockTabId): ReactNode {
       return <AppstoreOutlined />;
     case 'reports':
       return <DollarOutlined />;
+    case 'market':
+      return <LockOutlined />;
   }
 }
 

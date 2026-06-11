@@ -1399,6 +1399,29 @@ code {
   white-space: pre-wrap;
 }
 
+.locked-report {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  border-radius: 8px;
+  padding: 18px;
+  color: #536273;
+  background: #f3f6f9;
+}
+
+.locked-report svg {
+  color: #8a5b15;
+  font-size: 22px;
+}
+
+.locked-report strong {
+  color: #18212f;
+}
+
+.locked-report p {
+  line-height: 1.5;
+}
+
 @media (max-width: 1180px) {
   .module-grid,
   .stock-grid,

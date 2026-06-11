@@ -20,6 +20,7 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
+    StockReportMarketItem,
     StockReportPublic,
     StockReportPublishRequest,
     StockScanCandidate,
@@ -572,6 +573,20 @@ class StockService:
                 (user.id,),
             ).fetchall()
         return [row_to_report(row).public() for row in rows]
+
+    def list_market_reports(self, user: User) -> list[StockReportMarketItem]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT *
+                FROM stock_reports
+                WHERE is_published = 1
+                    AND access_level IN ('free', 'pro')
+                ORDER BY created_at DESC, id DESC
+                LIMIT 100
+                """
+            ).fetchall()
+        return [market_item_for_report(row_to_report(row), user) for row in rows]
 
     def create_report_from_analysis(
         self,
@@ -1241,6 +1256,16 @@ def row_to_report(row: sqlite3.Row) -> StockReport:
         is_published=bool(row["is_published"]),
         created_at=str(row["created_at"]),
     )
+
+
+def market_item_for_report(report: StockReport, user: User) -> StockReportMarketItem:
+    can_view = report.access_level == "free" or user.plan == "pro" or user.role == "admin"
+    locked_reason = "" if can_view else "Pro plan is required to view this report."
+    public = report.public()
+    data = public.model_dump()
+    if not can_view:
+        data["body"] = ""
+    return StockReportMarketItem(**data, can_view=can_view, locked_reason=locked_reason)
 
 
 def build_report_body(record: StockAnalysisRecord) -> str:

@@ -18,6 +18,7 @@ import type {
   StockHoldingPriceRefreshResult,
   StockMarketSnapshot,
   StockReport,
+  StockReportMarketItem,
   StockReportPublishPayload,
   StockScanPayload,
   StockScanResult,
@@ -242,6 +243,10 @@ export async function deleteStockAnalysisRecord(token: string, recordId: number)
 
 export function getStockReports(token: string): Promise<StockReport[]> {
   return request<StockReport[]>('/api/v1/stocks/reports', undefined, token);
+}
+
+export function getStockReportMarket(token: string): Promise<StockReportMarketItem[]> {
+  return request<StockReportMarketItem[]>('/api/v1/stocks/reports/market', undefined, token);
 }
 
 export function createStockReportFromAnalysis(

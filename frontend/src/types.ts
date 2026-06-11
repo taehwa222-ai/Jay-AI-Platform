@@ -188,6 +188,11 @@ export type StockReport = {
   created_at: string;
 };
 
+export type StockReportMarketItem = StockReport & {
+  can_view: boolean;
+  locked_reason: string;
+};
+
 export type StockReportPublishPayload = {
   access_level: 'private' | 'free' | 'pro';
   is_published: boolean;

@@ -175,6 +175,11 @@ class StockReportPublic(BaseModel):
     created_at: str
 
 
+class StockReportMarketItem(StockReportPublic):
+    can_view: bool
+    locked_reason: str
+
+
 class StockReportPublishRequest(BaseModel):
     access_level: Literal["private", "free", "pro"] = "private"
     is_published: bool = False

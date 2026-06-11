@@ -402,6 +402,61 @@ def test_user_cannot_download_another_users_report():
     assert response.status_code == 404
 
 
+def test_market_reports_respect_member_plan():
+    with TestClient(app) as client:
+        admin_token = signup(client, "admin@example.com")
+        free_token = signup(client, "free@example.com")
+        pro_token = signup(client, "pro@example.com")
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        free_headers = {"Authorization": f"Bearer {free_token}"}
+        pro_headers = {"Authorization": f"Bearer {pro_token}"}
+        pro_user_id = client.get("/api/v1/auth/me", headers=pro_headers).json()["id"]
+        client.patch(
+            f"/api/v1/admin/users/{pro_user_id}",
+            headers=admin_headers,
+            json={"plan": "pro"},
+        )
+        client.post(
+            "/api/v1/stocks/analyze",
+            headers=admin_headers,
+            json={
+                "ticker": "005930",
+                "name": "Samsung Electronics",
+                "current_price": 76000,
+                "previous_close": 74000,
+                "volume": 2_500_000,
+                "previous_volume": 1_000_000,
+                "rsi": 54,
+                "macd": 150,
+                "macd_signal": 100,
+            },
+        )
+        record_id = client.get("/api/v1/stocks/analysis-records", headers=admin_headers).json()[0][
+            "id"
+        ]
+        report = client.post(
+            f"/api/v1/stocks/reports/from-analysis/{record_id}",
+            headers=admin_headers,
+        )
+        report_id = report.json()["id"]
+        client.patch(
+            f"/api/v1/stocks/reports/{report_id}/publish",
+            headers=admin_headers,
+            json={"access_level": "pro", "is_published": True},
+        )
+
+        free_market = client.get("/api/v1/stocks/reports/market", headers=free_headers)
+        pro_market = client.get("/api/v1/stocks/reports/market", headers=pro_headers)
+
+    assert free_market.status_code == 200
+    assert free_market.json()[0]["access_level"] == "pro"
+    assert free_market.json()[0]["can_view"] is False
+    assert free_market.json()[0]["body"] == ""
+    assert pro_market.status_code == 200
+    assert pro_market.json()[0]["can_view"] is True
+    assert "Samsung Electronics" in pro_market.json()[0]["body"]
+
+
 def test_free_plan_analysis_limit_and_pro_upgrade(monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "free_monthly_analysis_limit", 1)
