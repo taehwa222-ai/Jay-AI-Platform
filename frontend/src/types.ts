@@ -183,7 +183,14 @@ export type StockReport = {
   rating: 'candidate' | 'watch' | 'caution';
   rating_label: string;
   report_type: string;
+  access_level: 'private' | 'free' | 'pro';
+  is_published: boolean;
   created_at: string;
+};
+
+export type StockReportPublishPayload = {
+  access_level: 'private' | 'free' | 'pro';
+  is_published: boolean;
 };
 
 export type StockMarketSnapshot = {

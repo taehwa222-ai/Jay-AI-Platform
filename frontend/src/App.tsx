@@ -50,6 +50,7 @@ import {
   signup,
   updateAdminUser,
   updateStockHolding,
+  updateStockReportPublish,
 } from './api';
 import type {
   AdminUserUsage,
@@ -236,6 +237,7 @@ export default function App() {
   const [creatingReportRecordId, setCreatingReportRecordId] = useState<number | null>(null);
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
   const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null);
+  const [updatingReportPublishId, setUpdatingReportPublishId] = useState<number | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
   const [scanTickers, setScanTickers] = useState('005930,000660,035420,035720,051910');
@@ -658,6 +660,29 @@ export default function App() {
       setReportMessage(requestError instanceof Error ? requestError.message : 'Report download failed.');
     } finally {
       setDownloadingReportId(null);
+    }
+  }
+
+  async function handleUpdateReportPublish(
+    report: StockReport,
+    accessLevel: StockReport['access_level'],
+    isPublished: boolean,
+  ) {
+    if (!token) return;
+    setUpdatingReportPublishId(report.id);
+    setReportMessage(null);
+
+    try {
+      const updated = await updateStockReportPublish(token, report.id, {
+        access_level: accessLevel,
+        is_published: isPublished,
+      });
+      setStockReports((reports) => reports.map((item) => (item.id === updated.id ? updated : item)));
+      setReportMessage('Report publish settings saved.');
+    } catch (requestError) {
+      setReportMessage(requestError instanceof Error ? requestError.message : 'Publish update failed.');
+    } finally {
+      setUpdatingReportPublishId(null);
     }
   }
 
@@ -1736,8 +1761,46 @@ export default function App() {
                                   {formatDateTime(report.created_at)} · Score {report.score} ·{' '}
                                   {report.rating_label}
                                 </small>
+                                <span className={`publish-chip ${report.is_published ? 'published' : 'private'}`}>
+                                  {report.is_published ? `${report.access_level.toUpperCase()} published` : 'PRIVATE'}
+                                </span>
                               </div>
                               <div className="report-actions">
+                                <select
+                                  aria-label="Report access level"
+                                  disabled={updatingReportPublishId === report.id}
+                                  onChange={(event) =>
+                                    void handleUpdateReportPublish(
+                                      report,
+                                      event.target.value as StockReport['access_level'],
+                                      event.target.value !== 'private',
+                                    )
+                                  }
+                                  value={report.access_level}
+                                >
+                                  <option value="private">Private</option>
+                                  <option value="free">Free members</option>
+                                  <option value="pro">Pro members</option>
+                                </select>
+                                {report.is_published ? (
+                                  <button
+                                    className="secondary-button compact-button"
+                                    disabled={updatingReportPublishId === report.id}
+                                    onClick={() => void handleUpdateReportPublish(report, 'private', false)}
+                                    type="button"
+                                  >
+                                    Hide
+                                  </button>
+                                ) : (
+                                  <button
+                                    className="secondary-button compact-button"
+                                    disabled={updatingReportPublishId === report.id}
+                                    onClick={() => void handleUpdateReportPublish(report, 'pro', true)}
+                                    type="button"
+                                  >
+                                    Publish Pro
+                                  </button>
+                                )}
                                 <button
                                   className="secondary-button compact-button"
                                   disabled={downloadingReportId === report.id}

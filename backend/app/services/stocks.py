@@ -21,6 +21,7 @@ from app.schemas.stocks import (
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
     StockReportPublic,
+    StockReportPublishRequest,
     StockScanCandidate,
     StockScanFailure,
     StockScanRequest,
@@ -158,6 +159,8 @@ class StockReport:
     rating: str
     rating_label: str
     report_type: str
+    access_level: str
+    is_published: bool
     created_at: str
 
     def public(self) -> StockReportPublic:
@@ -172,6 +175,8 @@ class StockReport:
             rating=self.rating,
             rating_label=self.rating_label,
             report_type=self.report_type,
+            access_level=self.access_level,
+            is_published=self.is_published,
             created_at=self.created_at,
         )
 
@@ -270,10 +275,14 @@ class StockService:
                     rating TEXT NOT NULL,
                     rating_label TEXT NOT NULL,
                     report_type TEXT NOT NULL DEFAULT 'paid_report_draft',
+                    access_level TEXT NOT NULL DEFAULT 'private',
+                    is_published INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL
                 )
                 """
             )
+            ensure_column(conn, "stock_reports", "access_level", "TEXT NOT NULL DEFAULT 'private'")
+            ensure_column(conn, "stock_reports", "is_published", "INTEGER NOT NULL DEFAULT 0")
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_stock_reports_user
@@ -578,9 +587,9 @@ class StockService:
                 """
                 INSERT INTO stock_reports (
                     user_id, analysis_record_id, ticker, name, title, body, score,
-                    rating, rating_label, report_type, created_at
+                    rating, rating_label, report_type, access_level, is_published, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user.id,
@@ -593,10 +602,35 @@ class StockService:
                     record.rating,
                     record.rating_label,
                     "paid_report_draft",
+                    "private",
+                    0,
                     now,
                 ),
             )
             report = self.get_report(cursor.lastrowid, user.id, conn)
+        return report.public()
+
+    def update_report_publish(
+        self,
+        report_id: int,
+        user: User,
+        payload: StockReportPublishRequest,
+    ) -> StockReportPublic:
+        access_level = payload.access_level
+        is_published = payload.is_published and access_level != "private"
+
+        with self.connect() as conn:
+            self.get_report(report_id, user.id, conn)
+            conn.execute(
+                """
+                UPDATE stock_reports
+                SET access_level = ?,
+                    is_published = ?
+                WHERE id = ? AND user_id = ?
+                """,
+                (access_level, int(is_published), report_id, user.id),
+            )
+            report = self.get_report(report_id, user.id, conn)
         return report.public()
 
     def delete_report(self, report_id: int, user: User) -> None:
@@ -1203,6 +1237,8 @@ def row_to_report(row: sqlite3.Row) -> StockReport:
         rating=str(row["rating"]),
         rating_label=str(row["rating_label"]),
         report_type=str(row["report_type"]),
+        access_level=str(row["access_level"]),
+        is_published=bool(row["is_published"]),
         created_at=str(row["created_at"]),
     )
 
@@ -1246,6 +1282,12 @@ def bullet_list(items: list[str]) -> str:
 def safe_filename(value: str) -> str:
     cleaned = "".join(char if char.isalnum() or char in ("-", "_") else "-" for char in value)
     return cleaned.strip("-_") or "stock"
+
+
+def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in columns:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def json_list(value: str) -> list[str]:

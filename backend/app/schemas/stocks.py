@@ -170,7 +170,14 @@ class StockReportPublic(BaseModel):
     rating: Literal["candidate", "watch", "caution"]
     rating_label: str
     report_type: str
+    access_level: Literal["private", "free", "pro"]
+    is_published: bool
     created_at: str
+
+
+class StockReportPublishRequest(BaseModel):
+    access_level: Literal["private", "free", "pro"] = "private"
+    is_published: bool = False
 
 
 class StockMarketSnapshot(BaseModel):

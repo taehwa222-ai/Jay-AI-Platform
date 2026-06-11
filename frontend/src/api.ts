@@ -18,6 +18,7 @@ import type {
   StockHoldingPriceRefreshResult,
   StockMarketSnapshot,
   StockReport,
+  StockReportPublishPayload,
   StockScanPayload,
   StockScanResult,
   StockWatchlistItem,
@@ -279,6 +280,21 @@ export async function downloadStockReport(token: string, reportId: number): Prom
   }
 
   return response.blob();
+}
+
+export function updateStockReportPublish(
+  token: string,
+  reportId: number,
+  payload: StockReportPublishPayload,
+): Promise<StockReport> {
+  return request<StockReport>(
+    `/api/v1/stocks/reports/${reportId}/publish`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
 }
 
 export function scanStocks(token: string, payload: StockScanPayload): Promise<StockScanResult> {

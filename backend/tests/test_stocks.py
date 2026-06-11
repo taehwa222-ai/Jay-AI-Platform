@@ -297,6 +297,16 @@ def test_user_can_create_list_and_delete_report_from_analysis_record():
         )
         reports = client.get("/api/v1/stocks/reports", headers=headers)
         report_id = created.json()["id"]
+        published = client.patch(
+            f"/api/v1/stocks/reports/{report_id}/publish",
+            headers=headers,
+            json={"access_level": "pro", "is_published": True},
+        )
+        private = client.patch(
+            f"/api/v1/stocks/reports/{report_id}/publish",
+            headers=headers,
+            json={"access_level": "private", "is_published": True},
+        )
         download = client.get(f"/api/v1/stocks/reports/{report_id}/download", headers=headers)
         deleted = client.delete(f"/api/v1/stocks/reports/{report_id}", headers=headers)
         empty = client.get("/api/v1/stocks/reports", headers=headers)
@@ -306,9 +316,17 @@ def test_user_can_create_list_and_delete_report_from_analysis_record():
     assert created.json()["analysis_record_id"] == record_id
     assert created.json()["ticker"] == "005930"
     assert created.json()["report_type"] == "paid_report_draft"
+    assert created.json()["access_level"] == "private"
+    assert created.json()["is_published"] is False
     assert "Action Checklist" in created.json()["body"]
     assert reports.status_code == 200
     assert len(reports.json()) == 1
+    assert published.status_code == 200
+    assert published.json()["access_level"] == "pro"
+    assert published.json()["is_published"] is True
+    assert private.status_code == 200
+    assert private.json()["access_level"] == "private"
+    assert private.json()["is_published"] is False
     assert download.status_code == 200
     assert "005930-report" in download.headers["content-disposition"]
     assert "# Samsung Electronics(005930) AI analysis report" in download.text
