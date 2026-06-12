@@ -3,7 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Request
 
 from app.routers.auth import require_admin
-from app.schemas.auth import AdminUserUpdateRequest, AdminUserUsagePublic, UserPublic
+from app.schemas.auth import (
+    AdminContentStatsPublic,
+    AdminUserUpdateRequest,
+    AdminUserUsagePublic,
+    UserPublic,
+)
 from app.services.auth import AuthService, User
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
@@ -27,6 +32,14 @@ async def user_usage(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> list[AdminUserUsagePublic]:
     return [AdminUserUsagePublic(**usage) for usage in auth_service.list_user_usage()]
+
+
+@router.get("/content-stats", response_model=AdminContentStatsPublic)
+async def content_stats(
+    _: Annotated[User, Depends(require_admin)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> AdminContentStatsPublic:
+    return AdminContentStatsPublic(**auth_service.content_stats())
 
 
 @router.patch("/users/{user_id}", response_model=UserPublic)

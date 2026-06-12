@@ -113,6 +113,56 @@ def test_admin_can_view_user_usage_and_member_cannot():
     assert member_response.status_code == 403
 
 
+def test_admin_can_view_content_stats_and_member_cannot():
+    with TestClient(app) as client:
+        admin_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
+        )
+        member_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "member@example.com", "password": "password123", "name": "Member"},
+        )
+        admin_token = admin_signup.json()["access_token"]
+        member_token = member_signup.json()["access_token"]
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        member_headers = {"Authorization": f"Bearer {member_token}"}
+        payload = {
+            "ticker": "005930",
+            "name": "Samsung Electronics",
+            "current_price": 76000,
+            "previous_close": 74000,
+            "volume": 2_500_000,
+            "previous_volume": 1_000_000,
+            "rsi": 54,
+            "macd": 150,
+            "macd_signal": 100,
+        }
+        client.post("/api/v1/stocks/analyze", headers=admin_headers, json=payload)
+        record_id = client.get("/api/v1/stocks/analysis-records", headers=admin_headers).json()[0][
+            "id"
+        ]
+        report = client.post(
+            f"/api/v1/stocks/reports/from-analysis/{record_id}",
+            headers=admin_headers,
+        )
+        client.patch(
+            f"/api/v1/stocks/reports/{report.json()['id']}/publish",
+            headers=admin_headers,
+            json={"access_level": "pro", "is_published": True},
+        )
+
+        admin_response = client.get("/api/v1/admin/content-stats", headers=admin_headers)
+        member_response = client.get("/api/v1/admin/content-stats", headers=member_headers)
+
+    assert admin_response.status_code == 200
+    assert admin_response.json()["total_reports"] == 1
+    assert admin_response.json()["published_reports"] == 1
+    assert admin_response.json()["pro_reports"] == 1
+    assert admin_response.json()["report_creators"] == 1
+    assert member_response.status_code == 403
+
+
 def test_duplicate_email_is_rejected():
     with TestClient(app) as client:
         first = client.post(

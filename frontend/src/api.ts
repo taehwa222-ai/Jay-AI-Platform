@@ -1,4 +1,5 @@
 import type {
+  AdminContentStats,
   AdminUserUpdatePayload,
   AdminUserUsage,
   AuthResponse,
@@ -104,6 +105,10 @@ export function getAdminUsers(token: string): Promise<UserAccount[]> {
 
 export function getAdminUserUsage(token: string): Promise<AdminUserUsage[]> {
   return request<AdminUserUsage[]>('/api/v1/admin/user-usage', undefined, token);
+}
+
+export function getAdminContentStats(token: string): Promise<AdminContentStats> {
+  return request<AdminContentStats>('/api/v1/admin/content-stats', undefined, token);
 }
 
 export function updateAdminUser(

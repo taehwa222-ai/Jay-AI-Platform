@@ -86,6 +86,8 @@ Use `PATCH /api/v1/stocks/reports/{report_id}/publish` to set a report to
 `private`, `free`, or `pro` visibility before exposing it to members.
 Members can browse published drafts through `GET /api/v1/stocks/reports/market`;
 `pro` reports hide their body from free members.
+Admins can monitor report inventory and monetization readiness through
+`GET /api/v1/admin/content-stats`.
 `/api/v1/stocks/scan` accepts multiple tickers and returns ranked candidates
 with failed lookups separated from successful results.
 The frontend separates this into focused stock tabs for holdings, watchlist,

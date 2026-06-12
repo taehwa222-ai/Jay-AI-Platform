@@ -235,6 +235,37 @@ class AuthService:
             for row in rows
         ]
 
+    def content_stats(self) -> dict[str, Any]:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_reports,
+                    SUM(CASE WHEN is_published = 0 THEN 1 ELSE 0 END) AS private_reports,
+                    SUM(CASE WHEN is_published = 1 THEN 1 ELSE 0 END) AS published_reports,
+                    SUM(CASE WHEN is_published = 1 AND access_level = 'free' THEN 1 ELSE 0 END)
+                        AS free_reports,
+                    SUM(CASE WHEN is_published = 1 AND access_level = 'pro' THEN 1 ELSE 0 END)
+                        AS pro_reports,
+                    COUNT(DISTINCT user_id) AS report_creators,
+                    MAX(created_at) AS latest_report_at,
+                    MAX(CASE WHEN is_published = 1 THEN created_at ELSE NULL END)
+                        AS latest_published_at
+                FROM stock_reports
+                """
+            ).fetchone()
+
+        return {
+            "total_reports": int(row["total_reports"] or 0),
+            "private_reports": int(row["private_reports"] or 0),
+            "published_reports": int(row["published_reports"] or 0),
+            "free_reports": int(row["free_reports"] or 0),
+            "pro_reports": int(row["pro_reports"] or 0),
+            "report_creators": int(row["report_creators"] or 0),
+            "latest_report_at": row["latest_report_at"],
+            "latest_published_at": row["latest_published_at"],
+        }
+
     def update_user(
         self,
         user_id: int,

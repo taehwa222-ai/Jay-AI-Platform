@@ -399,6 +399,29 @@ select:disabled {
   margin-top: 18px;
 }
 
+.admin-content-pane {
+  margin-bottom: 18px;
+}
+
+.content-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.content-stats-grid .status-tile {
+  box-shadow: none;
+}
+
+.content-date-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #697789;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .login-route-list {
   display: grid;
   gap: 10px;
@@ -1488,6 +1511,7 @@ code {
   .hero-panel,
   .access-grid,
   .admin-grid,
+  .content-stats-grid,
   .module-grid,
   .stock-grid,
   .stock-workspace,

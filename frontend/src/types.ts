@@ -82,6 +82,17 @@ export type AdminUserUsage = UserAccount & {
   latest_analysis_at: string | null;
 };
 
+export type AdminContentStats = {
+  total_reports: number;
+  private_reports: number;
+  published_reports: number;
+  free_reports: number;
+  pro_reports: number;
+  report_creators: number;
+  latest_report_at: string | null;
+  latest_published_at: string | null;
+};
+
 export type StockHolding = {
   id: number;
   ticker: string;

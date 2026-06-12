@@ -50,3 +50,14 @@ class AdminUserUsagePublic(BaseModel):
     latest_analysis_at: str | None = None
     created_at: str
     last_login_at: str | None = None
+
+
+class AdminContentStatsPublic(BaseModel):
+    total_reports: int
+    private_reports: int
+    published_reports: int
+    free_reports: int
+    pro_reports: int
+    report_creators: int
+    latest_report_at: str | None = None
+    latest_published_at: str | None = None

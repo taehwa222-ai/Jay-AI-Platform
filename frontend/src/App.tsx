@@ -30,6 +30,7 @@ import {
   deleteStockReport,
   deleteStockWatchlistItem,
   downloadStockReport,
+  getAdminContentStats,
   getAdminUserUsage,
   getAdminUsers,
   getStockAnalysisRecords,
@@ -54,6 +55,7 @@ import {
   updateStockReportPublish,
 } from './api';
 import type {
+  AdminContentStats,
   AdminUserUsage,
   AuthResponse,
   HealthStatus,
@@ -213,6 +215,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [adminUsers, setAdminUsers] = useState<UserAccount[]>([]);
   const [adminUsage, setAdminUsage] = useState<AdminUserUsage[]>([]);
+  const [adminContentStats, setAdminContentStats] = useState<AdminContentStats | null>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -358,6 +361,7 @@ export default function App() {
       if (user.role === 'admin') {
         await loadAdminUsers(savedToken);
         await loadAdminUsage(savedToken);
+        await loadAdminContentStats(savedToken);
       }
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -365,6 +369,7 @@ export default function App() {
       setCurrentUser(null);
       setAdminUsers([]);
       setAdminUsage([]);
+      setAdminContentStats(null);
       setHoldings([]);
       setWatchlist([]);
       setAnalysisRecords([]);
@@ -406,6 +411,7 @@ export default function App() {
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
       void loadAdminUsage(response.access_token);
+      void loadAdminContentStats(response.access_token);
     }
     navigateToView(response.user.role === 'admin' ? 'admin' : 'stocks');
   }
@@ -420,6 +426,12 @@ export default function App() {
     if (!activeToken) return;
     const usage = await getAdminUserUsage(activeToken);
     setAdminUsage(usage);
+  }
+
+  async function loadAdminContentStats(activeToken = token) {
+    if (!activeToken) return;
+    const stats = await getAdminContentStats(activeToken);
+    setAdminContentStats(stats);
   }
 
   async function handleAdminUserUpdate(
@@ -782,6 +794,7 @@ export default function App() {
     setCurrentUser(null);
     setAdminUsers([]);
     setAdminUsage([]);
+    setAdminContentStats(null);
     setHoldings([]);
     setWatchlist([]);
     setAnalysisRecords([]);
@@ -1011,6 +1024,69 @@ export default function App() {
               tone="steady"
             />
           </div>
+          <article className="tool-pane admin-content-pane">
+            <div className="pane-title">
+              <DollarOutlined />
+              <h3>콘텐츠 수익화 현황</h3>
+              {currentUser?.role === 'admin' && (
+                <button className="secondary-button" onClick={() => void loadAdminContentStats()} type="button">
+                  <ReloadOutlined />
+                  새로고침
+                </button>
+              )}
+            </div>
+            <div className="pane-body">
+              {currentUser?.role === 'admin' ? (
+                <>
+                  <div className="content-stats-grid">
+                    <StatusTile
+                      label="전체 리포트"
+                      value={`${adminContentStats?.total_reports ?? 0}개`}
+                      tone="good"
+                    />
+                    <StatusTile
+                      label="공개 리포트"
+                      value={`${adminContentStats?.published_reports ?? 0}개`}
+                      tone="good"
+                    />
+                    <StatusTile
+                      label="비공개 초안"
+                      value={`${adminContentStats?.private_reports ?? 0}개`}
+                    />
+                    <StatusTile
+                      label="무료 공개"
+                      value={`${adminContentStats?.free_reports ?? 0}개`}
+                    />
+                    <StatusTile
+                      label="PRO 전용"
+                      value={`${adminContentStats?.pro_reports ?? 0}개`}
+                      tone="steady"
+                    />
+                    <StatusTile
+                      label="리포트 작성자"
+                      value={`${adminContentStats?.report_creators ?? 0}명`}
+                    />
+                  </div>
+                  <div className="content-date-row">
+                    <span>
+                      최근 리포트:{' '}
+                      {adminContentStats?.latest_report_at
+                        ? formatDateTime(adminContentStats.latest_report_at)
+                        : '없음'}
+                    </span>
+                    <span>
+                      최근 공개:{' '}
+                      {adminContentStats?.latest_published_at
+                        ? formatDateTime(adminContentStats.latest_published_at)
+                        : '없음'}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="empty-state">관리자 계정으로 로그인하면 콘텐츠 통계를 볼 수 있습니다.</div>
+              )}
+            </div>
+          </article>
           <article className="tool-pane">
             <div className="pane-title">
               <TeamOutlined />
