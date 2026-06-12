@@ -22,6 +22,7 @@ import type { ReactNode } from 'react';
 import { FormEvent, useEffect, useState } from 'react';
 import {
   analyzeStock,
+  createProRequest,
   createStockHolding,
   createStockReportFromAnalysis,
   createStockWatchlistItem,
@@ -31,8 +32,10 @@ import {
   deleteStockWatchlistItem,
   downloadStockReport,
   getAdminContentStats,
+  getAdminProRequests,
   getAdminUserUsage,
   getAdminUsers,
+  getMyProRequest,
   getStockAnalysisRecords,
   getHealth,
   getManual,
@@ -51,6 +54,7 @@ import {
   scanStocks,
   signup,
   updateAdminUser,
+  updateAdminProRequest,
   updateStockHolding,
   updateStockReportPublish,
 } from './api';
@@ -63,6 +67,7 @@ import type {
   MonetizationIdea,
   PlatformModule,
   PlatformOverview,
+  ProUpgradeRequest,
   RoadmapPhase,
   StockAnalysisRecord,
   StockAnalysisPayload,
@@ -216,6 +221,8 @@ export default function App() {
   const [adminUsers, setAdminUsers] = useState<UserAccount[]>([]);
   const [adminUsage, setAdminUsage] = useState<AdminUserUsage[]>([]);
   const [adminContentStats, setAdminContentStats] = useState<AdminContentStats | null>(null);
+  const [adminProRequests, setAdminProRequests] = useState<ProUpgradeRequest[]>([]);
+  const [myProRequest, setMyProRequest] = useState<ProUpgradeRequest | null>(null);
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -224,6 +231,9 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [adminUpdatingId, setAdminUpdatingId] = useState<number | null>(null);
+  const [proRequestMessage, setProRequestMessage] = useState<string | null>(null);
+  const [proRequestLoading, setProRequestLoading] = useState(false);
+  const [adminProRequestUpdatingId, setAdminProRequestUpdatingId] = useState<number | null>(null);
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [holdingForm, setHoldingForm] = useState<HoldingForm>(emptyHoldingForm);
   const [holdingMessage, setHoldingMessage] = useState<string | null>(null);
@@ -358,10 +368,12 @@ export default function App() {
       await loadStockAnalysisRecords(savedToken);
       await loadStockReports(savedToken);
       await loadStockReportMarket(savedToken);
+      await loadMyProRequest(savedToken);
       if (user.role === 'admin') {
         await loadAdminUsers(savedToken);
         await loadAdminUsage(savedToken);
         await loadAdminContentStats(savedToken);
+        await loadAdminProRequests(savedToken);
       }
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -370,6 +382,8 @@ export default function App() {
       setAdminUsers([]);
       setAdminUsage([]);
       setAdminContentStats(null);
+      setAdminProRequests([]);
+      setMyProRequest(null);
       setHoldings([]);
       setWatchlist([]);
       setAnalysisRecords([]);
@@ -408,10 +422,12 @@ export default function App() {
     void loadStockAnalysisRecords(response.access_token);
     void loadStockReports(response.access_token);
     void loadStockReportMarket(response.access_token);
+    void loadMyProRequest(response.access_token);
     if (response.user.role === 'admin') {
       void loadAdminUsers(response.access_token);
       void loadAdminUsage(response.access_token);
       void loadAdminContentStats(response.access_token);
+      void loadAdminProRequests(response.access_token);
     }
     navigateToView(response.user.role === 'admin' ? 'admin' : 'stocks');
   }
@@ -434,6 +450,18 @@ export default function App() {
     setAdminContentStats(stats);
   }
 
+  async function loadAdminProRequests(activeToken = token) {
+    if (!activeToken) return;
+    const requests = await getAdminProRequests(activeToken);
+    setAdminProRequests(requests);
+  }
+
+  async function loadMyProRequest(activeToken = token) {
+    if (!activeToken) return;
+    const request = await getMyProRequest(activeToken);
+    setMyProRequest(request);
+  }
+
   async function handleAdminUserUpdate(
     userId: number,
     payload: { role?: 'admin' | 'member'; plan?: 'free' | 'pro'; is_active?: boolean },
@@ -450,6 +478,49 @@ export default function App() {
       setAdminMessage(requestError instanceof Error ? requestError.message : 'Update failed.');
     } finally {
       setAdminUpdatingId(null);
+    }
+  }
+
+  async function handleCreateProRequest() {
+    if (!token) return;
+    setProRequestLoading(true);
+    setProRequestMessage(null);
+
+    try {
+      const request = await createProRequest(
+        token,
+        'Pro reports and higher analysis limits requested from the account screen.',
+      );
+      setMyProRequest(request);
+      setProRequestMessage('Pro 업그레이드 신청이 접수되었습니다.');
+    } catch (requestError) {
+      setProRequestMessage(requestError instanceof Error ? requestError.message : 'Pro request failed.');
+    } finally {
+      setProRequestLoading(false);
+    }
+  }
+
+  async function handleAdminProRequestUpdate(requestId: number, status: 'approved' | 'rejected') {
+    if (!token) return;
+    setAdminProRequestUpdatingId(requestId);
+    setAdminMessage(null);
+
+    try {
+      const updated = await updateAdminProRequest(
+        token,
+        requestId,
+        status,
+        status === 'approved' ? 'Pro upgrade approved.' : 'Pro upgrade rejected.',
+      );
+      setAdminProRequests((requests) =>
+        requests.map((request) => (request.id === updated.id ? updated : request)),
+      );
+      await loadAdminUsers(token);
+      setAdminMessage(status === 'approved' ? 'Pro 신청을 승인했습니다.' : 'Pro 신청을 거절했습니다.');
+    } catch (requestError) {
+      setAdminMessage(requestError instanceof Error ? requestError.message : 'Request update failed.');
+    } finally {
+      setAdminProRequestUpdatingId(null);
     }
   }
 
@@ -795,6 +866,8 @@ export default function App() {
     setAdminUsers([]);
     setAdminUsage([]);
     setAdminContentStats(null);
+    setAdminProRequests([]);
+    setMyProRequest(null);
     setHoldings([]);
     setWatchlist([]);
     setAnalysisRecords([]);
@@ -914,6 +987,31 @@ export default function App() {
                       <p>{currentUser.email}</p>
                     </div>
                     <span className="role-chip">{currentUser.role}</span>
+                    <div className="pro-request-box">
+                      <strong>Plan: {currentUser.plan.toUpperCase()}</strong>
+                      {currentUser.plan === 'pro' ? (
+                        <p>Pro 기능을 사용할 수 있습니다.</p>
+                      ) : myProRequest?.status === 'pending' ? (
+                        <p>Pro 업그레이드 신청이 관리자 확인을 기다리고 있습니다.</p>
+                      ) : (
+                        <button
+                          className="primary-button"
+                          disabled={proRequestLoading}
+                          onClick={() => void handleCreateProRequest()}
+                          type="button"
+                        >
+                          <CrownOutlined />
+                          Pro 업그레이드 신청
+                        </button>
+                      )}
+                      {myProRequest && myProRequest.status !== 'pending' && (
+                        <small>
+                          최근 신청: {myProRequest.status}
+                          {myProRequest.admin_note ? ` · ${myProRequest.admin_note}` : ''}
+                        </small>
+                      )}
+                      {proRequestMessage && <div className="inline-message">{proRequestMessage}</div>}
+                    </div>
                     <button className="secondary-button" onClick={logout} type="button">
                       <LogoutOutlined />
                       로그아웃
@@ -1084,6 +1182,67 @@ export default function App() {
                 </>
               ) : (
                 <div className="empty-state">관리자 계정으로 로그인하면 콘텐츠 통계를 볼 수 있습니다.</div>
+              )}
+            </div>
+          </article>
+          <article className="tool-pane admin-content-pane">
+            <div className="pane-title">
+              <CrownOutlined />
+              <h3>PRO 업그레이드 신청</h3>
+              {currentUser?.role === 'admin' && (
+                <button className="secondary-button" onClick={() => void loadAdminProRequests()} type="button">
+                  <ReloadOutlined />
+                  새로고침
+                </button>
+              )}
+            </div>
+            <div className="pane-body">
+              {currentUser?.role === 'admin' ? (
+                <div className="pro-request-list">
+                  {adminProRequests.map((request) => (
+                    <div className={`pro-request-row ${request.status}`} key={request.id}>
+                      <div>
+                        <strong>{request.name}</strong>
+                        <span>{request.email}</span>
+                        <small>
+                          {request.current_plan.toUpperCase()} · {request.status.toUpperCase()} ·{' '}
+                          {formatDateTime(request.created_at)}
+                        </small>
+                        {request.message && <p>{request.message}</p>}
+                        {request.admin_note && <p>관리자 메모: {request.admin_note}</p>}
+                      </div>
+                      {request.status === 'pending' ? (
+                        <div className="pro-request-actions">
+                          <button
+                            className="primary-button"
+                            disabled={adminProRequestUpdatingId === request.id}
+                            onClick={() => void handleAdminProRequestUpdate(request.id, 'approved')}
+                            type="button"
+                          >
+                            승인
+                          </button>
+                          <button
+                            className="danger-button"
+                            disabled={adminProRequestUpdatingId === request.id}
+                            onClick={() => void handleAdminProRequestUpdate(request.id, 'rejected')}
+                            type="button"
+                          >
+                            거절
+                          </button>
+                        </div>
+                      ) : (
+                        <span className={`publish-chip ${request.status === 'approved' ? 'published' : 'private'}`}>
+                          {request.status.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                  {adminProRequests.length === 0 && (
+                    <div className="empty-state">아직 PRO 업그레이드 신청이 없습니다.</div>
+                  )}
+                </div>
+              ) : (
+                <div className="empty-state">관리자 계정으로 로그인하면 업그레이드 신청을 볼 수 있습니다.</div>
               )}
             </div>
           </article>

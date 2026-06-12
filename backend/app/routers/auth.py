@@ -2,7 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
-from app.schemas.auth import AuthResponse, LoginRequest, SignupRequest, UserPublic
+from app.schemas.auth import (
+    AuthResponse,
+    LoginRequest,
+    ProUpgradeRequestCreate,
+    ProUpgradeRequestPublic,
+    SignupRequest,
+    UserPublic,
+)
 from app.services.auth import AuthService, User
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -60,3 +67,26 @@ async def login(
 @router.get("/me", response_model=UserPublic)
 async def me(user: Annotated[User, Depends(get_current_user)]) -> UserPublic:
     return UserPublic(**user.public())
+
+
+@router.get("/pro-request", response_model=ProUpgradeRequestPublic | None)
+async def pro_request(
+    user: Annotated[User, Depends(get_current_user)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> ProUpgradeRequestPublic | None:
+    request = auth_service.latest_pro_upgrade_request_for_user(user)
+    return ProUpgradeRequestPublic(**request) if request is not None else None
+
+
+@router.post(
+    "/pro-request",
+    response_model=ProUpgradeRequestPublic,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_pro_request(
+    payload: ProUpgradeRequestCreate,
+    user: Annotated[User, Depends(get_current_user)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> ProUpgradeRequestPublic:
+    request = auth_service.create_pro_upgrade_request(user, payload.message)
+    return ProUpgradeRequestPublic(**request)

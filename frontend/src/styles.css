@@ -422,6 +422,52 @@ select:disabled {
   font-weight: 700;
 }
 
+.pro-request-list {
+  display: grid;
+  gap: 10px;
+}
+
+.pro-request-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e4e9ef;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.pro-request-row.pending {
+  border-color: #e5c783;
+  background: #fff9ea;
+}
+
+.pro-request-row.approved {
+  border-color: #9bd2bf;
+  background: #f0faf6;
+}
+
+.pro-request-row > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pro-request-row span,
+.pro-request-row small,
+.pro-request-row p {
+  color: #697789;
+  line-height: 1.45;
+}
+
+.pro-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .login-route-list {
   display: grid;
   gap: 10px;
@@ -505,6 +551,22 @@ select:disabled {
 
 .account-panel {
   align-items: start;
+}
+
+.pro-request-box {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid #e4e9ef;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.pro-request-box p,
+.pro-request-box small {
+  color: #536273;
+  line-height: 1.45;
 }
 
 .account-panel h3 {

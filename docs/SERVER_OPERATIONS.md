@@ -88,6 +88,9 @@ Members can browse published drafts through `GET /api/v1/stocks/reports/market`;
 `pro` reports hide their body from free members.
 Admins can monitor report inventory and monetization readiness through
 `GET /api/v1/admin/content-stats`.
+Members can request Pro access with `POST /api/v1/auth/pro-request`; admins can
+review and approve requests with `GET /api/v1/admin/pro-requests` and
+`PATCH /api/v1/admin/pro-requests/{request_id}`.
 `/api/v1/stocks/scan` accepts multiple tickers and returns ranked candidates
 with failed lookups separated from successful results.
 The frontend separates this into focused stock tabs for holdings, watchlist,

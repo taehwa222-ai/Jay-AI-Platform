@@ -163,6 +163,55 @@ def test_admin_can_view_content_stats_and_member_cannot():
     assert member_response.status_code == 403
 
 
+def test_member_can_request_pro_and_admin_can_approve():
+    with TestClient(app) as client:
+        admin_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
+        )
+        member_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "member@example.com", "password": "password123", "name": "Member"},
+        )
+        admin_token = admin_signup.json()["access_token"]
+        member_token = member_signup.json()["access_token"]
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+        member_headers = {"Authorization": f"Bearer {member_token}"}
+
+        created = client.post(
+            "/api/v1/auth/pro-request",
+            headers=member_headers,
+            json={"message": "I want pro reports."},
+        )
+        duplicate = client.post(
+            "/api/v1/auth/pro-request",
+            headers=member_headers,
+            json={"message": "Second request"},
+        )
+        latest = client.get("/api/v1/auth/pro-request", headers=member_headers)
+        admin_list = client.get("/api/v1/admin/pro-requests", headers=admin_headers)
+        approved = client.patch(
+            f"/api/v1/admin/pro-requests/{created.json()['id']}",
+            headers=admin_headers,
+            json={"status": "approved", "admin_note": "Manual payment confirmed."},
+        )
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"email": "member@example.com", "password": "password123"},
+        )
+
+    assert created.status_code == 201
+    assert created.json()["status"] == "pending"
+    assert duplicate.status_code == 409
+    assert latest.status_code == 200
+    assert latest.json()["message"] == "I want pro reports."
+    assert admin_list.status_code == 200
+    assert admin_list.json()[0]["email"] == "member@example.com"
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "approved"
+    assert login.json()["user"]["plan"] == "pro"
+
+
 def test_duplicate_email_is_rejected():
     with TestClient(app) as client:
         first = client.post(

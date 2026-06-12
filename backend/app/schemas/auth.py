@@ -61,3 +61,25 @@ class AdminContentStatsPublic(BaseModel):
     report_creators: int
     latest_report_at: str | None = None
     latest_published_at: str | None = None
+
+
+class ProUpgradeRequestCreate(BaseModel):
+    message: str = Field(default="", max_length=500)
+
+
+class ProUpgradeRequestUpdate(BaseModel):
+    status: Literal["approved", "rejected"]
+    admin_note: str = Field(default="", max_length=500)
+
+
+class ProUpgradeRequestPublic(BaseModel):
+    id: int
+    user_id: int
+    email: str
+    name: str
+    current_plan: str
+    status: Literal["pending", "approved", "rejected"]
+    message: str
+    admin_note: str
+    created_at: str
+    updated_at: str

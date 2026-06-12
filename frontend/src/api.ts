@@ -9,6 +9,7 @@ import type {
   MonetizationIdea,
   PlatformModule,
   PlatformOverview,
+  ProUpgradeRequest,
   RoadmapPhase,
   SignupPayload,
   StockAnalysisRecord,
@@ -109,6 +110,41 @@ export function getAdminUserUsage(token: string): Promise<AdminUserUsage[]> {
 
 export function getAdminContentStats(token: string): Promise<AdminContentStats> {
   return request<AdminContentStats>('/api/v1/admin/content-stats', undefined, token);
+}
+
+export function getMyProRequest(token: string): Promise<ProUpgradeRequest | null> {
+  return request<ProUpgradeRequest | null>('/api/v1/auth/pro-request', undefined, token);
+}
+
+export function createProRequest(token: string, message: string): Promise<ProUpgradeRequest> {
+  return request<ProUpgradeRequest>(
+    '/api/v1/auth/pro-request',
+    {
+      method: 'POST',
+      body: JSON.stringify({ message }),
+    },
+    token,
+  );
+}
+
+export function getAdminProRequests(token: string): Promise<ProUpgradeRequest[]> {
+  return request<ProUpgradeRequest[]>('/api/v1/admin/pro-requests', undefined, token);
+}
+
+export function updateAdminProRequest(
+  token: string,
+  requestId: number,
+  status: 'approved' | 'rejected',
+  adminNote: string,
+): Promise<ProUpgradeRequest> {
+  return request<ProUpgradeRequest>(
+    `/api/v1/admin/pro-requests/${requestId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ status, admin_note: adminNote }),
+    },
+    token,
+  );
 }
 
 export function updateAdminUser(

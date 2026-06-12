@@ -66,6 +66,25 @@ class AuthService:
             )
             ensure_column(conn, "users", "plan", "TEXT NOT NULL DEFAULT 'free'")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS pro_upgrade_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    message TEXT NOT NULL DEFAULT '',
+                    admin_note TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                """
+            )
+            conn.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_pro_upgrade_requests_status
+                ON pro_upgrade_requests(status, created_at DESC)
+                """
+            )
 
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
@@ -266,6 +285,107 @@ class AuthService:
             "latest_published_at": row["latest_published_at"],
         }
 
+    def create_pro_upgrade_request(self, user: User, message: str) -> dict[str, Any]:
+        if user.plan == "pro":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This account is already on the pro plan.",
+            )
+
+        now = now_iso()
+        with self.connect() as conn:
+            pending = conn.execute(
+                """
+                SELECT id
+                FROM pro_upgrade_requests
+                WHERE user_id = ? AND status = 'pending'
+                """,
+                (user.id,),
+            ).fetchone()
+            if pending is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A pending pro upgrade request already exists.",
+                )
+
+            cursor = conn.execute(
+                """
+                INSERT INTO pro_upgrade_requests (
+                    user_id, status, message, admin_note, created_at, updated_at
+                )
+                VALUES (?, 'pending', ?, '', ?, ?)
+                """,
+                (user.id, message.strip(), now, now),
+            )
+            return self.get_pro_upgrade_request(cursor.lastrowid, conn)
+
+    def latest_pro_upgrade_request_for_user(self, user: User) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                """
+                SELECT pro_upgrade_requests.*, users.email, users.name, users.plan AS current_plan
+                FROM pro_upgrade_requests
+                JOIN users ON users.id = pro_upgrade_requests.user_id
+                WHERE pro_upgrade_requests.user_id = ?
+                ORDER BY pro_upgrade_requests.created_at DESC, pro_upgrade_requests.id DESC
+                LIMIT 1
+                """,
+                (user.id,),
+            ).fetchone()
+        return row_to_pro_request(row) if row is not None else None
+
+    def list_pro_upgrade_requests(self) -> list[dict[str, Any]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT pro_upgrade_requests.*, users.email, users.name, users.plan AS current_plan
+                FROM pro_upgrade_requests
+                JOIN users ON users.id = pro_upgrade_requests.user_id
+                ORDER BY
+                    CASE pro_upgrade_requests.status
+                        WHEN 'pending' THEN 0
+                        WHEN 'approved' THEN 1
+                        ELSE 2
+                    END,
+                    pro_upgrade_requests.created_at DESC,
+                    pro_upgrade_requests.id DESC
+                LIMIT 100
+                """
+            ).fetchall()
+        return [row_to_pro_request(row) for row in rows]
+
+    def update_pro_upgrade_request(
+        self,
+        request_id: int,
+        decision: str,
+        admin_note: str,
+    ) -> dict[str, Any]:
+        now = now_iso()
+        with self.connect() as conn:
+            current = self.get_pro_upgrade_request(request_id, conn)
+            if current["status"] != "pending":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Only pending requests can be updated.",
+                )
+
+            conn.execute(
+                """
+                UPDATE pro_upgrade_requests
+                SET status = ?,
+                    admin_note = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (decision, admin_note.strip(), now, request_id),
+            )
+            if decision == "approved":
+                conn.execute(
+                    "UPDATE users SET plan = 'pro' WHERE id = ?",
+                    (current["user_id"],),
+                )
+            return self.get_pro_upgrade_request(request_id, conn)
+
     def update_user(
         self,
         user_id: int,
@@ -362,6 +482,27 @@ class AuthService:
             if close_conn:
                 active_conn.close()
 
+    def get_pro_upgrade_request(
+        self,
+        request_id: int,
+        conn: sqlite3.Connection,
+    ) -> dict[str, Any]:
+        row = conn.execute(
+            """
+            SELECT pro_upgrade_requests.*, users.email, users.name, users.plan AS current_plan
+            FROM pro_upgrade_requests
+            JOIN users ON users.id = pro_upgrade_requests.user_id
+            WHERE pro_upgrade_requests.id = ?
+            """,
+            (request_id,),
+        ).fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pro upgrade request not found.",
+            )
+        return row_to_pro_request(row)
+
     @staticmethod
     def user_count(conn: sqlite3.Connection) -> int:
         row = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()
@@ -433,6 +574,21 @@ def row_to_user(row: sqlite3.Row) -> User:
         created_at=str(row["created_at"]),
         last_login_at=str(row["last_login_at"]) if row["last_login_at"] is not None else None,
     )
+
+
+def row_to_pro_request(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "id": int(row["id"]),
+        "user_id": int(row["user_id"]),
+        "email": str(row["email"]),
+        "name": str(row["name"]),
+        "current_plan": str(row["current_plan"]),
+        "status": str(row["status"]),
+        "message": str(row["message"]),
+        "admin_note": str(row["admin_note"]),
+        "created_at": str(row["created_at"]),
+        "updated_at": str(row["updated_at"]),
+    }
 
 
 def invalid_token() -> HTTPException:

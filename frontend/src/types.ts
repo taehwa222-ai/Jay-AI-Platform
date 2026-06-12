@@ -93,6 +93,19 @@ export type AdminContentStats = {
   latest_published_at: string | null;
 };
 
+export type ProUpgradeRequest = {
+  id: number;
+  user_id: number;
+  email: string;
+  name: string;
+  current_plan: string;
+  status: 'pending' | 'approved' | 'rejected';
+  message: string;
+  admin_note: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type StockHolding = {
   id: number;
   ticker: string;

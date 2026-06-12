@@ -7,6 +7,8 @@ from app.schemas.auth import (
     AdminContentStatsPublic,
     AdminUserUpdateRequest,
     AdminUserUsagePublic,
+    ProUpgradeRequestPublic,
+    ProUpgradeRequestUpdate,
     UserPublic,
 )
 from app.services.auth import AuthService, User
@@ -40,6 +42,32 @@ async def content_stats(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> AdminContentStatsPublic:
     return AdminContentStatsPublic(**auth_service.content_stats())
+
+
+@router.get("/pro-requests", response_model=list[ProUpgradeRequestPublic])
+async def pro_requests(
+    _: Annotated[User, Depends(require_admin)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> list[ProUpgradeRequestPublic]:
+    return [
+        ProUpgradeRequestPublic(**request)
+        for request in auth_service.list_pro_upgrade_requests()
+    ]
+
+
+@router.patch("/pro-requests/{request_id}", response_model=ProUpgradeRequestPublic)
+async def update_pro_request(
+    request_id: int,
+    payload: ProUpgradeRequestUpdate,
+    _: Annotated[User, Depends(require_admin)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> ProUpgradeRequestPublic:
+    request = auth_service.update_pro_upgrade_request(
+        request_id,
+        payload.status,
+        payload.admin_note,
+    )
+    return ProUpgradeRequestPublic(**request)
 
 
 @router.patch("/users/{user_id}", response_model=UserPublic)
