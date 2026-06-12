@@ -262,6 +262,7 @@ export default function App() {
   const [marketMessage, setMarketMessage] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
+  const [prefillAnalysisLoadingKey, setPrefillAnalysisLoadingKey] = useState<string | null>(null);
   const [scanTickers, setScanTickers] = useState('005930,000660,035420,035720,051910');
   const [scanMemo, setScanMemo] = useState('');
   const [scanResult, setScanResult] = useState<StockScanResult | null>(null);
@@ -676,6 +677,83 @@ export default function App() {
       setWatchlistMessage(requestError instanceof Error ? requestError.message : 'Watchlist delete failed.');
     } finally {
       setDeletingWatchlistId(null);
+    }
+  }
+
+  async function handleAnalyzeHolding(holding: StockHolding) {
+    await prefillAnalysisFromTicker(
+      `holding-${holding.id}`,
+      holding.ticker,
+      holding.name,
+      `보유종목 분석: ${holding.investment_thesis || '포트폴리오 점검'}`,
+      {
+        current_price: holding.current_price,
+        previous_close: holding.average_price,
+      },
+    );
+  }
+
+  async function handleAnalyzeWatchlistItem(item: StockWatchlistItem) {
+    await prefillAnalysisFromTicker(
+      `watchlist-${item.id}`,
+      item.ticker,
+      item.name || item.ticker,
+      item.note ? `관심종목 메모: ${item.note}` : '관심종목 조건 점검',
+    );
+  }
+
+  async function prefillAnalysisFromTicker(
+    loadingKey: string,
+    ticker: string,
+    name: string,
+    memo: string,
+    fallback?: { current_price: number; previous_close: number },
+  ) {
+    if (!token) return;
+    setPrefillAnalysisLoadingKey(loadingKey);
+    setAnalysisMessage(null);
+    setHoldingMessage(null);
+    setWatchlistMessage(null);
+
+    try {
+      const snapshot = await getStockMarketSnapshot(token, ticker);
+      setMarketSnapshot(snapshot);
+      setAnalysisForm({
+        ticker: snapshot.ticker,
+        name,
+        current_price: String(snapshot.current_price),
+        previous_close: String(snapshot.previous_close),
+        volume: String(snapshot.volume),
+        previous_volume: String(snapshot.previous_volume),
+        rsi: String(snapshot.rsi),
+        macd: String(snapshot.macd),
+        macd_signal: String(snapshot.macd_signal),
+        memo,
+      });
+      setAnalysisMessage(`${name} 분석 폼을 최신 시세와 지표로 채웠습니다. 확인 후 분석 실행을 누르세요.`);
+    } catch (requestError) {
+      if (!fallback) {
+        setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Market data load failed.');
+        setActiveStockTab('analysis');
+        return;
+      }
+      setMarketSnapshot(null);
+      setAnalysisForm({
+        ticker,
+        name,
+        current_price: String(fallback.current_price),
+        previous_close: String(fallback.previous_close),
+        volume: '1',
+        previous_volume: '1',
+        rsi: '50',
+        macd: '0',
+        macd_signal: '0',
+        memo: `${memo} / 시세 조회 실패로 보유 입력값 기준`,
+      });
+      setAnalysisMessage('시세 조회에 실패해 보유종목 입력값으로 분석 폼을 채웠습니다.');
+    } finally {
+      setPrefillAnalysisLoadingKey(null);
+      setActiveStockTab('analysis');
     }
   }
 
@@ -1678,6 +1756,16 @@ export default function App() {
                           </button>
                         </div>
                         <button
+                          className="secondary-button row-action-button"
+                          disabled={prefillAnalysisLoadingKey === `holding-${holding.id}`}
+                          onClick={() => void handleAnalyzeHolding(holding)}
+                          title="이 종목을 AI 분석 폼으로 보내기"
+                          type="button"
+                        >
+                          <BarChartOutlined />
+                          분석
+                        </button>
+                        <button
                           className="icon-danger-button"
                           onClick={() => void handleDeleteHolding(holding.id)}
                           title="삭제"
@@ -1759,6 +1847,15 @@ export default function App() {
                           </strong>
                           {item.note && <p>{item.note}</p>}
                         </div>
+                        <button
+                          className="secondary-button row-action-button"
+                          disabled={prefillAnalysisLoadingKey === `watchlist-${item.id}`}
+                          onClick={() => void handleAnalyzeWatchlistItem(item)}
+                          type="button"
+                        >
+                          <BarChartOutlined />
+                          분석
+                        </button>
                         <button
                           className="icon-danger-button"
                           disabled={deletingWatchlistId === item.id}

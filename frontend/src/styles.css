@@ -986,7 +986,7 @@ code {
 
 .watchlist-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
+  grid-template-columns: minmax(0, 1fr) 82px 42px;
   gap: 10px;
   align-items: center;
   border: 1px solid #e4e9ef;
@@ -1014,7 +1014,7 @@ code {
 
 .holding-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 130px 150px 42px;
+  grid-template-columns: minmax(220px, 1fr) 130px 150px 82px 42px;
   gap: 10px;
   align-items: center;
   border: 1px solid #e4e9ef;
@@ -1072,6 +1072,12 @@ code {
 
 .price-editor .secondary-button {
   padding: 0;
+}
+
+.row-action-button {
+  min-height: 42px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .analysis-result {

@@ -75,6 +75,8 @@ the market data provider and reports failed tickers separately.
 `/api/v1/stocks/analyze` handles condition-based stock analysis. The endpoint
 `/api/v1/stocks/market/{ticker}` loads a market snapshot and calculates RSI and
 MACD so users do not need to enter every indicator manually.
+The frontend can prefill the AI analysis form directly from holdings or
+watchlist rows, using the same market snapshot endpoint when available.
 `/api/v1/stocks/analysis-records` lists saved analysis history, and individual
 records can be deleted when they are no longer useful.
 `/api/v1/stocks/reports` lists paid-report drafts. Create one from a saved
