@@ -254,6 +254,7 @@ export default function App() {
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [deletingAnalysisRecordId, setDeletingAnalysisRecordId] = useState<number | null>(null);
+  const [quickAnalysisLoadingKey, setQuickAnalysisLoadingKey] = useState<string | null>(null);
   const [reportMessage, setReportMessage] = useState<string | null>(null);
   const [creatingReportRecordId, setCreatingReportRecordId] = useState<number | null>(null);
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
@@ -693,12 +694,34 @@ export default function App() {
     );
   }
 
+  async function handleQuickAnalyzeHolding(holding: StockHolding) {
+    await quickAnalyzeFromTicker(
+      `holding-${holding.id}`,
+      holding.ticker,
+      holding.name,
+      `보유종목 즉시분석: ${holding.investment_thesis || '포트폴리오 점검'}`,
+      {
+        current_price: holding.current_price,
+        previous_close: holding.average_price,
+      },
+    );
+  }
+
   async function handleAnalyzeWatchlistItem(item: StockWatchlistItem) {
     await prefillAnalysisFromTicker(
       `watchlist-${item.id}`,
       item.ticker,
       item.name || item.ticker,
       item.note ? `관심종목 메모: ${item.note}` : '관심종목 조건 점검',
+    );
+  }
+
+  async function handleQuickAnalyzeWatchlistItem(item: StockWatchlistItem) {
+    await quickAnalyzeFromTicker(
+      `watchlist-${item.id}`,
+      item.ticker,
+      item.name || item.ticker,
+      item.note ? `관심종목 즉시분석: ${item.note}` : '관심종목 조건 즉시점검',
     );
   }
 
@@ -772,6 +795,89 @@ export default function App() {
       setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Analysis failed.');
     } finally {
       setAnalysisLoading(false);
+    }
+  }
+
+  async function quickAnalyzeFromTicker(
+    loadingKey: string,
+    ticker: string,
+    name: string,
+    memo: string,
+    fallback?: { current_price: number; previous_close: number },
+  ) {
+    if (!token) return;
+    setQuickAnalysisLoadingKey(loadingKey);
+    setAnalysisLoading(true);
+    setAnalysisMessage(null);
+    setHoldingMessage(null);
+    setWatchlistMessage(null);
+
+    try {
+      const payload = await buildAnalysisPayloadFromTicker(ticker, name, memo, fallback);
+      setAnalysisForm({
+        ticker: payload.ticker,
+        name: payload.name,
+        current_price: String(payload.current_price),
+        previous_close: String(payload.previous_close),
+        volume: String(payload.volume),
+        previous_volume: String(payload.previous_volume),
+        rsi: String(payload.rsi),
+        macd: String(payload.macd),
+        macd_signal: String(payload.macd_signal),
+        memo: payload.memo ?? '',
+      });
+      const result = await analyzeStock(token, payload);
+      setAnalysisResult(result);
+      setAnalysisMessage(`${name} 즉시분석을 실행하고 기록에 저장했습니다.`);
+      await loadStockAnalysisRecords(token);
+      setActiveStockTab('analysis');
+    } catch (requestError) {
+      setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Quick analysis failed.');
+      setActiveStockTab('analysis');
+    } finally {
+      setQuickAnalysisLoadingKey(null);
+      setAnalysisLoading(false);
+    }
+  }
+
+  async function buildAnalysisPayloadFromTicker(
+    ticker: string,
+    name: string,
+    memo: string,
+    fallback?: { current_price: number; previous_close: number },
+  ): Promise<StockAnalysisPayload> {
+    try {
+      const snapshot = await getStockMarketSnapshot(token, ticker);
+      setMarketSnapshot(snapshot);
+      return {
+        ticker: snapshot.ticker,
+        name,
+        current_price: snapshot.current_price,
+        previous_close: snapshot.previous_close,
+        volume: snapshot.volume,
+        previous_volume: snapshot.previous_volume,
+        rsi: snapshot.rsi,
+        macd: snapshot.macd,
+        macd_signal: snapshot.macd_signal,
+        memo,
+      };
+    } catch (requestError) {
+      if (!fallback) {
+        throw requestError;
+      }
+      setMarketSnapshot(null);
+      return {
+        ticker,
+        name,
+        current_price: fallback.current_price,
+        previous_close: fallback.previous_close,
+        volume: 1,
+        previous_volume: 1,
+        rsi: 50,
+        macd: 0,
+        macd_signal: 0,
+        memo: `${memo} / 시세 조회 실패로 보유 입력값 기준`,
+      };
     }
   }
 
@@ -1766,6 +1872,15 @@ export default function App() {
                           분석
                         </button>
                         <button
+                          className="primary-button row-action-button"
+                          disabled={quickAnalysisLoadingKey === `holding-${holding.id}`}
+                          onClick={() => void handleQuickAnalyzeHolding(holding)}
+                          title="이 종목을 바로 AI 분석하고 저장하기"
+                          type="button"
+                        >
+                          즉시
+                        </button>
+                        <button
                           className="icon-danger-button"
                           onClick={() => void handleDeleteHolding(holding.id)}
                           title="삭제"
@@ -1855,6 +1970,14 @@ export default function App() {
                         >
                           <BarChartOutlined />
                           분석
+                        </button>
+                        <button
+                          className="primary-button row-action-button"
+                          disabled={quickAnalysisLoadingKey === `watchlist-${item.id}`}
+                          onClick={() => void handleQuickAnalyzeWatchlistItem(item)}
+                          type="button"
+                        >
+                          즉시
                         </button>
                         <button
                           className="icon-danger-button"

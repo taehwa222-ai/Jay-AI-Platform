@@ -77,6 +77,8 @@ the market data provider and reports failed tickers separately.
 MACD so users do not need to enter every indicator manually.
 The frontend can prefill the AI analysis form directly from holdings or
 watchlist rows, using the same market snapshot endpoint when available.
+It can also run quick analysis directly from saved holdings or watchlist rows,
+then save the result into analysis history.
 `/api/v1/stocks/analysis-records` lists saved analysis history, and individual
 records can be deleted when they are no longer useful.
 `/api/v1/stocks/reports` lists paid-report drafts. Create one from a saved
