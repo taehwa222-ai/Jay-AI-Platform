@@ -1103,6 +1103,34 @@ code {
   padding-top: 18px;
 }
 
+.analysis-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.analysis-filter-bar input,
+.analysis-filter-bar select {
+  min-height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 12px;
+  color: #182332;
+  background: #ffffff;
+  font: inherit;
+}
+
+.analysis-filter-count {
+  justify-self: end;
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #334155;
+  background: #e8eef5;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .leaderboard-list {
   display: grid;
   gap: 10px;
@@ -1653,6 +1681,7 @@ code {
   .watchlist-form,
   .scan-form,
   .stock-tabs,
+  .analysis-filter-bar,
   .analysis-columns {
     grid-template-columns: 1fr;
   }
@@ -1672,8 +1701,10 @@ code {
 
   .scan-rank,
   .scan-score,
-  .analysis-record-side {
+  .analysis-record-side,
+  .analysis-filter-count {
     justify-items: start;
+    justify-self: start;
   }
 
   .wide-field {

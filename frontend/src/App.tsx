@@ -249,6 +249,8 @@ export default function App() {
   const [analysisForm, setAnalysisForm] = useState<AnalysisForm>(defaultAnalysisForm);
   const [analysisResult, setAnalysisResult] = useState<StockAnalysisResult | null>(null);
   const [analysisRecords, setAnalysisRecords] = useState<StockAnalysisRecord[]>([]);
+  const [analysisRecordQuery, setAnalysisRecordQuery] = useState('');
+  const [analysisRecordRatingFilter, setAnalysisRecordRatingFilter] = useState('all');
   const [stockReports, setStockReports] = useState<StockReport[]>([]);
   const [marketReports, setMarketReports] = useState<StockReportMarketItem[]>([]);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
@@ -325,6 +327,16 @@ export default function App() {
         second.price_change_percent - first.price_change_percent,
     )
     .slice(0, 3);
+  const normalizedAnalysisRecordQuery = analysisRecordQuery.trim().toLowerCase();
+  const filteredAnalysisRecords = analysisRecords.filter((record) => {
+    const matchesQuery =
+      normalizedAnalysisRecordQuery.length === 0 ||
+      record.name.toLowerCase().includes(normalizedAnalysisRecordQuery) ||
+      record.ticker.toLowerCase().includes(normalizedAnalysisRecordQuery);
+    const matchesRating =
+      analysisRecordRatingFilter === 'all' || record.rating === analysisRecordRatingFilter;
+    return matchesQuery && matchesRating;
+  });
 
   useEffect(() => {
     void refreshState();
@@ -2224,8 +2236,29 @@ export default function App() {
                         새로고침
                       </button>
                     </div>
+                    <div className="analysis-filter-bar">
+                      <input
+                        onChange={(event) => setAnalysisRecordQuery(event.target.value)}
+                        placeholder="종목명/코드 검색"
+                        type="search"
+                        value={analysisRecordQuery}
+                      />
+                      <select
+                        aria-label="분석 등급 필터"
+                        onChange={(event) => setAnalysisRecordRatingFilter(event.target.value)}
+                        value={analysisRecordRatingFilter}
+                      >
+                        <option value="all">전체 등급</option>
+                        <option value="candidate">관심 후보</option>
+                        <option value="watch">관찰 필요</option>
+                        <option value="caution">주의</option>
+                      </select>
+                      <span className="analysis-filter-count">
+                        {filteredAnalysisRecords.length}/{analysisRecords.length}
+                      </span>
+                    </div>
                     <div className="analysis-record-list">
-                      {analysisRecords.map((record) => (
+                      {filteredAnalysisRecords.map((record) => (
                         <article className={`analysis-record ${record.rating}`} key={record.id}>
                           <div className="analysis-record-main">
                             <div>
@@ -2281,6 +2314,9 @@ export default function App() {
                       ))}
                       {analysisRecords.length === 0 && (
                         <div className="empty-state">아직 저장된 분석 기록이 없습니다.</div>
+                      )}
+                      {analysisRecords.length > 0 && filteredAnalysisRecords.length === 0 && (
+                        <div className="empty-state">조건에 맞는 분석 기록이 없습니다.</div>
                       )}
                     </div>
                   </div>

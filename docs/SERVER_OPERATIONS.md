@@ -83,6 +83,8 @@ then save the result into analysis history.
 records can be deleted when they are no longer useful.
 The frontend ranks saved analysis records so high-scoring candidates can be
 saved to the watchlist or converted into report drafts quickly.
+It also filters saved analysis records by ticker/name and rating so a growing
+history remains usable without changing the API contract.
 `/api/v1/stocks/reports` lists paid-report drafts. Create one from a saved
 analysis record with `POST /api/v1/stocks/reports/from-analysis/{record_id}`,
 then remove old drafts with `DELETE /api/v1/stocks/reports/{report_id}`.
