@@ -1096,6 +1096,65 @@ code {
   padding-top: 18px;
 }
 
+.analysis-leaderboard {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #e4e9ef;
+  padding-top: 18px;
+}
+
+.leaderboard-list {
+  display: grid;
+  gap: 10px;
+}
+
+.leaderboard-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.leaderboard-card.candidate {
+  border-color: #9bd2bf;
+  background: #f0faf6;
+}
+
+.leaderboard-card.watch {
+  border-color: #e5c783;
+  background: #fff9ea;
+}
+
+.leaderboard-card.caution {
+  border-color: #e2aaa7;
+  background: #fff5f4;
+}
+
+.leaderboard-rank {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  color: #ffffff;
+  background: #334155;
+  font-weight: 800;
+}
+
+.leaderboard-card strong span,
+.leaderboard-card small {
+  color: #536273;
+}
+
+.leaderboard-card small {
+  display: block;
+  margin-top: 4px;
+}
+
 .analysis-record-list {
   display: grid;
   gap: 10px;
@@ -1604,6 +1663,10 @@ code {
   }
 
   .analysis-record {
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboard-card {
     grid-template-columns: 1fr;
   }
 

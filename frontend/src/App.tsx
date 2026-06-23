@@ -316,6 +316,15 @@ export default function App() {
     1,
     ...portfolioBreakdown.map((holding) => Math.abs(holding.profit_loss_percent)),
   );
+  const watchlistTickerSet = new Set(watchlist.map((item) => item.ticker));
+  const topAnalysisCandidates = [...analysisRecords]
+    .sort(
+      (first, second) =>
+        second.score - first.score ||
+        second.volume_multiplier - first.volume_multiplier ||
+        second.price_change_percent - first.price_change_percent,
+    )
+    .slice(0, 3);
 
   useEffect(() => {
     void refreshState();
@@ -894,6 +903,23 @@ export default function App() {
       setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Delete failed.');
     } finally {
       setDeletingAnalysisRecordId(null);
+    }
+  }
+
+  async function handleCreateWatchlistFromAnalysis(record: StockAnalysisRecord) {
+    if (!token) return;
+    setAnalysisMessage(null);
+
+    try {
+      const created = await createStockWatchlistItem(token, {
+        ticker: record.ticker,
+        name: record.name,
+        note: `분석 점수 ${record.score} · ${record.rating_label}`,
+      });
+      setWatchlist((items) => [created, ...items]);
+      setAnalysisMessage(`${record.name}을 관심종목에 저장했습니다.`);
+    } catch (requestError) {
+      setAnalysisMessage(requestError instanceof Error ? requestError.message : 'Watchlist save failed.');
     }
   }
 
@@ -2156,6 +2182,40 @@ export default function App() {
                     </div>
                   )}
 
+                  {topAnalysisCandidates.length > 0 && (
+                    <div className="analysis-leaderboard">
+                      <div className="chart-head">
+                        <strong>추천 후보 상위 기록</strong>
+                        <span>점수 · 거래량 · 가격 흐름 기준</span>
+                      </div>
+                      <div className="leaderboard-list">
+                        {topAnalysisCandidates.map((record, index) => (
+                          <article className={`leaderboard-card ${record.rating}`} key={record.id}>
+                            <div className="leaderboard-rank">#{index + 1}</div>
+                            <div>
+                              <strong>
+                                {record.name} <span>{record.ticker}</span>
+                              </strong>
+                              <small>
+                                점수 {record.score} · {record.rating_label} · 거래량{' '}
+                                {record.volume_multiplier}배
+                              </small>
+                            </div>
+                            <button
+                              className="secondary-button compact-button"
+                              disabled={watchlistTickerSet.has(record.ticker)}
+                              onClick={() => void handleCreateWatchlistFromAnalysis(record)}
+                              type="button"
+                            >
+                              <BookOutlined />
+                              {watchlistTickerSet.has(record.ticker) ? '저장됨' : '관심저장'}
+                            </button>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="analysis-history">
                     <div className="chart-head">
                       <strong>저장된 분석 기록</strong>
@@ -2189,6 +2249,15 @@ export default function App() {
                               {formatPercent(record.price_change_percent)}
                             </span>
                             <small>거래량 {record.volume_multiplier}배</small>
+                            <button
+                              className="secondary-button compact-button"
+                              disabled={watchlistTickerSet.has(record.ticker)}
+                              onClick={() => void handleCreateWatchlistFromAnalysis(record)}
+                              type="button"
+                            >
+                              <BookOutlined />
+                              관심
+                            </button>
                             <button
                               className="secondary-button compact-button"
                               disabled={creatingReportRecordId === record.id}

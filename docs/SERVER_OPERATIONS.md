@@ -81,6 +81,8 @@ It can also run quick analysis directly from saved holdings or watchlist rows,
 then save the result into analysis history.
 `/api/v1/stocks/analysis-records` lists saved analysis history, and individual
 records can be deleted when they are no longer useful.
+The frontend ranks saved analysis records so high-scoring candidates can be
+saved to the watchlist or converted into report drafts quickly.
 `/api/v1/stocks/reports` lists paid-report drafts. Create one from a saved
 analysis record with `POST /api/v1/stocks/reports/from-analysis/{record_id}`,
 then remove old drafts with `DELETE /api/v1/stocks/reports/{report_id}`.
