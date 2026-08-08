@@ -27,6 +27,8 @@ import type {
   StockWatchlistItem,
   StockWatchlistPayload,
   UserAccount,
+  YoutubeProjectDetail,
+  YoutubeProjectSummary,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -110,6 +112,21 @@ export function getAdminUserUsage(token: string): Promise<AdminUserUsage[]> {
 
 export function getAdminContentStats(token: string): Promise<AdminContentStats> {
   return request<AdminContentStats>('/api/v1/admin/content-stats', undefined, token);
+}
+
+export function getYoutubeProjects(token: string): Promise<YoutubeProjectSummary[]> {
+  return request<YoutubeProjectSummary[]>('/api/v1/content-ops/youtube', undefined, token);
+}
+
+export function getYoutubeProjectDetail(
+  token: string,
+  slug: string,
+): Promise<YoutubeProjectDetail> {
+  return request<YoutubeProjectDetail>(
+    `/api/v1/content-ops/youtube/${encodeURIComponent(slug)}`,
+    undefined,
+    token,
+  );
 }
 
 export function getMyProRequest(token: string): Promise<ProUpgradeRequest | null> {

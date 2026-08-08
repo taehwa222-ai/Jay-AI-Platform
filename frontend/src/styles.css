@@ -847,6 +847,111 @@ code {
   font-size: 12px;
 }
 
+.content-ops-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.content-ops-tabs button {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 14px;
+  color: #263445;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.content-ops-tabs button:hover {
+  border-color: #9bd2bf;
+}
+
+.content-ops-tabs button.active {
+  border-color: #2f7d6b;
+  background: #f0faf6;
+  box-shadow: 0 10px 24px rgba(47, 125, 107, 0.12);
+}
+
+.content-ops-tabs small {
+  color: #536273;
+  line-height: 1.45;
+}
+
+.content-ops-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.3fr);
+  gap: 18px;
+}
+
+.content-ops-list {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.content-ops-card {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #d7dde5;
+  border-radius: 8px;
+  padding: 12px;
+  color: #263445;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.content-ops-card:hover {
+  border-color: #9bd2bf;
+}
+
+.content-ops-card.active {
+  border-color: #2f7d6b;
+  background: #f0faf6;
+}
+
+.content-ops-card span {
+  color: #667588;
+  font-size: 12px;
+}
+
+.content-ops-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.content-ops-stages small {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.content-ops-stages .stage-done {
+  color: #195b42;
+  background: #dff3ea;
+}
+
+.content-ops-stages .stage-pending {
+  color: #8a94a3;
+  background: #f0f2f5;
+}
+
+.content-ops-detail {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.content-ops-stage-block h4 {
+  margin: 0 0 8px;
+  color: #263445;
+}
+
 .stock-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
@@ -1610,7 +1715,8 @@ code {
   }
 
   .stock-workspace,
-  .analysis-columns {
+  .analysis-columns,
+  .content-ops-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1681,6 +1787,7 @@ code {
   .watchlist-form,
   .scan-form,
   .stock-tabs,
+  .content-ops-tabs,
   .analysis-filter-bar,
   .analysis-columns {
     grid-template-columns: 1fr;

@@ -275,3 +275,26 @@ export type StockScanResult = {
   failed: StockScanFailure[];
   disclaimer: string;
 };
+
+export type YoutubeProjectSummary = {
+  slug: string;
+  date: string;
+  has_research: boolean;
+  has_ideas: boolean;
+  has_qa: boolean;
+  has_script: boolean;
+  has_production: boolean;
+  has_review: boolean;
+  updated_at: string;
+};
+
+export type YoutubeProjectDetail = {
+  slug: string;
+  date: string;
+  research: string | null;
+  ideas: string | null;
+  qa: string | null;
+  script: string | null;
+  production: string | null;
+  review: string | null;
+};

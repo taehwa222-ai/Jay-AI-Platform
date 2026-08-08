@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     data_dir: Path = PROJECT_ROOT / "data"
+    content_dir: Path = PROJECT_ROOT / "content"
     auth_secret_key: str = "change-this-secret-key"
     access_token_minutes: int = 60 * 12
     openai_api_key: str = ""

@@ -25,5 +25,6 @@ frontend/vite.config.d.ts
 .dev-local-pids.json
 .logs/
 .test-data/
+.test-content/
 
 *.log

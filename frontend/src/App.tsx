@@ -17,6 +17,7 @@
   SaveOutlined,
   TeamOutlined,
   UserAddOutlined,
+  VideoCameraOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import { FormEvent, useEffect, useState } from 'react';
@@ -49,6 +50,8 @@ import {
   getStockReportMarket,
   getStockReports,
   getStockWatchlist,
+  getYoutubeProjectDetail,
+  getYoutubeProjects,
   login,
   refreshStockHoldingPrices,
   scanStocks,
@@ -80,11 +83,13 @@ import type {
   StockScanResult,
   StockWatchlistItem,
   UserAccount,
+  YoutubeProjectDetail,
+  YoutubeProjectSummary,
 } from './types';
 
 const TOKEN_STORAGE_KEY = 'jay-ai-platform-token';
 
-const VIEW_IDS = ['dashboard', 'auth', 'admin', 'manual', 'stocks', 'revenue'] as const;
+const VIEW_IDS = ['dashboard', 'auth', 'admin', 'manual', 'stocks', 'contentOps', 'revenue'] as const;
 
 type ViewId = (typeof VIEW_IDS)[number];
 
@@ -94,6 +99,7 @@ const VIEW_META: Record<ViewId, { eyebrow: string; title: string }> = {
   admin: { eyebrow: 'Admin', title: '관리자 페이지' },
   manual: { eyebrow: 'Manual', title: '사용 매뉴얼' },
   stocks: { eyebrow: 'Korea Stock Lab', title: '국내 주식 분석' },
+  contentOps: { eyebrow: 'Content Ops', title: '콘텐츠 운영' },
   revenue: { eyebrow: 'Revenue Lab', title: '수익화 아이디어' },
 };
 
@@ -209,6 +215,30 @@ const STOCK_TABS = [
 
 type StockTabId = (typeof STOCK_TABS)[number]['id'];
 
+const CONTENT_OPS_TABS = [
+  {
+    id: 'youtube',
+    title: '유튜브',
+    description: '요즘 트렌드 영상 기획 파이프라인 결과물을 봅니다.',
+  },
+  {
+    id: 'character',
+    title: '캐릭터·이모티콘',
+    description: '카카오톡 이모티콘 파이프라인 — 아직 준비 중입니다.',
+  },
+] as const;
+
+type ContentOpsTabId = (typeof CONTENT_OPS_TABS)[number]['id'];
+
+const YOUTUBE_STAGE_LABELS: { key: keyof YoutubeProjectSummary; label: string }[] = [
+  { key: 'has_research', label: '조사' },
+  { key: 'has_ideas', label: '기획' },
+  { key: 'has_qa', label: '검수' },
+  { key: 'has_script', label: '대본' },
+  { key: 'has_production', label: '컷구성' },
+  { key: 'has_review', label: '성과' },
+];
+
 export default function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [overview, setOverview] = useState<PlatformOverview | null>(null);
@@ -272,6 +302,14 @@ export default function App() {
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [activeStockTab, setActiveStockTab] = useState<StockTabId>('holdings');
+  const [activeContentOpsTab, setActiveContentOpsTab] = useState<ContentOpsTabId>('youtube');
+  const [youtubeProjects, setYoutubeProjects] = useState<YoutubeProjectSummary[]>([]);
+  const [youtubeProjectsMessage, setYoutubeProjectsMessage] = useState<string | null>(null);
+  const [youtubeProjectsLoading, setYoutubeProjectsLoading] = useState(false);
+  const [selectedYoutubeSlug, setSelectedYoutubeSlug] = useState<string | null>(null);
+  const [youtubeProjectDetail, setYoutubeProjectDetail] = useState<YoutubeProjectDetail | null>(null);
+  const [youtubeDetailLoading, setYoutubeDetailLoading] = useState(false);
+  const [youtubeDetailMessage, setYoutubeDetailMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewId>(() => getInitialView());
@@ -397,6 +435,7 @@ export default function App() {
         await loadAdminUsage(savedToken);
         await loadAdminContentStats(savedToken);
         await loadAdminProRequests(savedToken);
+        await loadYoutubeProjects(savedToken);
       }
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -407,6 +446,9 @@ export default function App() {
       setAdminContentStats(null);
       setAdminProRequests([]);
       setMyProRequest(null);
+      setYoutubeProjects([]);
+      setYoutubeProjectDetail(null);
+      setSelectedYoutubeSlug(null);
       setHoldings([]);
       setWatchlist([]);
       setAnalysisRecords([]);
@@ -451,6 +493,7 @@ export default function App() {
       void loadAdminUsage(response.access_token);
       void loadAdminContentStats(response.access_token);
       void loadAdminProRequests(response.access_token);
+      void loadYoutubeProjects(response.access_token);
     }
     navigateToView(response.user.role === 'admin' ? 'admin' : 'stocks');
   }
@@ -477,6 +520,42 @@ export default function App() {
     if (!activeToken) return;
     const requests = await getAdminProRequests(activeToken);
     setAdminProRequests(requests);
+  }
+
+  async function loadYoutubeProjects(activeToken = token) {
+    if (!activeToken) return;
+    setYoutubeProjectsLoading(true);
+    setYoutubeProjectsMessage(null);
+
+    try {
+      const projects = await getYoutubeProjects(activeToken);
+      setYoutubeProjects(projects);
+    } catch (requestError) {
+      setYoutubeProjectsMessage(
+        requestError instanceof Error ? requestError.message : '유튜브 프로젝트를 불러오지 못했습니다.',
+      );
+    } finally {
+      setYoutubeProjectsLoading(false);
+    }
+  }
+
+  async function handleSelectYoutubeProject(slug: string) {
+    if (!token) return;
+    setSelectedYoutubeSlug(slug);
+    setYoutubeProjectDetail(null);
+    setYoutubeDetailLoading(true);
+    setYoutubeDetailMessage(null);
+
+    try {
+      const detail = await getYoutubeProjectDetail(token, slug);
+      setYoutubeProjectDetail(detail);
+    } catch (requestError) {
+      setYoutubeDetailMessage(
+        requestError instanceof Error ? requestError.message : '프로젝트 내용을 불러오지 못했습니다.',
+      );
+    } finally {
+      setYoutubeDetailLoading(false);
+    }
   }
 
   async function loadMyProRequest(activeToken = token) {
@@ -1097,6 +1176,9 @@ export default function App() {
     setMarketReports([]);
     setAnalysisResult(null);
     setScanResult(null);
+    setYoutubeProjects([]);
+    setYoutubeProjectDetail(null);
+    setSelectedYoutubeSlug(null);
     setAuthMessage('로그아웃되었습니다.');
     navigateToView('auth');
   }
@@ -1133,6 +1215,10 @@ export default function App() {
           <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks">
             <BarChartOutlined />
             국내주식
+          </a>
+          <a className={activeView === 'contentOps' ? 'active' : ''} href="#contentOps">
+            <VideoCameraOutlined />
+            콘텐츠 운영
           </a>
           <a className={activeView === 'revenue' ? 'active' : ''} href="#revenue">
             <DollarOutlined />
@@ -1597,6 +1683,145 @@ export default function App() {
               )}
             </div>
           </article>
+        </section>
+
+        <section
+          className={activeView === 'contentOps' ? 'section-block' : 'screen-hidden'}
+          id="contentOps"
+        >
+          <SectionTitle
+            eyebrow="Content Ops"
+            icon={<VideoCameraOutlined />}
+            title="콘텐츠 운영 (대표 전용, 읽기 전용)"
+          />
+          {currentUser?.role === 'admin' ? (
+            <>
+              <div className="content-ops-tabs" role="tablist" aria-label="콘텐츠 사업 메뉴">
+                {CONTENT_OPS_TABS.map((tab) => (
+                  <button
+                    aria-selected={activeContentOpsTab === tab.id}
+                    className={activeContentOpsTab === tab.id ? 'active' : ''}
+                    key={tab.id}
+                    onClick={() => setActiveContentOpsTab(tab.id)}
+                    role="tab"
+                    type="button"
+                  >
+                    <strong>{tab.title}</strong>
+                    <small>{tab.description}</small>
+                  </button>
+                ))}
+              </div>
+
+              {activeContentOpsTab === 'youtube' && (
+                <article className="tool-pane">
+                  <div className="pane-title">
+                    <VideoCameraOutlined />
+                    <h3>유튜브 트렌드 파이프라인</h3>
+                    <button
+                      className="secondary-button"
+                      onClick={() => void loadYoutubeProjects()}
+                      type="button"
+                    >
+                      <ReloadOutlined />
+                      새로고침
+                    </button>
+                  </div>
+                  <div className="pane-body">
+                    {youtubeProjectsMessage && (
+                      <div className="inline-message">{youtubeProjectsMessage}</div>
+                    )}
+                    {youtubeProjectsLoading && youtubeProjects.length === 0 ? (
+                      <div className="empty-state">불러오는 중...</div>
+                    ) : youtubeProjects.length === 0 ? (
+                      <div className="empty-state">
+                        아직 만들어진 프로젝트가 없습니다. Claude Code에서 /yt-pipeline 을
+                        실행하면 여기에 나타납니다.
+                      </div>
+                    ) : (
+                      <div className="content-ops-layout">
+                        <div className="content-ops-list">
+                          {youtubeProjects.map((project) => (
+                            <button
+                              className={`content-ops-card ${
+                                selectedYoutubeSlug === project.slug ? 'active' : ''
+                              }`}
+                              key={project.slug}
+                              onClick={() => void handleSelectYoutubeProject(project.slug)}
+                              type="button"
+                            >
+                              <strong>{project.slug}</strong>
+                              <span>{project.date || '날짜 미상'}</span>
+                              <div className="content-ops-stages">
+                                {YOUTUBE_STAGE_LABELS.map(({ key, label }) => (
+                                  <small
+                                    className={project[key] ? 'stage-done' : 'stage-pending'}
+                                    key={key}
+                                  >
+                                    {label}
+                                  </small>
+                                ))}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                        <div className="content-ops-detail">
+                          {youtubeDetailMessage && (
+                            <div className="inline-message">{youtubeDetailMessage}</div>
+                          )}
+                          {!selectedYoutubeSlug && (
+                            <div className="empty-state">
+                              왼쪽에서 프로젝트를 선택하면 단계별 내용을 볼 수 있습니다.
+                            </div>
+                          )}
+                          {selectedYoutubeSlug && youtubeDetailLoading && (
+                            <div className="empty-state">불러오는 중...</div>
+                          )}
+                          {selectedYoutubeSlug &&
+                            !youtubeDetailLoading &&
+                            youtubeProjectDetail &&
+                            (
+                              [
+                                ['research', '시장조사'],
+                                ['ideas', '기획'],
+                                ['qa', '검수'],
+                                ['script', '대본'],
+                                ['production', '컷 구성'],
+                                ['review', '성과'],
+                              ] as const
+                            ).map(([key, label]) =>
+                              youtubeProjectDetail[key] ? (
+                                <div className="content-ops-stage-block" key={key}>
+                                  <h4>{label}</h4>
+                                  <pre className="report-body">{youtubeProjectDetail[key]}</pre>
+                                </div>
+                              ) : null,
+                            )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              )}
+
+              {activeContentOpsTab === 'character' && (
+                <article className="tool-pane">
+                  <div className="pane-title">
+                    <VideoCameraOutlined />
+                    <h3>캐릭터·이모티콘</h3>
+                  </div>
+                  <div className="pane-body">
+                    <div className="empty-state">
+                      카카오톡 이모티콘 파이프라인은 아직 준비 중입니다.
+                    </div>
+                  </div>
+                </article>
+              )}
+            </>
+          ) : (
+            <div className="empty-state">
+              관리자 계정으로 로그인하면 콘텐츠 운영 현황을 볼 수 있습니다.
+            </div>
+          )}
         </section>
 
         <section className={activeView === 'dashboard' ? 'section-block' : 'screen-hidden'}>
