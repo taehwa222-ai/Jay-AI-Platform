@@ -2,7 +2,6 @@
   AppstoreOutlined,
   BarChartOutlined,
   BookOutlined,
-  CheckCircleOutlined,
   CrownOutlined,
   DeleteOutlined,
   DeploymentUnitOutlined,
@@ -61,6 +60,19 @@ import {
   updateStockHolding,
   updateStockReportPublish,
 } from './api';
+import { ManualScreen } from './components/ManualScreen';
+import { RevenueScreen } from './components/RevenueScreen';
+import { RoadmapSection } from './components/RoadmapSection';
+import { SectionTitle, SignalList, StatusTile } from './components/shared';
+import {
+  formatDateTime,
+  formatPercent,
+  formatPlainPercent,
+  formatWon,
+  parseTickerList,
+  safeFileName,
+  toNumber,
+} from './utils';
 import type {
   AdminContentStats,
   AdminUserUsage,
@@ -1844,33 +1856,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className={activeView === 'manual' ? 'section-block' : 'screen-hidden'} id="manual">
-          <SectionTitle
-            eyebrow="Manual Screen"
-            icon={<BookOutlined />}
-            title="로컬 개발부터 VPS 배포까지"
-          />
-          <div className="manual-list">
-            {manual.map((section) => (
-              <article className="manual-card" key={section.id}>
-                <div>
-                  <h3>{section.title}</h3>
-                  <p>{section.summary}</p>
-                </div>
-                <div className="command-list">
-                  {section.commands.map((command) => (
-                    <code key={command}>{command}</code>
-                  ))}
-                </div>
-                <ul className="check-list">
-                  {section.checks.map((check) => (
-                    <li key={check}>{check}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        </section>
+        <ManualScreen active={activeView === 'manual'} manual={manual} />
 
         <section className={activeView === 'stocks' ? 'section-block' : 'screen-hidden'} id="stocks">
           <SectionTitle
@@ -2771,86 +2757,10 @@ export default function App() {
           )}
         </section>
 
-        <section className={activeView === 'revenue' ? 'section-block' : 'screen-hidden'} id="revenue">
-          <SectionTitle eyebrow="Revenue Lab" icon={<DollarOutlined />} title="수익 창출 아이디어" />
-          <div className="idea-grid">
-            {ideas.map((idea) => (
-              <article className="idea-card" key={idea.id}>
-                <h3>{idea.title}</h3>
-                <dl>
-                  <dt>모델</dt>
-                  <dd>{idea.model}</dd>
-                  <dt>주의</dt>
-                  <dd>{idea.risk}</dd>
-                  <dt>다음 작업</dt>
-                  <dd>{idea.next_step}</dd>
-                </dl>
-              </article>
-            ))}
-          </div>
-        </section>
+        <RevenueScreen active={activeView === 'revenue'} ideas={ideas} />
 
-        <section className={activeView === 'dashboard' ? 'phase-list' : 'screen-hidden'} id="roadmap">
-          {roadmap.map((phase) => (
-            <article className="phase-card" key={phase.id}>
-              <div className="phase-head">
-                <h3>{phase.title}</h3>
-                <span>{phase.status}</span>
-              </div>
-              <ul>
-                {phase.items.map((item) => (
-                  <li key={item}>
-                    <CheckCircleOutlined />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </section>
+        <RoadmapSection active={activeView === 'dashboard'} roadmap={roadmap} />
       </main>
-    </div>
-  );
-}
-
-function StatusTile({
-  label,
-  value,
-  tone = 'muted',
-}: {
-  label: string;
-  value: string;
-  tone?: 'good' | 'muted' | 'steady';
-}) {
-  return (
-    <div className={`status-tile ${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function SectionTitle({ eyebrow, icon, title }: { eyebrow: string; icon: ReactNode; title: string }) {
-  return (
-    <div className="section-title">
-      <div>
-        <span className="eyebrow">{eyebrow}</span>
-        <h2>{title}</h2>
-      </div>
-      <span className="section-icon">{icon}</span>
-    </div>
-  );
-}
-
-function SignalList({ title, items }: { title: string; items: string[] }) {
-  return (
-    <div className="signal-list">
-      <strong>{title}</strong>
-      <ul>
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
     </div>
   );
 }
@@ -2872,7 +2782,7 @@ function getStockTabIcon(tabId: StockTabId): ReactNode {
   }
 }
 
-function getInitialView(): ViewId {
+export function getInitialView(): ViewId {
   if (typeof window === 'undefined') {
     return 'dashboard';
   }
@@ -2885,7 +2795,7 @@ function getInitialView(): ViewId {
   return VIEW_IDS.includes(hashView as ViewId) ? (hashView as ViewId) : 'dashboard';
 }
 
-function buildHoldingPayload(form: HoldingForm): StockHoldingPayload {
+export function buildHoldingPayload(form: HoldingForm): StockHoldingPayload {
   return {
     ticker: form.ticker,
     name: form.name,
@@ -2897,7 +2807,7 @@ function buildHoldingPayload(form: HoldingForm): StockHoldingPayload {
   };
 }
 
-function buildAnalysisPayload(form: AnalysisForm): StockAnalysisPayload {
+export function buildAnalysisPayload(form: AnalysisForm): StockAnalysisPayload {
   return {
     ticker: form.ticker,
     name: form.name,
@@ -2910,52 +2820,5 @@ function buildAnalysisPayload(form: AnalysisForm): StockAnalysisPayload {
     macd_signal: toNumber(form.macd_signal),
     memo: form.memo,
   };
-}
-
-function parseTickerList(value: string): string[] {
-  return Array.from(
-    new Set(
-      value
-        .split(/[\s,]+/)
-        .map((ticker) => ticker.trim().toUpperCase())
-        .filter(Boolean),
-    ),
-  );
-}
-
-function toNumber(value: string | number | undefined): number {
-  if (typeof value === 'number') return value;
-  return Number((value ?? '').replaceAll(',', ''));
-}
-
-function formatWon(value: number): string {
-  return `${Math.round(value).toLocaleString('ko-KR')}원`;
-}
-
-function formatPercent(value: number): string {
-  const sign = value > 0 ? '+' : '';
-  return `${sign}${value.toFixed(2)}%`;
-}
-
-function formatPlainPercent(value: number): string {
-  return `${value.toFixed(2)}%`;
-}
-
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function safeFileName(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'stock';
 }
 
