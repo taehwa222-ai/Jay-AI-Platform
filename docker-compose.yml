@@ -3,6 +3,7 @@ services:
     build:
       context: ./backend
     environment:
+      CONTENT_DIR: ${CONTENT_DIR:-/app/content}
       APP_NAME: ${APP_NAME:-Jay AI Platform}
       APP_ENV: ${APP_ENV:-production}
       API_HOST: ${API_HOST:-0.0.0.0}
@@ -15,6 +16,7 @@ services:
     expose:
       - "8000"
     volumes:
+      - ./content:/app/content:ro
       - ./data:/app/data
     healthcheck:
       test:

@@ -29,6 +29,7 @@ generate_secret() {
 }
 
 ensure_env_value "DATA_DIR" "/app/data"
+ensure_env_value "CONTENT_DIR" "/app/content"
 ensure_env_value "AUTH_SECRET_KEY" "$(generate_secret)"
 ensure_env_value "ACCESS_TOKEN_MINUTES" "720"
 

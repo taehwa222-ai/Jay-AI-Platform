@@ -4,8 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import admin, auth, health, platform, stocks
+from app.routers import admin, auth, content_ops, health, platform, stocks
 from app.services.auth import AuthService
+from app.services.content_ops import ContentOpsService
 from app.services.stocks import StockService
 
 settings = get_settings()
@@ -17,8 +18,10 @@ async def lifespan(app: FastAPI):
     auth_service.init_db()
     stock_service = StockService(settings)
     stock_service.init_db()
+    content_service = ContentOpsService(settings)
     app.state.auth_service = auth_service
     app.state.stock_service = stock_service
+    app.state.content_service = content_service
     yield
 
 
@@ -41,6 +44,7 @@ app.include_router(admin.router)
 app.include_router(health.router)
 app.include_router(platform.router)
 app.include_router(stocks.router)
+app.include_router(content_ops.router)
 
 
 @app.get("/")
