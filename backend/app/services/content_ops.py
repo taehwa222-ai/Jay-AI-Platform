@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import Settings
-from app.schemas.content_ops import YoutubeProjectDetail, YoutubeProjectSummary
+from app.schemas.content_ops import ReviewMetrics, YoutubeProjectDetail, YoutubeProjectSummary
 
 CONTENT_FILES = (
     "research.md",
@@ -14,6 +14,16 @@ CONTENT_FILES = (
     "review.md",
 )
 DATE_PREFIX = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2})(?:-|$)")
+REVIEW_TABLE_ROW = re.compile(r"^\|\s*([^|]+?)\s*\|\s*([^|]*?)\s*\|\s*$", re.MULTILINE)
+REVIEW_METRIC_FIELDS = {
+    "조회수": "view_count",
+    "노출 대비 클릭률(CTR)": "ctr",
+    "평균 시청 지속시간": "avg_watch_time",
+    "구독자 증감": "subscriber_delta",
+    "좋아요 / 댓글 / 공유": "engagement",
+    "트래픽 소스 1위": "top_traffic_source",
+}
+EMPTY_METRIC_VALUES = {"", "미연동"}
 
 
 class ContentOpsService:
@@ -60,6 +70,7 @@ class ContentOpsService:
             script=contents["script"],
             production=contents["production"],
             review=contents["review"],
+            review_metrics=self._parse_review_metrics(contents["review"]),
         )
 
     def _summary(self, project_dir: Path) -> YoutubeProjectSummary:
@@ -74,6 +85,8 @@ class ContentOpsService:
             if latest_mtime is not None
             else ""
         )
+        review_content = self._read_file(project_dir / "review.md") if files["review.md"] else None
+        metrics = self._parse_review_metrics(review_content)
         return YoutubeProjectSummary(
             slug=project_dir.name,
             date=self._date_from_slug(project_dir.name),
@@ -84,6 +97,25 @@ class ContentOpsService:
             has_production=files["production.md"],
             has_review=files["review.md"],
             updated_at=updated_at,
+            view_count=metrics.view_count if metrics else None,
+        )
+
+    @staticmethod
+    def _parse_review_metrics(content: str | None) -> ReviewMetrics | None:
+        if not content:
+            return None
+
+        values: dict[str, str] = {}
+        for label, raw_value in REVIEW_TABLE_ROW.findall(content):
+            field = REVIEW_METRIC_FIELDS.get(label.strip())
+            value = raw_value.strip()
+            if field and value not in EMPTY_METRIC_VALUES:
+                values[field] = value
+
+        if not values:
+            return None
+        return ReviewMetrics(
+            **{field: values.get(field) for field in REVIEW_METRIC_FIELDS.values()}
         )
 
     @staticmethod

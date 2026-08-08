@@ -1,6 +1,6 @@
 import { ReloadOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { SectionTitle } from './shared';
-import type { YoutubeProjectDetail, YoutubeProjectSummary } from '../types';
+import type { ReviewMetrics, YoutubeProjectDetail, YoutubeProjectSummary } from '../types';
 
 const CONTENT_OPS_TABS = [
   {
@@ -34,6 +34,15 @@ const YOUTUBE_DETAIL_SECTIONS = [
   ['production', '컷 구성'],
   ['review', '성과'],
 ] as const;
+
+const REVIEW_METRIC_LABELS: { key: keyof ReviewMetrics; label: string }[] = [
+  { key: 'view_count', label: '조회수' },
+  { key: 'ctr', label: 'CTR' },
+  { key: 'avg_watch_time', label: '평균 시청 지속시간' },
+  { key: 'subscriber_delta', label: '구독자 증감' },
+  { key: 'engagement', label: '좋아요/댓글/공유' },
+  { key: 'top_traffic_source', label: '트래픽 소스 1위' },
+];
 
 export function ContentOpsScreen({
   active,
@@ -124,6 +133,9 @@ export function ContentOpsScreen({
                         >
                           <strong>{project.slug}</strong>
                           <span>{project.date || '날짜 미상'}</span>
+                          {project.view_count && (
+                            <span className="content-ops-metric">조회수 {project.view_count}</span>
+                          )}
                           <div className="content-ops-stages">
                             {YOUTUBE_STAGE_LABELS.map(({ key, label }) => (
                               <small
@@ -154,6 +166,18 @@ export function ContentOpsScreen({
                           projectDetail[key] ? (
                             <div className="content-ops-stage-block" key={key}>
                               <h4>{label}</h4>
+                              {key === 'review' && projectDetail.review_metrics && (
+                                <dl className="content-ops-metrics">
+                                  {REVIEW_METRIC_LABELS.filter(
+                                    ({ key: metricKey }) => projectDetail.review_metrics?.[metricKey],
+                                  ).map(({ key: metricKey, label: metricLabel }) => (
+                                    <div key={metricKey}>
+                                      <dt>{metricLabel}</dt>
+                                      <dd>{projectDetail.review_metrics?.[metricKey]}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              )}
                               <pre className="report-body">{projectDetail[key]}</pre>
                             </div>
                           ) : null,

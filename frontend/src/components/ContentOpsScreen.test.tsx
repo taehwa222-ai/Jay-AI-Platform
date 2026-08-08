@@ -15,6 +15,7 @@ const projects: YoutubeProjectSummary[] = [
     has_production: false,
     has_review: false,
     updated_at: '2026-01-01T00:00:00Z',
+    view_count: null,
   },
 ];
 
@@ -87,11 +88,56 @@ describe('ContentOpsScreen', () => {
           script: null,
           production: null,
           review: null,
+          review_metrics: null,
         }}
       />,
     );
 
     expect(screen.getByText('시장조사')).toBeInTheDocument();
     expect(screen.getByText('조사 결과')).toBeInTheDocument();
+  });
+
+  it('shows a view count badge on the project card when review metrics exist', () => {
+    render(
+      <ContentOpsScreen
+        {...baseProps()}
+        youtubeProjects={[{ ...projects[0], view_count: '12,345' }]}
+      />,
+    );
+
+    expect(screen.getByText('조회수 12,345')).toBeInTheDocument();
+  });
+
+  it('renders the review metrics table alongside the review section', () => {
+    render(
+      <ContentOpsScreen
+        {...baseProps()}
+        selectedSlug="2026-01-01-trend"
+        projectDetail={{
+          slug: '2026-01-01-trend',
+          date: '2026-01-01',
+          research: null,
+          ideas: null,
+          qa: null,
+          script: null,
+          production: null,
+          review: '# review.md',
+          review_metrics: {
+            view_count: '12,345',
+            ctr: '4.2%',
+            avg_watch_time: null,
+            subscriber_delta: null,
+            engagement: null,
+            top_traffic_source: null,
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText('조회수')).toBeInTheDocument();
+    expect(screen.getByText('12,345')).toBeInTheDocument();
+    expect(screen.getByText('CTR')).toBeInTheDocument();
+    expect(screen.getByText('4.2%')).toBeInTheDocument();
+    expect(screen.queryByText('평균 시청 지속시간')).not.toBeInTheDocument();
   });
 });

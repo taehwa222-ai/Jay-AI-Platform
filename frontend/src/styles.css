@@ -919,6 +919,11 @@ code {
   font-size: 12px;
 }
 
+.content-ops-card span.content-ops-metric {
+  color: #195b42;
+  font-weight: 600;
+}
+
 .content-ops-stages {
   display: flex;
   flex-wrap: wrap;
@@ -950,6 +955,27 @@ code {
 .content-ops-stage-block h4 {
   margin: 0 0 8px;
   color: #263445;
+}
+
+.content-ops-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f0faf6;
+}
+
+.content-ops-metrics dt {
+  color: #536273;
+  font-size: 11px;
+}
+
+.content-ops-metrics dd {
+  margin: 2px 0 0;
+  color: #195b42;
+  font-weight: 600;
 }
 
 .stock-workspace {

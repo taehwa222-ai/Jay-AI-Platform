@@ -276,6 +276,15 @@ export type StockScanResult = {
   disclaimer: string;
 };
 
+export type ReviewMetrics = {
+  view_count: string | null;
+  ctr: string | null;
+  avg_watch_time: string | null;
+  subscriber_delta: string | null;
+  engagement: string | null;
+  top_traffic_source: string | null;
+};
+
 export type YoutubeProjectSummary = {
   slug: string;
   date: string;
@@ -286,6 +295,7 @@ export type YoutubeProjectSummary = {
   has_production: boolean;
   has_review: boolean;
   updated_at: string;
+  view_count: string | null;
 };
 
 export type YoutubeProjectDetail = {
@@ -297,4 +307,5 @@ export type YoutubeProjectDetail = {
   script: string | null;
   production: string | null;
   review: string | null;
+  review_metrics: ReviewMetrics | null;
 };
