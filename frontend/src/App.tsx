@@ -7,15 +7,11 @@
   DeploymentUnitOutlined,
   DollarOutlined,
   LineChartOutlined,
-  LoginOutlined,
   LockOutlined,
-  LogoutOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SafetyCertificateOutlined,
   SaveOutlined,
   TeamOutlined,
-  UserAddOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
@@ -60,6 +56,8 @@ import {
   updateStockHolding,
   updateStockReportPublish,
 } from './api';
+import { AuthScreen } from './components/AuthScreen';
+import type { AuthMode } from './components/AuthScreen';
 import { ContentOpsScreen } from './components/ContentOpsScreen';
 import type { ContentOpsTabId } from './components/ContentOpsScreen';
 import { ManualScreen } from './components/ManualScreen';
@@ -243,7 +241,7 @@ export default function App() {
   const [adminContentStats, setAdminContentStats] = useState<AdminContentStats | null>(null);
   const [adminProRequests, setAdminProRequests] = useState<ProUpgradeRequest[]>([]);
   const [myProRequest, setMyProRequest] = useState<ProUpgradeRequest | null>(null);
-  const [authMode, setAuthMode] = useState<'signup' | 'login'>('signup');
+  const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -1264,145 +1262,26 @@ export default function App() {
           </div>
         </section>
 
-        <section className={activeView === 'auth' ? 'section-block' : 'screen-hidden'} id="auth">
-          <SectionTitle
-            eyebrow="Access First"
-            icon={<SafetyCertificateOutlined />}
-            title="회원가입과 로그인"
-          />
-          <div className="access-grid">
-            <article className="tool-pane">
-              <div className="pane-title">
-                {currentUser ? <TeamOutlined /> : <UserAddOutlined />}
-                <h3>{currentUser ? '내 계정' : '회원 인증'}</h3>
-              </div>
-              <div className="pane-body">
-                {currentUser ? (
-                  <div className="account-panel">
-                    <div>
-                      <span className="eyebrow">Signed In</span>
-                      <h3>{currentUser.name}</h3>
-                      <p>{currentUser.email}</p>
-                    </div>
-                    <span className="role-chip">{currentUser.role}</span>
-                    <div className="pro-request-box">
-                      <strong>Plan: {currentUser.plan.toUpperCase()}</strong>
-                      {currentUser.plan === 'pro' ? (
-                        <p>Pro 기능을 사용할 수 있습니다.</p>
-                      ) : myProRequest?.status === 'pending' ? (
-                        <p>Pro 업그레이드 신청이 관리자 확인을 기다리고 있습니다.</p>
-                      ) : (
-                        <button
-                          className="primary-button"
-                          disabled={proRequestLoading}
-                          onClick={() => void handleCreateProRequest()}
-                          type="button"
-                        >
-                          <CrownOutlined />
-                          Pro 업그레이드 신청
-                        </button>
-                      )}
-                      {myProRequest && myProRequest.status !== 'pending' && (
-                        <small>
-                          최근 신청: {myProRequest.status}
-                          {myProRequest.admin_note ? ` · ${myProRequest.admin_note}` : ''}
-                        </small>
-                      )}
-                      {proRequestMessage && <div className="inline-message">{proRequestMessage}</div>}
-                    </div>
-                    <button className="secondary-button" onClick={logout} type="button">
-                      <LogoutOutlined />
-                      로그아웃
-                    </button>
-                  </div>
-                ) : (
-                  <form className="auth-form" onSubmit={(event) => void handleAuthSubmit(event)}>
-                    <div className="segmented-control">
-                      <button
-                        className={authMode === 'signup' ? 'active' : ''}
-                        onClick={() => setAuthMode('signup')}
-                        type="button"
-                      >
-                        회원가입
-                      </button>
-                      <button
-                        className={authMode === 'login' ? 'active' : ''}
-                        onClick={() => setAuthMode('login')}
-                        type="button"
-                      >
-                        로그인
-                      </button>
-                    </div>
-                    {authMode === 'signup' && (
-                      <label>
-                        <span>이름</span>
-                        <input
-                          autoComplete="name"
-                          onChange={(event) => setName(event.target.value)}
-                          required
-                          value={name}
-                        />
-                      </label>
-                    )}
-                    <label>
-                      <span>이메일</span>
-                      <input
-                        autoComplete="email"
-                        onChange={(event) => setEmail(event.target.value)}
-                        required
-                        type="email"
-                        value={email}
-                      />
-                    </label>
-                    <label>
-                      <span>비밀번호</span>
-                      <input
-                        autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
-                        minLength={8}
-                        onChange={(event) => setPassword(event.target.value)}
-                        required
-                        type="password"
-                        value={password}
-                      />
-                    </label>
-                    <button className="primary-button" disabled={authLoading} type="submit">
-                      {authMode === 'signup' ? <UserAddOutlined /> : <LoginOutlined />}
-                      {authLoading ? '처리 중' : authMode === 'signup' ? '계정 만들기' : '로그인'}
-                    </button>
-                    {authMessage && <div className="inline-message">{authMessage}</div>}
-                  </form>
-                )}
-              </div>
-            </article>
-
-            <article className="tool-pane">
-              <div className="pane-title">
-                <LockOutlined />
-                <h3>로그인 후 이동</h3>
-              </div>
-              <div className="pane-body">
-                <div className="login-route-list">
-                  <a href="#stocks">
-                    <BarChartOutlined />
-                    국내 주식 분석 화면으로 이동
-                  </a>
-                  <a href="#manual">
-                    <BookOutlined />
-                    사용 매뉴얼 화면으로 이동
-                  </a>
-                  <a href="#admin">
-                    <CrownOutlined />
-                    관리자 화면으로 이동
-                  </a>
-                </div>
-                <p>
-                  첫 번째 가입자는 자동으로 관리자 권한을 받습니다. 이후 가입자는 일반 회원으로 등록되고,
-                  관리자가 역할과 활성 상태를 조정합니다.
-                </p>
-              </div>
-            </article>
-          </div>
-        </section>
+        <AuthScreen
+          active={activeView === 'auth'}
+          currentUser={currentUser}
+          myProRequest={myProRequest}
+          proRequestLoading={proRequestLoading}
+          proRequestMessage={proRequestMessage}
+          onCreateProRequest={() => void handleCreateProRequest()}
+          onLogout={logout}
+          authMode={authMode}
+          onAuthModeChange={setAuthMode}
+          name={name}
+          onNameChange={setName}
+          email={email}
+          onEmailChange={setEmail}
+          password={password}
+          onPasswordChange={setPassword}
+          authLoading={authLoading}
+          authMessage={authMessage}
+          onSubmit={(event) => void handleAuthSubmit(event)}
+        />
 
         <section className={activeView === 'admin' ? 'section-block' : 'screen-hidden'} id="admin">
           <SectionTitle eyebrow="Admin Console" icon={<CrownOutlined />} title="회원과 권한 관리" />
