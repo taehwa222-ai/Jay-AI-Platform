@@ -78,9 +78,17 @@ async def modules() -> dict[str, object]:
             {
                 "id": "revenue-lab",
                 "title": "수익화 실험",
-                "status": "planned",
-                "description": "구독, 리포트, B2B 자동화, 교육 상품 등 수익 모델을 검증합니다.",
-                "items": ["subscription", "paid reports", "B2B tools", "education content"],
+                "status": "active",
+                "description": (
+                    "회원 플랜(free/pro)과 유료 리포트 초안·발행이 나가 있습니다. "
+                    "B2B 자동화와 교육 상품은 아직 아이디어 단계입니다."
+                ),
+                "items": [
+                    "member plans",
+                    "paid reports",
+                    "B2B tools (planned)",
+                    "education content (planned)",
+                ],
             },
         ]
     }
@@ -116,7 +124,7 @@ async def manual() -> dict[str, object]:
                 "summary": "검증된 코드를 GitHub main 브랜치에 올립니다.",
                 "commands": [
                     "git add -A",
-                    "git commit -m \"Describe your change\"",
+                    'git commit -m "Describe your change"',
                     "git push origin main",
                 ],
                 "checks": ["commit created", "GitHub main updated"],
@@ -210,7 +218,7 @@ async def roadmap() -> dict[str, object]:
             {
                 "id": "manual",
                 "title": "Manual And Deploy",
-                "status": "planned",
+                "status": "active",
                 "items": ["local development", "GitHub flow", "VPS deployment", "auto deploy"],
             },
             {
