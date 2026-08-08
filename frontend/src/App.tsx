@@ -3,14 +3,11 @@
   BarChartOutlined,
   BookOutlined,
   CrownOutlined,
-  DeleteOutlined,
   DeploymentUnitOutlined,
   DollarOutlined,
   LineChartOutlined,
   LockOutlined,
-  PlusOutlined,
   ReloadOutlined,
-  SaveOutlined,
   TeamOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
@@ -64,16 +61,17 @@ import type { ContentOpsTabId } from './components/ContentOpsScreen';
 import { ManualScreen } from './components/ManualScreen';
 import { RevenueScreen } from './components/RevenueScreen';
 import { RoadmapSection } from './components/RoadmapSection';
-import { SectionTitle, SignalList, StatusTile } from './components/shared';
-import {
-  formatDateTime,
-  formatPercent,
-  formatPlainPercent,
-  formatWon,
-  parseTickerList,
-  safeFileName,
-  toNumber,
-} from './utils';
+import { SectionTitle, StatusTile } from './components/shared';
+import { StockAnalysisPanel } from './components/StockAnalysisPanel';
+import type { AnalysisForm } from './components/StockAnalysisPanel';
+import { StockHoldingsPanel } from './components/StockHoldingsPanel';
+import type { HoldingForm, PortfolioBreakdownItem } from './components/StockHoldingsPanel';
+import { StockMarketPanel } from './components/StockMarketPanel';
+import { StockReportsPanel } from './components/StockReportsPanel';
+import { StockScanPanel } from './components/StockScanPanel';
+import { StockWatchlistPanel } from './components/StockWatchlistPanel';
+import type { WatchlistForm } from './components/StockWatchlistPanel';
+import { parseTickerList, safeFileName, toNumber } from './utils';
 import type {
   AdminContentStats,
   AdminUserUsage,
@@ -114,35 +112,6 @@ const VIEW_META: Record<ViewId, { eyebrow: string; title: string }> = {
   stocks: { eyebrow: 'Korea Stock Lab', title: '국내 주식 분석' },
   contentOps: { eyebrow: 'Content Ops', title: '콘텐츠 운영' },
   revenue: { eyebrow: 'Revenue Lab', title: '수익화 아이디어' },
-};
-
-type HoldingForm = {
-  ticker: string;
-  name: string;
-  quantity: string;
-  average_price: string;
-  current_price: string;
-  investment_thesis: string;
-  risk_memo: string;
-};
-
-type AnalysisForm = {
-  ticker: string;
-  name: string;
-  current_price: string;
-  previous_close: string;
-  volume: string;
-  previous_volume: string;
-  rsi: string;
-  macd: string;
-  macd_signal: string;
-  memo: string;
-};
-
-type WatchlistForm = {
-  ticker: string;
-  name: string;
-  note: string;
 };
 
 const emptyHoldingForm: HoldingForm = {
@@ -1392,855 +1361,117 @@ export default function App() {
 
               <div className="stock-workspace stock-workspace-tabs">
                 {activeStockTab === 'holdings' && (
-                  <article className="tool-pane stock-pane">
-                <div className="pane-title">
-                  <LineChartOutlined />
-                  <h3>내 주식 포트폴리오</h3>
-                  <button
-                    className="secondary-button"
-                    disabled={holdingRefreshLoading || holdings.length === 0}
-                    onClick={() => void handleRefreshHoldingPrices()}
-                    type="button"
-                  >
-                    <ReloadOutlined />
-                    현재가 전체 갱신
-                  </button>
-                </div>
-                <div className="pane-body">
-                  <div className="portfolio-summary">
-                    <StatusTile label="평가금액" value={formatWon(portfolioTotals.value)} tone="good" />
-                    <StatusTile label="투입원금" value={formatWon(portfolioTotals.cost)} />
-                    <StatusTile
-                      label="손익"
-                      value={`${formatWon(portfolioTotals.profit)} (${formatPercent(portfolioProfitPercent)})`}
-                      tone={portfolioTotals.profit >= 0 ? 'good' : 'steady'}
-                    />
-                  </div>
-
-                  {portfolioBreakdown.length > 0 && (
-                    <div className="portfolio-visuals">
-                      <div className="portfolio-chart-panel">
-                        <div className="chart-head">
-                          <strong>보유 비중</strong>
-                          <span>평가금액 기준</span>
-                        </div>
-                        <div className="allocation-list">
-                          {portfolioBreakdown.map((holding) => (
-                            <div className="allocation-row" key={holding.id}>
-                              <div className="allocation-label">
-                                <strong>{holding.name}</strong>
-                                <span>{formatPlainPercent(holding.allocationPercent)}</span>
-                              </div>
-                              <div className="allocation-track">
-                                <div
-                                  className="allocation-fill"
-                                  style={{ width: `${Math.max(2, holding.allocationPercent)}%` }}
-                                />
-                              </div>
-                              <small>{formatWon(holding.market_value)}</small>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="portfolio-chart-panel">
-                        <div className="chart-head">
-                          <strong>수익률 비교</strong>
-                          <span>종목별 손익률</span>
-                        </div>
-                        <div className="performance-list">
-                          {portfolioBreakdown.map((holding) => {
-                            const barWidth = Math.max(
-                              4,
-                              (Math.abs(holding.profit_loss_percent) / maxHoldingProfitPercent) * 100,
-                            );
-                            return (
-                              <div className="performance-row" key={holding.id}>
-                                <div className="performance-label">
-                                  <strong>{holding.name}</strong>
-                                  <span
-                                    className={
-                                      holding.profit_loss >= 0 ? 'profit-positive' : 'profit-negative'
-                                    }
-                                  >
-                                    {formatPercent(holding.profit_loss_percent)}
-                                  </span>
-                                </div>
-                                <div className="performance-track">
-                                  <div
-                                    className={`performance-fill ${
-                                      holding.profit_loss >= 0 ? 'positive' : 'negative'
-                                    }`}
-                                    style={{ width: `${barWidth}%` }}
-                                  />
-                                </div>
-                                <small>{formatWon(holding.profit_loss)}</small>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <form className="stock-form" onSubmit={(event) => void handleCreateHolding(event)}>
-                    <label>
-                      <span>종목코드</span>
-                      <input
-                        onChange={(event) => setHoldingForm({ ...holdingForm, ticker: event.target.value })}
-                        placeholder="005930"
-                        required
-                        value={holdingForm.ticker}
-                      />
-                    </label>
-                    <label>
-                      <span>종목명</span>
-                      <input
-                        onChange={(event) => setHoldingForm({ ...holdingForm, name: event.target.value })}
-                        placeholder="삼성전자"
-                        required
-                        value={holdingForm.name}
-                      />
-                    </label>
-                    <label>
-                      <span>보유수량</span>
-                      <input
-                        min="0"
-                        onChange={(event) => setHoldingForm({ ...holdingForm, quantity: event.target.value })}
-                        required
-                        step="0.0001"
-                        type="number"
-                        value={holdingForm.quantity}
-                      />
-                    </label>
-                    <label>
-                      <span>평단가</span>
-                      <input
-                        min="0"
-                        onChange={(event) =>
-                          setHoldingForm({ ...holdingForm, average_price: event.target.value })
-                        }
-                        required
-                        type="number"
-                        value={holdingForm.average_price}
-                      />
-                    </label>
-                    <label>
-                      <span>현재가</span>
-                      <input
-                        min="0"
-                        onChange={(event) =>
-                          setHoldingForm({ ...holdingForm, current_price: event.target.value })
-                        }
-                        required
-                        type="number"
-                        value={holdingForm.current_price}
-                      />
-                    </label>
-                    <label className="wide-field">
-                      <span>투자 근거</span>
-                      <input
-                        onChange={(event) =>
-                          setHoldingForm({ ...holdingForm, investment_thesis: event.target.value })
-                        }
-                        placeholder="예: 반도체 업황 회복, 실적 개선 기대"
-                        value={holdingForm.investment_thesis}
-                      />
-                    </label>
-                    <label className="wide-field">
-                      <span>리스크 메모</span>
-                      <input
-                        onChange={(event) => setHoldingForm({ ...holdingForm, risk_memo: event.target.value })}
-                        placeholder="예: 환율, 업황 둔화, 과열 구간"
-                        value={holdingForm.risk_memo}
-                      />
-                    </label>
-                    <button className="primary-button" disabled={holdingLoading} type="submit">
-                      <PlusOutlined />
-                      보유 종목 저장
-                    </button>
-                  </form>
-
-                  <div className="holding-list">
-                    {holdings.map((holding) => (
-                      <div className="holding-row" key={holding.id}>
-                        <div className="holding-main">
-                          <strong>
-                            {holding.name} <span>{holding.ticker}</span>
-                          </strong>
-                          <small>
-                            {holding.quantity}주 · 평단 {formatWon(holding.average_price)} · 평가{' '}
-                            {formatWon(holding.market_value)}
-                          </small>
-                          {(holding.investment_thesis || holding.risk_memo) && (
-                            <p>
-                              {holding.investment_thesis}
-                              {holding.risk_memo ? ` / 리스크: ${holding.risk_memo}` : ''}
-                            </p>
-                          )}
-                        </div>
-                        <div className={`profit-box ${holding.profit_loss >= 0 ? 'positive' : 'negative'}`}>
-                          <span>{formatWon(holding.profit_loss)}</span>
-                          <strong>{formatPercent(holding.profit_loss_percent)}</strong>
-                        </div>
-                        <div className="price-editor">
-                          <input
-                            min="0"
-                            onChange={(event) =>
-                              setCurrentPriceDrafts({
-                                ...currentPriceDrafts,
-                                [holding.id]: event.target.value,
-                              })
-                            }
-                            type="number"
-                            value={currentPriceDrafts[holding.id] ?? holding.current_price}
-                          />
-                          <button
-                            className="secondary-button"
-                            disabled={savingCurrentPriceId === holding.id}
-                            onClick={() => void handleCurrentPriceSave(holding)}
-                            title="현재가 저장"
-                            type="button"
-                          >
-                            <SaveOutlined />
-                          </button>
-                        </div>
-                        <button
-                          className="secondary-button row-action-button"
-                          disabled={prefillAnalysisLoadingKey === `holding-${holding.id}`}
-                          onClick={() => void handleAnalyzeHolding(holding)}
-                          title="이 종목을 AI 분석 폼으로 보내기"
-                          type="button"
-                        >
-                          <BarChartOutlined />
-                          분석
-                        </button>
-                        <button
-                          className="primary-button row-action-button"
-                          disabled={quickAnalysisLoadingKey === `holding-${holding.id}`}
-                          onClick={() => void handleQuickAnalyzeHolding(holding)}
-                          title="이 종목을 바로 AI 분석하고 저장하기"
-                          type="button"
-                        >
-                          즉시
-                        </button>
-                        <button
-                          className="icon-danger-button"
-                          onClick={() => void handleDeleteHolding(holding.id)}
-                          title="삭제"
-                          type="button"
-                        >
-                          <DeleteOutlined />
-                        </button>
-                      </div>
-                    ))}
-                    {holdings.length === 0 && (
-                      <div className="empty-state">아직 저장된 보유 종목이 없습니다.</div>
-                    )}
-                  </div>
-                  {holdingMessage && <div className="inline-message">{holdingMessage}</div>}
-                </div>
-                  </article>
+                  <StockHoldingsPanel
+                    currentPriceDrafts={currentPriceDrafts}
+                    holdingForm={holdingForm}
+                    holdingLoading={holdingLoading}
+                    holdingMessage={holdingMessage}
+                    holdingRefreshLoading={holdingRefreshLoading}
+                    holdings={holdings}
+                    maxHoldingProfitPercent={maxHoldingProfitPercent}
+                    onAnalyze={(holding) => void handleAnalyzeHolding(holding)}
+                    onCreate={(event) => void handleCreateHolding(event)}
+                    onCurrentPriceDraftChange={(holdingId, value) =>
+                      setCurrentPriceDrafts({ ...currentPriceDrafts, [holdingId]: value })
+                    }
+                    onDelete={(holdingId) => void handleDeleteHolding(holdingId)}
+                    onFormChange={setHoldingForm}
+                    onQuickAnalyze={(holding) => void handleQuickAnalyzeHolding(holding)}
+                    onRefreshPrices={() => void handleRefreshHoldingPrices()}
+                    onSaveCurrentPrice={(holding) => void handleCurrentPriceSave(holding)}
+                    portfolioBreakdown={portfolioBreakdown}
+                    portfolioProfitPercent={portfolioProfitPercent}
+                    portfolioTotals={portfolioTotals}
+                    prefillAnalysisLoadingKey={prefillAnalysisLoadingKey}
+                    quickAnalysisLoadingKey={quickAnalysisLoadingKey}
+                    savingCurrentPriceId={savingCurrentPriceId}
+                  />
                 )}
 
                 {activeStockTab === 'watchlist' && (
-                  <article className="tool-pane stock-pane">
-                <div className="pane-title">
-                  <BookOutlined />
-                  <h3>관심종목</h3>
-                </div>
-                <div className="pane-body">
-                  <form className="watchlist-form" onSubmit={(event) => void handleCreateWatchlistItem(event)}>
-                    <label>
-                      <span>종목코드</span>
-                      <input
-                        onChange={(event) =>
-                          setWatchlistForm({ ...watchlistForm, ticker: event.target.value })
-                        }
-                        placeholder="005930"
-                        required
-                        value={watchlistForm.ticker}
-                      />
-                    </label>
-                    <label>
-                      <span>종목명</span>
-                      <input
-                        onChange={(event) =>
-                          setWatchlistForm({ ...watchlistForm, name: event.target.value })
-                        }
-                        placeholder="삼성전자"
-                        value={watchlistForm.name}
-                      />
-                    </label>
-                    <label className="wide-field">
-                      <span>메모</span>
-                      <input
-                        onChange={(event) =>
-                          setWatchlistForm({ ...watchlistForm, note: event.target.value })
-                        }
-                        placeholder="예: 거래량 급증 시 확인"
-                        value={watchlistForm.note}
-                      />
-                    </label>
-                    <button className="primary-button" disabled={watchlistLoading} type="submit">
-                      <PlusOutlined />
-                      관심종목 저장
-                    </button>
-                    <button
-                      className="secondary-button"
-                      disabled={scanLoading || watchlist.length === 0}
-                      onClick={() => void handleScanWatchlist()}
-                      type="button"
-                    >
-                      <BarChartOutlined />
-                      관심종목 전체 스캔
-                    </button>
-                  </form>
-
-                  <div className="watchlist-list">
-                    {watchlist.map((item) => (
-                      <div className="watchlist-row" key={item.id}>
-                        <div>
-                          <strong>
-                            {item.name || item.ticker} <span>{item.ticker}</span>
-                          </strong>
-                          {item.note && <p>{item.note}</p>}
-                        </div>
-                        <button
-                          className="secondary-button row-action-button"
-                          disabled={prefillAnalysisLoadingKey === `watchlist-${item.id}`}
-                          onClick={() => void handleAnalyzeWatchlistItem(item)}
-                          type="button"
-                        >
-                          <BarChartOutlined />
-                          분석
-                        </button>
-                        <button
-                          className="primary-button row-action-button"
-                          disabled={quickAnalysisLoadingKey === `watchlist-${item.id}`}
-                          onClick={() => void handleQuickAnalyzeWatchlistItem(item)}
-                          type="button"
-                        >
-                          즉시
-                        </button>
-                        <button
-                          className="icon-danger-button"
-                          disabled={deletingWatchlistId === item.id}
-                          onClick={() => void handleDeleteWatchlistItem(item.id)}
-                          title="삭제"
-                          type="button"
-                        >
-                          <DeleteOutlined />
-                        </button>
-                      </div>
-                    ))}
-                    {watchlist.length === 0 && (
-                      <div className="empty-state">아직 저장된 관심종목이 없습니다.</div>
-                    )}
-                  </div>
-                  {watchlistMessage && <div className="inline-message">{watchlistMessage}</div>}
-                </div>
-                  </article>
+                  <StockWatchlistPanel
+                    deletingWatchlistId={deletingWatchlistId}
+                    onAnalyze={(item) => void handleAnalyzeWatchlistItem(item)}
+                    onCreate={(event) => void handleCreateWatchlistItem(event)}
+                    onDelete={(itemId) => void handleDeleteWatchlistItem(itemId)}
+                    onFormChange={setWatchlistForm}
+                    onQuickAnalyze={(item) => void handleQuickAnalyzeWatchlistItem(item)}
+                    onScanWatchlist={() => void handleScanWatchlist()}
+                    prefillAnalysisLoadingKey={prefillAnalysisLoadingKey}
+                    quickAnalysisLoadingKey={quickAnalysisLoadingKey}
+                    scanLoading={scanLoading}
+                    watchlist={watchlist}
+                    watchlistForm={watchlistForm}
+                    watchlistLoading={watchlistLoading}
+                    watchlistMessage={watchlistMessage}
+                  />
                 )}
 
                 {activeStockTab === 'analysis' && (
-                  <article className="tool-pane stock-pane">
-                <div className="pane-title">
-                  <BarChartOutlined />
-                  <h3>AI 분석 후보 만들기</h3>
-                </div>
-                <div className="pane-body">
-                  <form className="analysis-form" onSubmit={(event) => void handleAnalyzeStock(event)}>
-                    <label>
-                      <span>종목코드</span>
-                      <input
-                        onChange={(event) => setAnalysisForm({ ...analysisForm, ticker: event.target.value })}
-                        required
-                        value={analysisForm.ticker}
-                      />
-                    </label>
-                    <label>
-                      <span>종목명</span>
-                      <input
-                        onChange={(event) => setAnalysisForm({ ...analysisForm, name: event.target.value })}
-                        required
-                        value={analysisForm.name}
-                      />
-                    </label>
-                    <label>
-                      <span>현재가</span>
-                      <input
-                        min="0"
-                        onChange={(event) =>
-                          setAnalysisForm({ ...analysisForm, current_price: event.target.value })
-                        }
-                        required
-                        type="number"
-                        value={analysisForm.current_price}
-                      />
-                    </label>
-                    <label>
-                      <span>전일 종가</span>
-                      <input
-                        min="0"
-                        onChange={(event) =>
-                          setAnalysisForm({ ...analysisForm, previous_close: event.target.value })
-                        }
-                        required
-                        type="number"
-                        value={analysisForm.previous_close}
-                      />
-                    </label>
-                    <label>
-                      <span>오늘 거래량</span>
-                      <input
-                        min="0"
-                        onChange={(event) => setAnalysisForm({ ...analysisForm, volume: event.target.value })}
-                        required
-                        type="number"
-                        value={analysisForm.volume}
-                      />
-                    </label>
-                    <label>
-                      <span>전일 거래량</span>
-                      <input
-                        min="1"
-                        onChange={(event) =>
-                          setAnalysisForm({ ...analysisForm, previous_volume: event.target.value })
-                        }
-                        required
-                        type="number"
-                        value={analysisForm.previous_volume}
-                      />
-                    </label>
-                    <label>
-                      <span>RSI</span>
-                      <input
-                        max="100"
-                        min="0"
-                        onChange={(event) => setAnalysisForm({ ...analysisForm, rsi: event.target.value })}
-                        required
-                        type="number"
-                        value={analysisForm.rsi}
-                      />
-                    </label>
-                    <label>
-                      <span>MACD</span>
-                      <input
-                        onChange={(event) => setAnalysisForm({ ...analysisForm, macd: event.target.value })}
-                        required
-                        type="number"
-                        value={analysisForm.macd}
-                      />
-                    </label>
-                    <label>
-                      <span>MACD Signal</span>
-                      <input
-                        onChange={(event) =>
-                          setAnalysisForm({ ...analysisForm, macd_signal: event.target.value })
-                        }
-                        required
-                        type="number"
-                        value={analysisForm.macd_signal}
-                      />
-                    </label>
-                    <label className="wide-field">
-                      <span>분석 메모</span>
-                      <input
-                        onChange={(event) => setAnalysisForm({ ...analysisForm, memo: event.target.value })}
-                        placeholder="예: 실적 발표 전, 거래량 급증, 기관 수급 확인 필요"
-                        value={analysisForm.memo}
-                      />
-                    </label>
-                    <button
-                      className="secondary-button"
-                      disabled={marketLoading || !analysisForm.ticker.trim()}
-                      onClick={() => void handleLoadMarketSnapshot()}
-                      type="button"
-                    >
-                      <ReloadOutlined />
-                      시세/지표 불러오기
-                    </button>
-                    <button className="primary-button" disabled={analysisLoading} type="submit">
-                      <LineChartOutlined />
-                      분석 실행
-                    </button>
-                  </form>
-
-                  {analysisMessage && <div className="inline-message">{analysisMessage}</div>}
-                  {marketSnapshot && (
-                    <div className="market-snapshot">
-                      <span>{marketSnapshot.provider_symbol}</span>
-                      <span>{marketSnapshot.latest_trading_day}</span>
-                      <span>거래량 {marketSnapshot.volume_multiplier}배</span>
-                      <span>RSI {marketSnapshot.rsi}</span>
-                      <span>MACD {marketSnapshot.macd}</span>
-                    </div>
-                  )}
-                  {analysisResult && (
-                    <div className={`analysis-result ${analysisResult.rating}`}>
-                      <div className="analysis-score">
-                        <strong>{analysisResult.score}</strong>
-                        <span>{analysisResult.rating_label}</span>
-                      </div>
-                      <div className="analysis-copy">
-                        <h3>
-                          {analysisResult.name} {analysisResult.ticker}
-                        </h3>
-                        <p>{analysisResult.summary}</p>
-                        <p>{analysisResult.ai_summary}</p>
-                        <small>{analysisResult.ai_powered ? 'OpenAI 요약 사용' : '기본 분석 요약 사용'}</small>
-                      </div>
-                      <div className="analysis-columns">
-                        <SignalList title="긍정 신호" items={analysisResult.signals} />
-                        <SignalList title="주의 신호" items={analysisResult.risk_notes} />
-                        <SignalList title="체크리스트" items={analysisResult.action_checklist} />
-                      </div>
-                      <div className="disclaimer">{analysisResult.disclaimer}</div>
-                    </div>
-                  )}
-
-                  {topAnalysisCandidates.length > 0 && (
-                    <div className="analysis-leaderboard">
-                      <div className="chart-head">
-                        <strong>추천 후보 상위 기록</strong>
-                        <span>점수 · 거래량 · 가격 흐름 기준</span>
-                      </div>
-                      <div className="leaderboard-list">
-                        {topAnalysisCandidates.map((record, index) => (
-                          <article className={`leaderboard-card ${record.rating}`} key={record.id}>
-                            <div className="leaderboard-rank">#{index + 1}</div>
-                            <div>
-                              <strong>
-                                {record.name} <span>{record.ticker}</span>
-                              </strong>
-                              <small>
-                                점수 {record.score} · {record.rating_label} · 거래량{' '}
-                                {record.volume_multiplier}배
-                              </small>
-                            </div>
-                            <button
-                              className="secondary-button compact-button"
-                              disabled={watchlistTickerSet.has(record.ticker)}
-                              onClick={() => void handleCreateWatchlistFromAnalysis(record)}
-                              type="button"
-                            >
-                              <BookOutlined />
-                              {watchlistTickerSet.has(record.ticker) ? '저장됨' : '관심저장'}
-                            </button>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="analysis-history">
-                    <div className="chart-head">
-                      <strong>저장된 분석 기록</strong>
-                      <button className="secondary-button" onClick={() => void loadStockAnalysisRecords()} type="button">
-                        <ReloadOutlined />
-                        새로고침
-                      </button>
-                    </div>
-                    <div className="analysis-filter-bar">
-                      <input
-                        onChange={(event) => setAnalysisRecordQuery(event.target.value)}
-                        placeholder="종목명/코드 검색"
-                        type="search"
-                        value={analysisRecordQuery}
-                      />
-                      <select
-                        aria-label="분석 등급 필터"
-                        onChange={(event) => setAnalysisRecordRatingFilter(event.target.value)}
-                        value={analysisRecordRatingFilter}
-                      >
-                        <option value="all">전체 등급</option>
-                        <option value="candidate">관심 후보</option>
-                        <option value="watch">관찰 필요</option>
-                        <option value="caution">주의</option>
-                      </select>
-                      <span className="analysis-filter-count">
-                        {filteredAnalysisRecords.length}/{analysisRecords.length}
-                      </span>
-                    </div>
-                    <div className="analysis-record-list">
-                      {filteredAnalysisRecords.map((record) => (
-                        <article className={`analysis-record ${record.rating}`} key={record.id}>
-                          <div className="analysis-record-main">
-                            <div>
-                              <strong>
-                                {record.name} <span>{record.ticker}</span>
-                              </strong>
-                              <small>
-                                {formatDateTime(record.created_at)} · 점수 {record.score} ·{' '}
-                                {record.rating_label}
-                              </small>
-                            </div>
-                            <p>{record.summary}</p>
-                            {record.memo && <p>메모: {record.memo}</p>}
-                          </div>
-                          <div className="analysis-record-side">
-                            <span
-                              className={
-                                record.price_change_percent >= 0 ? 'profit-positive' : 'profit-negative'
-                              }
-                            >
-                              {formatPercent(record.price_change_percent)}
-                            </span>
-                            <small>거래량 {record.volume_multiplier}배</small>
-                            <button
-                              className="secondary-button compact-button"
-                              disabled={watchlistTickerSet.has(record.ticker)}
-                              onClick={() => void handleCreateWatchlistFromAnalysis(record)}
-                              type="button"
-                            >
-                              <BookOutlined />
-                              관심
-                            </button>
-                            <button
-                              className="secondary-button compact-button"
-                              disabled={creatingReportRecordId === record.id}
-                              onClick={() => void handleCreateReport(record.id)}
-                              type="button"
-                            >
-                              <DollarOutlined />
-                              Report
-                            </button>
-                            <button
-                              className="icon-danger-button"
-                              disabled={deletingAnalysisRecordId === record.id}
-                              onClick={() => void handleDeleteAnalysisRecord(record.id)}
-                              title="분석 기록 삭제"
-                              type="button"
-                            >
-                              <DeleteOutlined />
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                      {analysisRecords.length === 0 && (
-                        <div className="empty-state">아직 저장된 분석 기록이 없습니다.</div>
-                      )}
-                      {analysisRecords.length > 0 && filteredAnalysisRecords.length === 0 && (
-                        <div className="empty-state">조건에 맞는 분석 기록이 없습니다.</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                  </article>
+                  <StockAnalysisPanel
+                    analysisForm={analysisForm}
+                    analysisLoading={analysisLoading}
+                    analysisMessage={analysisMessage}
+                    analysisRecordQuery={analysisRecordQuery}
+                    analysisRecordRatingFilter={analysisRecordRatingFilter}
+                    analysisRecords={analysisRecords}
+                    analysisResult={analysisResult}
+                    creatingReportRecordId={creatingReportRecordId}
+                    deletingAnalysisRecordId={deletingAnalysisRecordId}
+                    filteredAnalysisRecords={filteredAnalysisRecords}
+                    marketLoading={marketLoading}
+                    marketSnapshot={marketSnapshot}
+                    onCreateReport={(recordId) => void handleCreateReport(recordId)}
+                    onCreateWatchlistFromAnalysis={(record) =>
+                      void handleCreateWatchlistFromAnalysis(record)
+                    }
+                    onDeleteRecord={(recordId) => void handleDeleteAnalysisRecord(recordId)}
+                    onFormChange={setAnalysisForm}
+                    onLoadMarketSnapshot={() => void handleLoadMarketSnapshot()}
+                    onQueryChange={setAnalysisRecordQuery}
+                    onRatingFilterChange={setAnalysisRecordRatingFilter}
+                    onRefreshRecords={() => void loadStockAnalysisRecords()}
+                    onSubmit={(event) => void handleAnalyzeStock(event)}
+                    topAnalysisCandidates={topAnalysisCandidates}
+                    watchlistTickerSet={watchlistTickerSet}
+                  />
                 )}
 
                 {activeStockTab === 'reports' && (
-                  <article className="tool-pane stock-pane report-pane">
-                    <div className="pane-title">
-                      <DollarOutlined />
-                      <h3>Report drafts</h3>
-                      <button className="secondary-button" onClick={() => void loadStockReports()} type="button">
-                        <ReloadOutlined />
-                        Refresh
-                      </button>
-                    </div>
-                    <div className="pane-body">
-                      {reportMessage && <div className="inline-message">{reportMessage}</div>}
-                      <div className="report-list">
-                        {stockReports.map((report) => (
-                          <article className={`report-card ${report.rating}`} key={report.id}>
-                            <div className="report-head">
-                              <div>
-                                <strong>{report.title}</strong>
-                                <small>
-                                  {formatDateTime(report.created_at)} · Score {report.score} ·{' '}
-                                  {report.rating_label}
-                                </small>
-                                <span className={`publish-chip ${report.is_published ? 'published' : 'private'}`}>
-                                  {report.is_published ? `${report.access_level.toUpperCase()} published` : 'PRIVATE'}
-                                </span>
-                              </div>
-                              <div className="report-actions">
-                                <select
-                                  aria-label="Report access level"
-                                  disabled={updatingReportPublishId === report.id}
-                                  onChange={(event) =>
-                                    void handleUpdateReportPublish(
-                                      report,
-                                      event.target.value as StockReport['access_level'],
-                                      event.target.value !== 'private',
-                                    )
-                                  }
-                                  value={report.access_level}
-                                >
-                                  <option value="private">Private</option>
-                                  <option value="free">Free members</option>
-                                  <option value="pro">Pro members</option>
-                                </select>
-                                {report.is_published ? (
-                                  <button
-                                    className="secondary-button compact-button"
-                                    disabled={updatingReportPublishId === report.id}
-                                    onClick={() => void handleUpdateReportPublish(report, 'private', false)}
-                                    type="button"
-                                  >
-                                    Hide
-                                  </button>
-                                ) : (
-                                  <button
-                                    className="secondary-button compact-button"
-                                    disabled={updatingReportPublishId === report.id}
-                                    onClick={() => void handleUpdateReportPublish(report, 'pro', true)}
-                                    type="button"
-                                  >
-                                    Publish Pro
-                                  </button>
-                                )}
-                                <button
-                                  className="secondary-button compact-button"
-                                  disabled={downloadingReportId === report.id}
-                                  onClick={() => void handleDownloadReport(report)}
-                                  type="button"
-                                >
-                                  <SaveOutlined />
-                                  Download .md
-                                </button>
-                                <button
-                                  className="icon-danger-button"
-                                  disabled={deletingReportId === report.id}
-                                  onClick={() => void handleDeleteReport(report.id)}
-                                  title="Delete report"
-                                  type="button"
-                                >
-                                  <DeleteOutlined />
-                                </button>
-                              </div>
-                            </div>
-                            <pre className="report-body">{report.body}</pre>
-                          </article>
-                        ))}
-                        {stockReports.length === 0 && (
-                          <div className="empty-state">
-                            Create a report from a saved analysis record to build paid content drafts.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </article>
+                  <StockReportsPanel
+                    deletingReportId={deletingReportId}
+                    downloadingReportId={downloadingReportId}
+                    onDelete={(reportId) => void handleDeleteReport(reportId)}
+                    onDownload={(report) => void handleDownloadReport(report)}
+                    onRefresh={() => void loadStockReports()}
+                    onUpdatePublish={(report, accessLevel, isPublished) =>
+                      void handleUpdateReportPublish(report, accessLevel, isPublished)
+                    }
+                    reportMessage={reportMessage}
+                    stockReports={stockReports}
+                    updatingReportPublishId={updatingReportPublishId}
+                  />
                 )}
 
                 {activeStockTab === 'market' && (
-                  <article className="tool-pane stock-pane report-pane">
-                    <div className="pane-title">
-                      <DollarOutlined />
-                      <h3>Report market</h3>
-                      <button className="secondary-button" onClick={() => void loadStockReportMarket()} type="button">
-                        <ReloadOutlined />
-                        Refresh
-                      </button>
-                    </div>
-                    <div className="pane-body">
-                      {marketMessage && <div className="inline-message">{marketMessage}</div>}
-                      <div className="report-list">
-                        {marketReports.map((report) => (
-                          <article className={`report-card ${report.rating}`} key={report.id}>
-                            <div className="report-head">
-                              <div>
-                                <strong>{report.title}</strong>
-                                <small>
-                                  {formatDateTime(report.created_at)} · Score {report.score} ·{' '}
-                                  {report.rating_label}
-                                </small>
-                                <span className={`publish-chip ${report.can_view ? 'published' : 'private'}`}>
-                                  {report.access_level.toUpperCase()}
-                                </span>
-                              </div>
-                            </div>
-                            {report.can_view ? (
-                              <pre className="report-body">{report.body}</pre>
-                            ) : (
-                              <div className="locked-report">
-                                <LockOutlined />
-                                <strong>Pro members only</strong>
-                                <p>{report.locked_reason}</p>
-                              </div>
-                            )}
-                          </article>
-                        ))}
-                        {marketReports.length === 0 && (
-                          <div className="empty-state">
-                            Published stock reports will appear here after you publish drafts.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </article>
+                  <StockMarketPanel
+                    marketMessage={marketMessage}
+                    marketReports={marketReports}
+                    onRefresh={() => void loadStockReportMarket()}
+                  />
                 )}
 
                 {activeStockTab === 'scan' && (
-                  <article className="tool-pane stock-pane scan-pane">
-                <div className="pane-title">
-                  <LineChartOutlined />
-                  <h3>추천 후보 스캔</h3>
-                </div>
-                <div className="pane-body">
-                  <form className="scan-form" onSubmit={(event) => void handleScanStocks(event)}>
-                    <label className="wide-field">
-                      <span>스캔할 종목코드</span>
-                      <input
-                        onChange={(event) => setScanTickers(event.target.value)}
-                        placeholder="005930,000660,035720"
-                        required
-                        value={scanTickers}
-                      />
-                    </label>
-                    <label className="wide-field">
-                      <span>스캔 메모</span>
-                      <input
-                        onChange={(event) => setScanMemo(event.target.value)}
-                        placeholder="예: 거래량 급증 후보, 반도체/AI 관련주 우선 확인"
-                        value={scanMemo}
-                      />
-                    </label>
-                    <button className="primary-button" disabled={scanLoading} type="submit">
-                      <BarChartOutlined />
-                      후보 스캔 실행
-                    </button>
-                  </form>
-
-                  {scanMessage && <div className="inline-message">{scanMessage}</div>}
-                  {scanResult && (
-                    <div className="scan-result">
-                      {scanResult.candidates.map((candidate, index) => (
-                        <div className={`scan-card ${candidate.rating}`} key={candidate.ticker}>
-                          <div className="scan-rank">#{index + 1}</div>
-                          <div className="scan-main">
-                            <strong>
-                              {candidate.name} <span>{candidate.ticker}</span>
-                            </strong>
-                            <p>{candidate.summary}</p>
-                            <small>
-                              {candidate.latest_trading_day} · {candidate.provider_symbol} · 거래량{' '}
-                              {candidate.volume_multiplier}배 · RSI {candidate.rsi}
-                            </small>
-                          </div>
-                          <div className="scan-score">
-                            <strong>{candidate.score}</strong>
-                            <span>{candidate.rating_label}</span>
-                          </div>
-                        </div>
-                      ))}
-                      {scanResult.failed.length > 0 && (
-                        <div className="scan-failed">
-                          <strong>조회 실패</strong>
-                          {scanResult.failed.map((item) => (
-                            <span key={item.ticker}>
-                              {item.ticker}: {item.reason}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="disclaimer">{scanResult.disclaimer}</div>
-                    </div>
-                  )}
-                </div>
-                  </article>
+                  <StockScanPanel
+                    onScan={(event) => void handleScanStocks(event)}
+                    onScanMemoChange={setScanMemo}
+                    onScanTickersChange={setScanTickers}
+                    scanLoading={scanLoading}
+                    scanMemo={scanMemo}
+                    scanMessage={scanMessage}
+                    scanResult={scanResult}
+                    scanTickers={scanTickers}
+                  />
                 )}
               </div>
             </div>
