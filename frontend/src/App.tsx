@@ -60,6 +60,8 @@ import {
   updateStockHolding,
   updateStockReportPublish,
 } from './api';
+import { ContentOpsScreen } from './components/ContentOpsScreen';
+import type { ContentOpsTabId } from './components/ContentOpsScreen';
 import { ManualScreen } from './components/ManualScreen';
 import { RevenueScreen } from './components/RevenueScreen';
 import { RoadmapSection } from './components/RoadmapSection';
@@ -226,30 +228,6 @@ const STOCK_TABS = [
 ] as const;
 
 type StockTabId = (typeof STOCK_TABS)[number]['id'];
-
-const CONTENT_OPS_TABS = [
-  {
-    id: 'youtube',
-    title: '유튜브',
-    description: '요즘 트렌드 영상 기획 파이프라인 결과물을 봅니다.',
-  },
-  {
-    id: 'character',
-    title: '캐릭터·이모티콘',
-    description: '카카오톡 이모티콘 파이프라인 — 아직 준비 중입니다.',
-  },
-] as const;
-
-type ContentOpsTabId = (typeof CONTENT_OPS_TABS)[number]['id'];
-
-const YOUTUBE_STAGE_LABELS: { key: keyof YoutubeProjectSummary; label: string }[] = [
-  { key: 'has_research', label: '조사' },
-  { key: 'has_ideas', label: '기획' },
-  { key: 'has_qa', label: '검수' },
-  { key: 'has_script', label: '대본' },
-  { key: 'has_production', label: '컷구성' },
-  { key: 'has_review', label: '성과' },
-];
 
 export default function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
@@ -1697,144 +1675,21 @@ export default function App() {
           </article>
         </section>
 
-        <section
-          className={activeView === 'contentOps' ? 'section-block' : 'screen-hidden'}
-          id="contentOps"
-        >
-          <SectionTitle
-            eyebrow="Content Ops"
-            icon={<VideoCameraOutlined />}
-            title="콘텐츠 운영 (대표 전용, 읽기 전용)"
-          />
-          {currentUser?.role === 'admin' ? (
-            <>
-              <div className="content-ops-tabs" role="tablist" aria-label="콘텐츠 사업 메뉴">
-                {CONTENT_OPS_TABS.map((tab) => (
-                  <button
-                    aria-selected={activeContentOpsTab === tab.id}
-                    className={activeContentOpsTab === tab.id ? 'active' : ''}
-                    key={tab.id}
-                    onClick={() => setActiveContentOpsTab(tab.id)}
-                    role="tab"
-                    type="button"
-                  >
-                    <strong>{tab.title}</strong>
-                    <small>{tab.description}</small>
-                  </button>
-                ))}
-              </div>
-
-              {activeContentOpsTab === 'youtube' && (
-                <article className="tool-pane">
-                  <div className="pane-title">
-                    <VideoCameraOutlined />
-                    <h3>유튜브 트렌드 파이프라인</h3>
-                    <button
-                      className="secondary-button"
-                      onClick={() => void loadYoutubeProjects()}
-                      type="button"
-                    >
-                      <ReloadOutlined />
-                      새로고침
-                    </button>
-                  </div>
-                  <div className="pane-body">
-                    {youtubeProjectsMessage && (
-                      <div className="inline-message">{youtubeProjectsMessage}</div>
-                    )}
-                    {youtubeProjectsLoading && youtubeProjects.length === 0 ? (
-                      <div className="empty-state">불러오는 중...</div>
-                    ) : youtubeProjects.length === 0 ? (
-                      <div className="empty-state">
-                        아직 만들어진 프로젝트가 없습니다. Claude Code에서 /yt-pipeline 을
-                        실행하면 여기에 나타납니다.
-                      </div>
-                    ) : (
-                      <div className="content-ops-layout">
-                        <div className="content-ops-list">
-                          {youtubeProjects.map((project) => (
-                            <button
-                              className={`content-ops-card ${
-                                selectedYoutubeSlug === project.slug ? 'active' : ''
-                              }`}
-                              key={project.slug}
-                              onClick={() => void handleSelectYoutubeProject(project.slug)}
-                              type="button"
-                            >
-                              <strong>{project.slug}</strong>
-                              <span>{project.date || '날짜 미상'}</span>
-                              <div className="content-ops-stages">
-                                {YOUTUBE_STAGE_LABELS.map(({ key, label }) => (
-                                  <small
-                                    className={project[key] ? 'stage-done' : 'stage-pending'}
-                                    key={key}
-                                  >
-                                    {label}
-                                  </small>
-                                ))}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                        <div className="content-ops-detail">
-                          {youtubeDetailMessage && (
-                            <div className="inline-message">{youtubeDetailMessage}</div>
-                          )}
-                          {!selectedYoutubeSlug && (
-                            <div className="empty-state">
-                              왼쪽에서 프로젝트를 선택하면 단계별 내용을 볼 수 있습니다.
-                            </div>
-                          )}
-                          {selectedYoutubeSlug && youtubeDetailLoading && (
-                            <div className="empty-state">불러오는 중...</div>
-                          )}
-                          {selectedYoutubeSlug &&
-                            !youtubeDetailLoading &&
-                            youtubeProjectDetail &&
-                            (
-                              [
-                                ['research', '시장조사'],
-                                ['ideas', '기획'],
-                                ['qa', '검수'],
-                                ['script', '대본'],
-                                ['production', '컷 구성'],
-                                ['review', '성과'],
-                              ] as const
-                            ).map(([key, label]) =>
-                              youtubeProjectDetail[key] ? (
-                                <div className="content-ops-stage-block" key={key}>
-                                  <h4>{label}</h4>
-                                  <pre className="report-body">{youtubeProjectDetail[key]}</pre>
-                                </div>
-                              ) : null,
-                            )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </article>
-              )}
-
-              {activeContentOpsTab === 'character' && (
-                <article className="tool-pane">
-                  <div className="pane-title">
-                    <VideoCameraOutlined />
-                    <h3>캐릭터·이모티콘</h3>
-                  </div>
-                  <div className="pane-body">
-                    <div className="empty-state">
-                      카카오톡 이모티콘 파이프라인은 아직 준비 중입니다.
-                    </div>
-                  </div>
-                </article>
-              )}
-            </>
-          ) : (
-            <div className="empty-state">
-              관리자 계정으로 로그인하면 콘텐츠 운영 현황을 볼 수 있습니다.
-            </div>
-          )}
-        </section>
+        <ContentOpsScreen
+          active={activeView === 'contentOps'}
+          isAdmin={currentUser?.role === 'admin'}
+          activeTab={activeContentOpsTab}
+          onTabChange={setActiveContentOpsTab}
+          youtubeProjects={youtubeProjects}
+          youtubeProjectsLoading={youtubeProjectsLoading}
+          youtubeProjectsMessage={youtubeProjectsMessage}
+          onRefreshProjects={() => void loadYoutubeProjects()}
+          selectedSlug={selectedYoutubeSlug}
+          onSelectProject={(slug) => void handleSelectYoutubeProject(slug)}
+          projectDetail={youtubeProjectDetail}
+          detailLoading={youtubeDetailLoading}
+          detailMessage={youtubeDetailMessage}
+        />
 
         <section className={activeView === 'dashboard' ? 'section-block' : 'screen-hidden'}>
           <SectionTitle eyebrow="Service Map" icon={<AppstoreOutlined />} title="개발할 모듈 구조" />
