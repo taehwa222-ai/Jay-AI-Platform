@@ -26,5 +26,6 @@ frontend/vite.config.d.ts
 .logs/
 .test-data/
 .test-content/
+.claude/worktrees/
 
 *.log
