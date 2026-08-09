@@ -11,10 +11,13 @@
   TeamOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
+import { ANONYMOUS, loadTossPayments } from '@tosspayments/tosspayments-sdk';
 import type { ReactNode } from 'react';
 import { FormEvent, useEffect, useState } from 'react';
 import {
   analyzeStock,
+  confirmPayment,
+  createPaymentOrder,
   createProRequest,
   createStockHolding,
   createStockReportFromAnalysis,
@@ -99,6 +102,10 @@ import type {
 } from './types';
 
 const TOKEN_STORAGE_KEY = 'jay-ai-platform-token';
+
+// Must match the backend's PRO_UPGRADE_PRICE_KRW (backend/app/config.py) — the server
+// rejects any order whose amount doesn't match its own configured price.
+const PRO_UPGRADE_PRICE_KRW = 9900;
 
 const VIEW_IDS = ['dashboard', 'auth', 'admin', 'manual', 'stocks', 'contentOps', 'revenue'] as const;
 
@@ -221,6 +228,8 @@ export default function App() {
   const [adminUpdatingId, setAdminUpdatingId] = useState<number | null>(null);
   const [proRequestMessage, setProRequestMessage] = useState<string | null>(null);
   const [proRequestLoading, setProRequestLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
   const [adminProRequestUpdatingId, setAdminProRequestUpdatingId] = useState<number | null>(null);
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [holdingForm, setHoldingForm] = useState<HoldingForm>(emptyHoldingForm);
@@ -349,6 +358,38 @@ export default function App() {
     if (token) {
       void restoreSession(token);
     }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) return;
+    const params = new URLSearchParams(window.location.search);
+    const paymentKey = params.get('paymentKey');
+    const orderId = params.get('orderId');
+    const amount = params.get('amount');
+    if (!paymentKey || !orderId || !amount) return;
+
+    window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+    setPaymentLoading(true);
+    setPaymentMessage(null);
+
+    void (async () => {
+      try {
+        await confirmPayment(token, {
+          order_id: orderId,
+          payment_key: paymentKey,
+          amount: Number(amount),
+        });
+        const user = await getMe(token);
+        setCurrentUser(user);
+        setPaymentMessage('결제가 완료되어 Pro로 업그레이드되었습니다.');
+      } catch (requestError) {
+        setPaymentMessage(
+          requestError instanceof Error ? requestError.message : 'Payment confirmation failed.',
+        );
+      } finally {
+        setPaymentLoading(false);
+      }
+    })();
   }, [token]);
 
   async function refreshState() {
@@ -557,6 +598,33 @@ export default function App() {
       setProRequestMessage(requestError instanceof Error ? requestError.message : 'Pro request failed.');
     } finally {
       setProRequestLoading(false);
+    }
+  }
+
+  async function handleStartPayment() {
+    if (!token) return;
+    setPaymentLoading(true);
+    setPaymentMessage(null);
+
+    try {
+      const order = await createPaymentOrder(token, PRO_UPGRADE_PRICE_KRW);
+      const tossPayments = await loadTossPayments(order.client_key);
+      const payment = tossPayments.payment({ customerKey: ANONYMOUS });
+      const redirectBase = `${window.location.origin}${window.location.pathname}`;
+
+      await payment.requestPayment({
+        method: 'CARD',
+        amount: { currency: 'KRW', value: order.amount },
+        orderId: order.order_id,
+        orderName: 'Jay AI Platform Pro 업그레이드',
+        successUrl: `${redirectBase}#auth`,
+        failUrl: `${redirectBase}#auth`,
+      });
+      // requestPayment navigates the browser to Toss's payment page on success,
+      // so execution normally doesn't continue past this point.
+    } catch (requestError) {
+      setPaymentMessage(requestError instanceof Error ? requestError.message : 'Payment request failed.');
+      setPaymentLoading(false);
     }
   }
 
@@ -1239,6 +1307,9 @@ export default function App() {
           proRequestLoading={proRequestLoading}
           proRequestMessage={proRequestMessage}
           onCreateProRequest={() => void handleCreateProRequest()}
+          onStartPayment={() => void handleStartPayment()}
+          paymentLoading={paymentLoading}
+          paymentMessage={paymentMessage}
           onLogout={logout}
           authMode={authMode}
           onAuthModeChange={setAuthMode}

@@ -22,6 +22,9 @@ export function AuthScreen({
   proRequestLoading,
   proRequestMessage,
   onCreateProRequest,
+  onStartPayment,
+  paymentLoading,
+  paymentMessage,
   onLogout,
   authMode,
   onAuthModeChange,
@@ -41,6 +44,9 @@ export function AuthScreen({
   proRequestLoading: boolean;
   proRequestMessage: string | null;
   onCreateProRequest: () => void;
+  onStartPayment: () => void;
+  paymentLoading: boolean;
+  paymentMessage: string | null;
   onLogout: () => void;
   authMode: AuthMode;
   onAuthModeChange: (mode: AuthMode) => void;
@@ -83,15 +89,25 @@ export function AuthScreen({
                   ) : myProRequest?.status === 'pending' ? (
                     <p>Pro 업그레이드 신청이 관리자 확인을 기다리고 있습니다.</p>
                   ) : (
-                    <button
-                      className="primary-button"
-                      disabled={proRequestLoading}
-                      onClick={onCreateProRequest}
-                      type="button"
-                    >
-                      <CrownOutlined />
-                      Pro 업그레이드 신청
-                    </button>
+                    <div className="pro-request-actions">
+                      <button
+                        className="primary-button"
+                        disabled={paymentLoading}
+                        onClick={onStartPayment}
+                        type="button"
+                      >
+                        <CrownOutlined />
+                        {paymentLoading ? '결제 준비 중' : '카드 결제로 즉시 업그레이드'}
+                      </button>
+                      <button
+                        className="secondary-button"
+                        disabled={proRequestLoading}
+                        onClick={onCreateProRequest}
+                        type="button"
+                      >
+                        Pro 업그레이드 신청 (관리자 승인)
+                      </button>
+                    </div>
                   )}
                   {myProRequest && myProRequest.status !== 'pending' && (
                     <small>
@@ -100,6 +116,7 @@ export function AuthScreen({
                     </small>
                   )}
                   {proRequestMessage && <div className="inline-message">{proRequestMessage}</div>}
+                  {paymentMessage && <div className="inline-message">{paymentMessage}</div>}
                 </div>
                 <button className="secondary-button" onClick={onLogout} type="button">
                   <LogoutOutlined />

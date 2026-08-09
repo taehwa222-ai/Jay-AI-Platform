@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
     market_data_timeout_seconds: float = 10.0
     free_monthly_analysis_limit: int = 20
+    toss_client_key: str = ""
+    toss_secret_key: str = ""
+    pro_upgrade_price_krw: int = 9900
 
     model_config = SettingsConfigDict(
         env_file=(PROJECT_ROOT / ".env", PROJECT_ROOT / ".env.local"),

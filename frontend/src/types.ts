@@ -106,6 +106,27 @@ export type ProUpgradeRequest = {
   updated_at: string;
 };
 
+export type PaymentOrder = {
+  order_id: string;
+  amount: number;
+  client_key: string;
+};
+
+export type PaymentConfirmPayload = {
+  order_id: string;
+  payment_key: string;
+  amount: number;
+};
+
+export type Payment = {
+  id: number;
+  order_id: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'failed';
+  created_at: string;
+  approved_at: string | null;
+};
+
 export type StockHolding = {
   id: number;
   ticker: string;

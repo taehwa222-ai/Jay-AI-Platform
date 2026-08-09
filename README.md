@@ -44,6 +44,21 @@ base that you can extend with your own modules.
 - User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.
 - In Docker/VPS deployment, `./data` is mounted into the backend container so user data survives rebuilds.
 
+## Payments
+
+- Free members can upgrade to `pro` two ways: request manual admin approval, or pay by card
+  through Toss Payments and get upgraded immediately.
+- Card payments use the Toss Payments SDK (`@tosspayments/tosspayments-sdk`) test/sandbox keys by
+  default — set `TOSS_CLIENT_KEY` and `TOSS_SECRET_KEY` from the
+  [Toss Payments developer center](https://developers.tosspayments.com/my/api-keys) to enable it.
+  Leaving them empty disables the payment button's server-side confirmation (orders still get
+  created, but Toss will reject the confirm call).
+- The order amount is fixed server-side by `PRO_UPGRADE_PRICE_KRW` — the frontend must send a
+  matching amount or the order is rejected, so the price can only be changed by an operator with
+  access to the server environment, not by a client request.
+- Every attempt is recorded in the `payments` table (`pending` / `approved` / `failed`) for an
+  audit trail; a failed Toss confirmation never upgrades the plan.
+
 ## Korea Stock Lab
 
 - Logged-in users can save Korean stock holdings with ticker, quantity, average price, current price, thesis, and risk memo.
@@ -160,6 +175,9 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 MARKET_DATA_TIMEOUT_SECONDS=10
 FREE_MONTHLY_ANALYSIS_LIMIT=20
+TOSS_CLIENT_KEY=
+TOSS_SECRET_KEY=
+PRO_UPGRADE_PRICE_KRW=9900
 ```
 
 Keep real service keys out of GitHub, screenshots, chat messages, and commit

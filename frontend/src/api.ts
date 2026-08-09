@@ -7,6 +7,9 @@ import type {
   LoginPayload,
   ManualSection,
   MonetizationIdea,
+  Payment,
+  PaymentConfirmPayload,
+  PaymentOrder,
   PlatformModule,
   PlatformOverview,
   ProUpgradeRequest,
@@ -369,4 +372,30 @@ export function scanStocks(token: string, payload: StockScanPayload): Promise<St
     },
     token,
   );
+}
+
+export function createPaymentOrder(token: string, amount: number): Promise<PaymentOrder> {
+  return request<PaymentOrder>(
+    '/api/v1/payments/orders',
+    {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    },
+    token,
+  );
+}
+
+export function confirmPayment(token: string, payload: PaymentConfirmPayload): Promise<Payment> {
+  return request<Payment>(
+    '/api/v1/payments/confirm',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+    token,
+  );
+}
+
+export function getMyPayments(token: string): Promise<Payment[]> {
+  return request<Payment[]>('/api/v1/payments/me', undefined, token);
 }

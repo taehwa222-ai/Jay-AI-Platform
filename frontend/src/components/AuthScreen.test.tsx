@@ -24,6 +24,9 @@ function baseProps() {
     proRequestLoading: false,
     proRequestMessage: null,
     onCreateProRequest: vi.fn(),
+    onStartPayment: vi.fn(),
+    paymentLoading: false,
+    paymentMessage: null,
     onLogout: vi.fn(),
     authMode: 'signup' as const,
     onAuthModeChange: vi.fn(),
@@ -136,5 +139,48 @@ describe('AuthScreen (signed in)', () => {
     await user.click(screen.getByRole('button', { name: /로그아웃/ }));
 
     expect(props.onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onStartPayment when the card-payment button is clicked', async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    render(<AuthScreen {...props} currentUser={admin} />);
+
+    await user.click(screen.getByRole('button', { name: /카드 결제로 즉시 업그레이드/ }));
+
+    expect(props.onStartPayment).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides both upgrade buttons while a manual request is pending', () => {
+    render(
+      <AuthScreen
+        {...baseProps()}
+        currentUser={admin}
+        myProRequest={{
+          id: 1,
+          user_id: admin.id,
+          email: admin.email,
+          name: admin.name,
+          current_plan: 'free',
+          message: 'please',
+          status: 'pending',
+          admin_note: '',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        }}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('button', { name: /카드 결제로 즉시 업그레이드/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows the payment message when one is set', () => {
+    render(
+      <AuthScreen {...baseProps()} currentUser={admin} paymentMessage="결제가 완료되었습니다." />,
+    );
+
+    expect(screen.getByText('결제가 완료되었습니다.')).toBeInTheDocument();
   });
 });
