@@ -50,8 +50,7 @@ async def pro_requests(
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> list[ProUpgradeRequestPublic]:
     return [
-        ProUpgradeRequestPublic(**request)
-        for request in auth_service.list_pro_upgrade_requests()
+        ProUpgradeRequestPublic(**request) for request in auth_service.list_pro_upgrade_requests()
     ]
 
 
