@@ -127,6 +127,13 @@ export type Payment = {
   approved_at: string | null;
 };
 
+export type Disclosure = {
+  title: string;
+  date: string;
+  receipt_no: string;
+  url: string;
+};
+
 export type StockHolding = {
   id: number;
   ticker: string;

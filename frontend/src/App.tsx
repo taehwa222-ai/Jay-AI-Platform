@@ -5,6 +5,7 @@
   CrownOutlined,
   DeploymentUnitOutlined,
   DollarOutlined,
+  FileSearchOutlined,
   LineChartOutlined,
   LockOutlined,
   ReloadOutlined,
@@ -28,6 +29,7 @@ import {
   deleteStockWatchlistItem,
   downloadStockReport,
   getAdminContentStats,
+  getDisclosures,
   getAdminProRequests,
   getAdminUserUsage,
   getAdminUsers,
@@ -71,6 +73,7 @@ import { StockHoldingsPanel } from './components/StockHoldingsPanel';
 import type { HoldingForm, PortfolioBreakdownItem } from './components/StockHoldingsPanel';
 import { StockMarketPanel } from './components/StockMarketPanel';
 import { StockReportsPanel } from './components/StockReportsPanel';
+import { StockDisclosurePanel } from './components/StockDisclosurePanel';
 import { StockScanPanel } from './components/StockScanPanel';
 import { StockWatchlistPanel } from './components/StockWatchlistPanel';
 import type { WatchlistForm } from './components/StockWatchlistPanel';
@@ -79,6 +82,7 @@ import type {
   AdminContentStats,
   AdminUserUsage,
   AuthResponse,
+  Disclosure,
   HealthStatus,
   ManualSection,
   MonetizationIdea,
@@ -200,6 +204,11 @@ const STOCK_TABS = [
     title: 'Market',
     description: 'Published stock reports for members.',
   },
+  {
+    id: 'disclosures',
+    title: '공시',
+    description: 'OpenDART에서 최근 1년 공시 목록을 조회합니다.',
+  },
 ] as const;
 
 type StockTabId = (typeof STOCK_TABS)[number]['id'];
@@ -268,6 +277,10 @@ export default function App() {
   const [scanResult, setScanResult] = useState<StockScanResult | null>(null);
   const [scanMessage, setScanMessage] = useState<string | null>(null);
   const [scanLoading, setScanLoading] = useState(false);
+  const [disclosureTicker, setDisclosureTicker] = useState('005930');
+  const [disclosures, setDisclosures] = useState<Disclosure[]>([]);
+  const [disclosureLoading, setDisclosureLoading] = useState(false);
+  const [disclosureMessage, setDisclosureMessage] = useState<string | null>(null);
   const [activeStockTab, setActiveStockTab] = useState<StockTabId>('holdings');
   const [activeContentOpsTab, setActiveContentOpsTab] = useState<ContentOpsTabId>('youtube');
   const [youtubeProjects, setYoutubeProjects] = useState<YoutubeProjectSummary[]>([]);
@@ -311,6 +324,7 @@ export default function App() {
     scan: scanResult ? `${scanResult.candidates.length}개 후보` : '대기',
     reports: `${stockReports.length} drafts`,
     market: `${marketReports.length} items`,
+    disclosures: disclosures.length > 0 ? `${disclosures.length}건` : '대기',
   };
   const portfolioBreakdown = holdings
     .map((holding) => ({
@@ -1186,6 +1200,28 @@ export default function App() {
     }
   }
 
+  async function handleSearchDisclosures(event: FormEvent) {
+    event.preventDefault();
+    if (!token) return;
+    setDisclosureLoading(true);
+    setDisclosureMessage(null);
+
+    try {
+      const result = await getDisclosures(token, disclosureTicker);
+      setDisclosures(result);
+      setDisclosureMessage(
+        result.length === 0 ? '최근 1년 내 공시가 없습니다.' : `공시 ${result.length}건을 찾았습니다.`,
+      );
+    } catch (requestError) {
+      setDisclosures([]);
+      setDisclosureMessage(
+        requestError instanceof Error ? requestError.message : 'Disclosure lookup failed.',
+      );
+    } finally {
+      setDisclosureLoading(false);
+    }
+  }
+
   function logout() {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken('');
@@ -1544,6 +1580,17 @@ export default function App() {
                     scanTickers={scanTickers}
                   />
                 )}
+
+                {activeStockTab === 'disclosures' && (
+                  <StockDisclosurePanel
+                    disclosures={disclosures}
+                    loading={disclosureLoading}
+                    message={disclosureMessage}
+                    onSearch={(event) => void handleSearchDisclosures(event)}
+                    onTickerChange={setDisclosureTicker}
+                    ticker={disclosureTicker}
+                  />
+                )}
               </div>
             </div>
           ) : (
@@ -1576,6 +1623,8 @@ function getStockTabIcon(tabId: StockTabId): ReactNode {
       return <DollarOutlined />;
     case 'market':
       return <LockOutlined />;
+    case 'disclosures':
+      return <FileSearchOutlined />;
   }
 }
 

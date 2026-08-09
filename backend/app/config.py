@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     auth_secret_key: str = "change-this-secret-key"
     access_token_minutes: int = 60 * 12
     openai_api_key: str = ""
+    opendart_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
     market_data_timeout_seconds: float = 10.0

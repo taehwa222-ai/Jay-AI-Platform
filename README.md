@@ -59,6 +59,17 @@ base that you can extend with your own modules.
 - Every attempt is recorded in the `payments` table (`pending` / `approved` / `failed`) for an
   audit trail; a failed Toss confirmation never upgrades the plan.
 
+## Disclosures (OpenDART)
+
+- Logged-in users can look up a Korean company's disclosures for the last year by ticker from the
+  `Disclosures` tab in Korea Stock Lab — title, date, and a link to the original filing on DART.
+- Requires a free `OPENDART_API_KEY` from the
+  [OpenDART developer portal](https://opendart.fss.or.kr) — no business registration needed.
+  Leaving it empty returns a clear "not configured" error instead of a silent empty list.
+  Ticker-to-company lookup uses OpenDART's full company code list, cached locally and refreshed
+  weekly.
+- This is list-only (title/date/link) — there's no AI summarization of filing contents yet.
+
 ## Korea Stock Lab
 
 - Logged-in users can save Korean stock holdings with ticker, quantity, average price, current price, thesis, and risk memo.
@@ -178,6 +189,7 @@ FREE_MONTHLY_ANALYSIS_LIMIT=20
 TOSS_CLIENT_KEY=
 TOSS_SECRET_KEY=
 PRO_UPGRADE_PRICE_KRW=9900
+OPENDART_API_KEY=
 ```
 
 Keep real service keys out of GitHub, screenshots, chat messages, and commit

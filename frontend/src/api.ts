@@ -3,6 +3,7 @@ import type {
   AdminUserUpdatePayload,
   AdminUserUsage,
   AuthResponse,
+  Disclosure,
   HealthStatus,
   LoginPayload,
   ManualSection,
@@ -398,4 +399,12 @@ export function confirmPayment(token: string, payload: PaymentConfirmPayload): P
 
 export function getMyPayments(token: string): Promise<Payment[]> {
   return request<Payment[]>('/api/v1/payments/me', undefined, token);
+}
+
+export function getDisclosures(token: string, ticker: string): Promise<Disclosure[]> {
+  return request<Disclosure[]>(
+    `/api/v1/disclosures/${encodeURIComponent(ticker)}`,
+    undefined,
+    token,
+  );
 }

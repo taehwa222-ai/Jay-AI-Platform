@@ -81,13 +81,15 @@ async def modules() -> dict[str, object]:
                 "status": "active",
                 "description": (
                     "회원 플랜(free/pro), 유료 리포트 초안·발행, 토스페이먼츠 카드 결제로 즉시 "
-                    "pro 전환이 나가 있습니다. B2B 자동화와 교육 상품은 아직 아이디어 단계입니다."
+                    "pro 전환, OpenDART 공시 목록 조회가 나가 있습니다. B2B 공시 AI 요약과 "
+                    "교육 상품은 아직 아이디어 단계입니다."
                 ),
                 "items": [
                     "member plans",
                     "paid reports",
                     "card payment upgrade",
-                    "B2B tools (planned)",
+                    "disclosure lookup",
+                    "B2B AI summary (planned)",
                     "education content (planned)",
                 ],
             },
@@ -181,7 +183,10 @@ async def monetization() -> dict[str, object]:
                     "공시, 뉴스, 재무 데이터를 요약해 내부 보고서 자동 생성 도구로 판매합니다."
                 ),
                 "risk": "데이터 출처와 재배포 가능 범위를 확인해야 합니다.",
-                "next_step": "OpenDART 기반 공시 요약 MVP를 만듭니다.",
+                "next_step": (
+                    "OpenDART 공시 목록 조회는 나갔습니다. 다음은 공시 원문을 AI로 "
+                    "요약하는 단계입니다."
+                ),
             },
             {
                 "id": "portfolio-coach",
