@@ -207,7 +207,8 @@
     조회수 1,000만/90일) 진행률을 확인 없이 "달성" 또는 임의 수치로 쓰지 않는다 — 확인한
     숫자만 적고, 확인 못 했으면 **'미연동'**
 - **결과물**: 성과표(복붙용 항목표는 `review.md` 템플릿 참고 — `content/README.md`) + 다음
-  기획 반영점 + `content/youtube/_channel-status.md` 갱신
+  기획 반영점 + `content/youtube/_channel-status.md` 갱신 (이모티콘 제출·승인·판매에 진척이
+  있으면 `content/emoticon/_business-status.md`도 함께 갱신)
 - **다음 부서**: 기획 1팀 (다음 날)
 
 ### 11. 자동화 운영팀
@@ -259,6 +260,7 @@
 | 실제 영상·이미지 파일 | 저장하지 않음(용량) — 촬영본·그림 원본은 대표가 로컬/드라이브에 별도 보관 |
 | 성과 기록 (영상별) | 각 폴더의 `review.md` (성과리뷰팀 가동 시) |
 | 채널 누적 수익화 진행률 | `content/youtube/_channel-status.md` (영상별이 아니라 채널 전체 1개 파일 — review.md 쓸 때마다 같이 갱신) |
+| 이모티콘 사업 누적 제출·승인·판매 현황 | `content/emoticon/_business-status.md` (캐릭터별이 아니라 사업 전체 1개 파일) |
 
 > 계정 정보·API 키·폴더 링크는 이 문서에 적지 않는다.
 

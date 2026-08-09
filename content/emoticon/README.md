@@ -9,8 +9,13 @@ content/emoticon/<캐릭터-슬러그>/
   character.md          캐릭터 컨셉트 (이름·성격·특징·컬러·말투)
   set-<이름>.md          이모티콘 세트 1개 (상황 목록 + 문구)
   qa.md                  브랜드검수팀 + 카카오 제출 기준 검수 결과
+  submission-checklist-<이름>.md  제출 전 체크리스트 (세트별)
   friends.md             (있으면) 함께 나오는 서브 캐릭터
   review.md              (제출/출시 후) 성과 기록
+
+content/emoticon/_business-status.md   사업 전체 제출·승인·판매 현황 (캐릭터별이 아니라
+                                        사업 전체 1개 파일 — `content/youtube/_channel-status.md`
+                                        와 같은 패턴)
 ```
 
 - 실제 이미지·GIF·WEBP 파일은 여기 두지 않는다 (용량 문제) — 기획 문서(캐릭터 설정, 상황

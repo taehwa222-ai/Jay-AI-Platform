@@ -123,6 +123,9 @@ npm run verify      # tsc -b && vite build — 커밋 전 필수
 도와주는 개인용 파이프라인이다. **이 앱의 회원이 쓰는 기능이 아니다** — 대표 본인만 쓴다.
 
 - 사규: `MY_COMPANY.md` (부서 기준·승인 지점·상태 표기)
+- 심화 사규(선택): `MY_COMPANY_PRO.md` — 32명 인원 편성·직원 상태 5종·하루 시나리오·대표
+  지시창. 부서 기준은 여전히 `MY_COMPANY.md`가 원본이며, 32명은 실제 서브에이전트 32개가
+  아니라 아래 5개 서브에이전트에 성격을 입힌 텍스트 레이어다 (사무실 대시보드 없음)
 - 실행: `/yt-pipeline` — 시장조사 → 기획 → 검수 → **★대표 승인★** → 대본 → 컷구성
 - 서브에이전트: `.claude/agents/yt-research.md` · `yt-planner.md` · `yt-qa.md` · `yt-writer.md` ·
   `yt-production.md` — 단계마다 별도 에이전트로 분리해 컨텍스트·토큰을 아낀다
@@ -137,8 +140,11 @@ npm run verify      # tsc -b && vite build — 커밋 전 필수
 - 서브에이전트: `.claude/agents/emo-research.md` · `emo-planner.md` · `emo-qa.md` ·
   `emo-writer.md` · `emo-production.md`
 - 결과물 저장: `content/emoticon/<캐릭터-슬러그>/`
-- 첫 캐릭터 "곁곰(Gyeotgom)"이 `content/emoticon/gyeotgom/` 에 있다 — 컨셉트와 24종 세트
-  2개가 이미 있지만, 카카오 스튜디오 제출 규격(정지형 32/애니메이션형 24, 2026-08-09 확인
-  기준)과 개수가 맞는지 `emo-qa` 검수가 먼저 필요하다.
+- 사업 전체 제출·승인·판매 현황: `content/emoticon/_business-status.md` (캐릭터별이 아니라
+  사업 전체 1개 파일 — `content/youtube/_channel-status.md`와 같은 패턴)
+- 첫 캐릭터 "곁곰(Gyeotgom)"이 `content/emoticon/gyeotgom/` 에 있다 — 정지형 32종 세트 2개
+  (`set-basic-24.md`, `set-monday-24.md`)가 3차 검수(2026-08-09)까지 통과했다. 다만 실제
+  그림·애니메이션 파일이 아직 없고, 경쟁 캐릭터와의 이미지 유사성 육안 대조가 끝나기 전에는
+  실제 제출을 진행하지 않는다 — 두 가지 다 대표 직접 확인 사항이다 (`qa.md` 참고).
 - 이모티콘 실제 이미지·애니메이션 파일은 이 파이프라인이 만들지 않는다 — 대표가 별도로
   제작한다. 카카오 스튜디오 제출 규격은 시기에 따라 바뀌므로 매번 공식 사이트를 재확인한다.
