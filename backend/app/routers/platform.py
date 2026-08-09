@@ -80,12 +80,13 @@ async def modules() -> dict[str, object]:
                 "title": "수익화 실험",
                 "status": "active",
                 "description": (
-                    "회원 플랜(free/pro)과 유료 리포트 초안·발행이 나가 있습니다. "
-                    "B2B 자동화와 교육 상품은 아직 아이디어 단계입니다."
+                    "회원 플랜(free/pro), 유료 리포트 초안·발행, 토스페이먼츠 카드 결제로 즉시 "
+                    "pro 전환이 나가 있습니다. B2B 자동화와 교육 상품은 아직 아이디어 단계입니다."
                 ),
                 "items": [
                     "member plans",
                     "paid reports",
+                    "card payment upgrade",
                     "B2B tools (planned)",
                     "education content (planned)",
                 ],
@@ -168,7 +169,10 @@ async def monetization() -> dict[str, object]:
                 "title": "AI 투자 정보 구독",
                 "model": "월 구독으로 관심종목 요약, 공시 요약, 체크리스트를 제공합니다.",
                 "risk": "개별 매수/매도 지시처럼 보이면 투자자문 규제 검토가 필요합니다.",
-                "next_step": "정보 제공형 리포트와 면책 문구부터 설계합니다.",
+                "next_step": (
+                    "지금은 카드 결제 1회 = pro 전환(만료 없음)입니다. 토스 자동결제(빌링키)를 "
+                    "붙이면 매달 자동 청구되는 진짜 구독이 됩니다."
+                ),
             },
             {
                 "id": "b2b-reports",
