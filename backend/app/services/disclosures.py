@@ -34,7 +34,8 @@ class DisclosureService:
         self.settings = settings
         self.db_path = settings.database_path
         self.disclosure_cache = AsyncTTLCache[list[Disclosure]](
-            settings.disclosure_cache_ttl_seconds
+            settings.disclosure_cache_ttl_seconds,
+            name="opendart_disclosures",
         )
 
     def init_db(self) -> None:

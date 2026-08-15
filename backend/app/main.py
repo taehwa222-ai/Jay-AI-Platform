@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from time import perf_counter
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,7 @@ from app.routers import (
     disclosures,
     health,
     notifications,
+    operations,
     platform,
     stocks,
     video_pipeline,
@@ -20,6 +22,7 @@ from app.services.ai_guardrail import AIDailyLimitReached, AIGuardrailService
 from app.services.auth import AuthService
 from app.services.content_ops import ContentOpsService
 from app.services.disclosures import DisclosureService
+from app.services.operations import OperationsService
 from app.services.stocks import StockService
 from app.services.telegram import TelegramService
 from app.services.video_pipeline import VideoPipelineService
@@ -40,6 +43,8 @@ async def lifespan(app: FastAPI):
     ai_guardrail.init_db()
     telegram_service = TelegramService(settings)
     telegram_service.init_db()
+    operations_service = OperationsService(settings)
+    operations_service.init_db()
     video_pipeline_service = VideoPipelineService(settings)
     video_pipeline_service.init_db()
     app.state.auth_service = auth_service
@@ -48,6 +53,7 @@ async def lifespan(app: FastAPI):
     app.state.content_service = content_service
     app.state.ai_guardrail = ai_guardrail
     app.state.telegram_service = telegram_service
+    app.state.operations_service = operations_service
     app.state.video_pipeline_service = video_pipeline_service
     yield
 
@@ -65,6 +71,38 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def collect_operations_metrics(request: Request, call_next):
+    service: OperationsService | None = getattr(
+        request.app.state,
+        "operations_service",
+        None,
+    )
+    if service is None:
+        return await call_next(request)
+
+    service.request_started()
+    started_at = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        service.request_finished(
+            method=request.method,
+            path=request.url.path,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            duration_ms=(perf_counter() - started_at) * 1000,
+            error_type=type(exc).__name__,
+        )
+        raise
+    service.request_finished(
+        method=request.method,
+        path=request.url.path,
+        status_code=response.status_code,
+        duration_ms=(perf_counter() - started_at) * 1000,
+    )
+    return response
 
 
 @app.middleware("http")
@@ -93,6 +131,7 @@ app.include_router(stocks.router)
 app.include_router(disclosures.router)
 app.include_router(content_ops.router)
 app.include_router(notifications.router)
+app.include_router(operations.router)
 app.include_router(video_pipeline.router)
 
 

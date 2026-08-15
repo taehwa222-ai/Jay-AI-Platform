@@ -181,7 +181,8 @@ class StockService:
         self.settings = settings
         self.db_path = settings.database_path
         self.market_cache = AsyncTTLCache[StockMarketSnapshot](
-            settings.market_cache_ttl_seconds
+            settings.market_cache_ttl_seconds,
+            name="yahoo_market",
         )
 
     def init_db(self) -> None:

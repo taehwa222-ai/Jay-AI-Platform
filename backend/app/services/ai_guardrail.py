@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from app.config import Settings
 from app.services.database import connect_database
@@ -65,3 +65,29 @@ class AIGuardrailService:
                 (today,),
             ).fetchone()
         return int(row["request_count"]) if row is not None else 0
+
+    def usage_history(self, days: int = 7) -> list[dict[str, int | str]]:
+        days = max(1, min(days, 31))
+        today = datetime.now(UTC).date()
+        first_day = today - timedelta(days=days - 1)
+        with connect_database(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT usage_date, request_count
+                FROM ai_usage_daily
+                WHERE usage_date >= ? AND usage_date <= ?
+                ORDER BY usage_date ASC
+                """,
+                (first_day.isoformat(), today.isoformat()),
+            ).fetchall()
+        counts = {str(row["usage_date"]): int(row["request_count"]) for row in rows}
+        return [
+            {
+                "usage_date": (first_day + timedelta(days=offset)).isoformat(),
+                "request_count": counts.get(
+                    (first_day + timedelta(days=offset)).isoformat(),
+                    0,
+                ),
+            }
+            for offset in range(days)
+        ]
