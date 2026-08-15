@@ -35,6 +35,8 @@ import type {
   TelegramNotificationResult,
   BackupInfo,
   ContentVersion,
+  DailyStockRun,
+  DailyStockRunResponse,
   DataStatus,
   GlobalSearchResult,
   Invitation,
@@ -534,6 +536,18 @@ export function getStockBriefing(token: string, refresh = false): Promise<StockB
   return request<StockBriefing>(
     `/api/v1/workspace/stock-briefing${refresh ? '?refresh=true' : ''}`,
     undefined,
+    token,
+  );
+}
+
+export function getDailyStockRun(token: string): Promise<DailyStockRun | null> {
+  return request<DailyStockRun | null>('/api/v1/workspace/daily-stock', undefined, token);
+}
+
+export function runDailyStockAutomation(token: string): Promise<DailyStockRunResponse> {
+  return request<DailyStockRunResponse>(
+    '/api/v1/workspace/daily-stock/run',
+    { method: 'POST' },
     token,
   );
 }

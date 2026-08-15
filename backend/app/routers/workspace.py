@@ -8,6 +8,8 @@ from app.routers.auth import get_current_user, require_admin, require_stock_acce
 from app.schemas.workspace import (
     BackupActionResponse,
     BackupPublic,
+    DailyStockRunPublic,
+    DailyStockRunResponse,
     DataStatus,
     GlobalSearchResponse,
     RestoreRequest,
@@ -107,6 +109,29 @@ async def stock_briefing(
     refresh: bool = False,
 ) -> StockBriefingPublic:
     return service.get_or_create_briefing(user, refresh=refresh)
+
+
+@router.get("/daily-stock", response_model=DailyStockRunPublic | None)
+async def daily_stock_status(
+    user: Annotated[User, Depends(require_stock_access)],
+    service: Annotated[WorkspaceService, Depends(get_workspace_service)],
+) -> DailyStockRunPublic | None:
+    return service.get_daily_stock_run(user)
+
+
+@router.post("/daily-stock/run", response_model=DailyStockRunResponse)
+async def run_daily_stock(
+    user: Annotated[User, Depends(require_stock_access)],
+    request: Request,
+    service: Annotated[WorkspaceService, Depends(get_workspace_service)],
+) -> DailyStockRunResponse:
+    run, already_ran = await service.run_daily_stock_automation(
+        user,
+        request.app.state.stock_service,
+        request.app.state.disclosure_service,
+        request.app.state.telegram_service,
+    )
+    return DailyStockRunResponse(run=run, already_ran=already_ran)
 
 
 @router.get("/data", response_model=DataStatus)

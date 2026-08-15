@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import sqlite3
 import tempfile
 import zipfile
 from contextlib import closing
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import HTTPException, status
@@ -25,7 +26,9 @@ from app.services.auth import User
 from app.services.backup import backup_database, verify_database
 from app.services.content_ops import ContentOpsService
 from app.services.database import connect_database
-from app.services.disclosures import Disclosure
+from app.services.disclosures import Disclosure, DisclosureService
+from app.services.stocks import StockService
+from app.services.telegram import TelegramService
 
 IMPORTANT_DISCLOSURE_KEYWORDS = (
     "주요사항보고서",
@@ -95,6 +98,26 @@ class WorkspaceService:
                     created_at TEXT NOT NULL,
                     UNIQUE(user_id, briefing_date)
                 );
+
+                CREATE TABLE IF NOT EXISTS daily_stock_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    run_date TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    price_updated_count INTEGER NOT NULL DEFAULT 0,
+                    price_failed_count INTEGER NOT NULL DEFAULT 0,
+                    watchlist_count INTEGER NOT NULL DEFAULT 0,
+                    disclosure_count INTEGER NOT NULL DEFAULT 0,
+                    disclosure_failed_count INTEGER NOT NULL DEFAULT 0,
+                    task_created_count INTEGER NOT NULL DEFAULT 0,
+                    telegram_sent INTEGER NOT NULL DEFAULT 0,
+                    summary TEXT NOT NULL DEFAULT '',
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT,
+                    UNIQUE(user_id, run_date)
+                );
+                CREATE INDEX IF NOT EXISTS idx_daily_stock_runs_user_date
+                    ON daily_stock_runs(user_id, run_date DESC);
                 """
             )
             ensure_column(connection, "work_tasks", "source_type", "TEXT")
@@ -168,9 +191,7 @@ class WorkspaceService:
         results: list[GlobalSearchResult] = []
         projects = [
             ("youtube", project.slug) for project in content_service.list_youtube_projects()
-        ] + [
-            ("emoticon", project.slug) for project in content_service.list_emoticon_projects()
-        ]
+        ] + [("emoticon", project.slug) for project in content_service.list_emoticon_projects()]
         for kind, slug in projects[:100]:
             documents = content_service.list_documents(kind, slug) or []
             for document in documents:
@@ -277,9 +298,7 @@ class WorkspaceService:
             values["description"] = str(values["description"]).strip()
             values["due_date"] = validate_date(values.get("due_date"))
             values["updated_at"] = now_iso()
-            values["completed_at"] = (
-                values["updated_at"] if values["status"] == "done" else None
-            )
+            values["completed_at"] = values["updated_at"] if values["status"] == "done" else None
             connection.execute(
                 """
                 UPDATE work_tasks SET title = :title, description = :description,
@@ -538,12 +557,188 @@ class WorkspaceService:
         assert row is not None
         return StockBriefingPublic(**dict(row))
 
+    def get_daily_stock_run(self, user: User, run_date: str | None = None):
+        from app.schemas.workspace import DailyStockRunPublic
+
+        target_date = run_date or daily_run_date()
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM daily_stock_runs WHERE user_id = ? AND run_date = ?",
+                (user.id, target_date),
+            ).fetchone()
+        return DailyStockRunPublic(**self._daily_stock_run_values(row)) if row else None
+
+    async def run_daily_stock_automation(
+        self,
+        user: User,
+        stock_service: StockService,
+        disclosure_service: DisclosureService,
+        telegram_service: TelegramService,
+    ):
+        from app.schemas.workspace import DailyStockRunPublic
+
+        run_date = daily_run_date()
+        reserved, existing = self._reserve_daily_stock_run(user.id, run_date)
+        if not reserved:
+            assert existing is not None
+            return DailyStockRunPublic(**self._daily_stock_run_values(existing)), True
+
+        price_updated = 0
+        price_failed = 0
+        watchlist_count = 0
+        disclosure_count = 0
+        disclosure_failed = 0
+        task_created = 0
+        telegram_sent = False
+        errors: list[str] = []
+        try:
+            price_result = await stock_service.refresh_holding_prices(user)
+            price_updated = len(price_result.updated)
+            price_failed = len(price_result.failed)
+            if price_failed:
+                errors.append(f"시세 {price_failed}건 실패")
+
+            watchlist = await asyncio.to_thread(stock_service.list_watchlist, user)
+            watchlist_count = len(watchlist)
+            if watchlist and disclosure_service.settings.opendart_api_key.strip():
+                semaphore = asyncio.Semaphore(4)
+
+                async def load_disclosures(ticker: str):
+                    async with semaphore:
+                        try:
+                            disclosures = await disclosure_service.get_recent_disclosures(ticker)
+                            return ticker, disclosures, None
+                        except Exception as exc:  # One ticker must not stop the daily run.
+                            return ticker, [], exc
+
+                results = await asyncio.gather(
+                    *(load_disclosures(item.ticker) for item in watchlist)
+                )
+                for ticker, disclosures, error in results:
+                    if error is not None:
+                        disclosure_failed += 1
+                        continue
+                    disclosure_count += len(disclosures)
+                    task_created += await asyncio.to_thread(
+                        self.record_disclosure_tasks,
+                        user,
+                        ticker,
+                        disclosures,
+                    )
+                if disclosure_failed:
+                    errors.append(f"공시 {disclosure_failed}종목 실패")
+            elif watchlist:
+                errors.append("OpenDART API 키 미설정")
+
+            briefing = await asyncio.to_thread(self.get_or_create_briefing, user, True)
+            if telegram_service.configured:
+                message = "\n".join(
+                    [
+                        f"[Jay AI] {run_date} 주식 데일리 브리핑",
+                        f"보유종목 시세 갱신 {price_updated}건, 실패 {price_failed}건",
+                        f"관심종목 {watchlist_count}개 · 공시 {disclosure_count}건 확인",
+                        f"검토 업무 {task_created}건 생성",
+                        briefing.body,
+                    ]
+                )
+                telegram_sent = await telegram_service.send_and_record(
+                    event_type="daily_stock_briefing",
+                    title=f"{run_date} 주식 데일리 브리핑",
+                    message=message,
+                    item_count=disclosure_count,
+                )
+                if not telegram_sent:
+                    errors.append("텔레그램 발송 실패")
+
+            summary = (
+                f"시세 {price_updated}건 갱신, 관심종목 {watchlist_count}개 공시 확인, "
+                f"검토 업무 {task_created}건 생성"
+            )
+            if errors:
+                summary += f" ({', '.join(errors)})"
+            run_status = "partial" if errors else "completed"
+        except Exception as exc:
+            run_status = "failed"
+            summary = f"데일리 자동화 실패: {type(exc).__name__}"
+
+        row = self._finish_daily_stock_run(
+            user.id,
+            run_date,
+            status=run_status,
+            price_updated_count=price_updated,
+            price_failed_count=price_failed,
+            watchlist_count=watchlist_count,
+            disclosure_count=disclosure_count,
+            disclosure_failed_count=disclosure_failed,
+            task_created_count=task_created,
+            telegram_sent=telegram_sent,
+            summary=summary,
+        )
+        return DailyStockRunPublic(**self._daily_stock_run_values(row)), False
+
+    def _reserve_daily_stock_run(self, user_id: int, run_date: str):
+        with self.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM daily_stock_runs WHERE user_id = ? AND run_date = ?",
+                (user_id, run_date),
+            ).fetchone()
+            if existing is not None:
+                return False, existing
+            connection.execute(
+                """
+                INSERT INTO daily_stock_runs (user_id, run_date, status, started_at)
+                VALUES (?, ?, 'running', ?)
+                """,
+                (user_id, run_date, now_iso()),
+            )
+        return True, None
+
+    def _finish_daily_stock_run(self, user_id: int, run_date: str, **values):
+        values["completed_at"] = now_iso()
+        values["user_id"] = user_id
+        values["run_date"] = run_date
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE daily_stock_runs
+                SET status = :status,
+                    price_updated_count = :price_updated_count,
+                    price_failed_count = :price_failed_count,
+                    watchlist_count = :watchlist_count,
+                    disclosure_count = :disclosure_count,
+                    disclosure_failed_count = :disclosure_failed_count,
+                    task_created_count = :task_created_count,
+                    telegram_sent = :telegram_sent,
+                    summary = :summary,
+                    completed_at = :completed_at
+                WHERE user_id = :user_id AND run_date = :run_date
+                """,
+                values,
+            )
+            row = connection.execute(
+                "SELECT * FROM daily_stock_runs WHERE user_id = ? AND run_date = ?",
+                (user_id, run_date),
+            ).fetchone()
+        assert row is not None
+        return row
+
+    @staticmethod
+    def _daily_stock_run_values(row: sqlite3.Row) -> dict[str, object]:
+        values = dict(row)
+        values.pop("id", None)
+        values["telegram_sent"] = bool(values["telegram_sent"])
+        return values
+
     def data_status(self) -> DataStatus:
-        content_files = [
-            path
-            for path in self.content_dir.rglob("*.md")
-            if path.is_file() and not path.is_symlink()
-        ] if self.content_dir.is_dir() else []
+        content_files = (
+            [
+                path
+                for path in self.content_dir.rglob("*.md")
+                if path.is_file() and not path.is_symlink()
+            ]
+            if self.content_dir.is_dir()
+            else []
+        )
         with self.connect() as connection:
             mode = str(connection.execute("PRAGMA journal_mode").fetchone()[0]).lower()
         return DataStatus(
@@ -625,9 +820,7 @@ class WorkspaceService:
         verify_database(source_path)
         backup_dir = self.settings.data_dir / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
-        safety_path = backup_dir / (
-            f"pre-restore-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.db"
-        )
+        safety_path = backup_dir / (f"pre-restore-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.db")
         current_uri = f"file:{self.db_path.resolve().as_posix()}?mode=ro"
         with (
             closing(sqlite3.connect(current_uri, uri=True)) as current,
@@ -665,6 +858,10 @@ def validate_date(value: str | None) -> str | None:
 
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def daily_run_date() -> str:
+    return (datetime.now(UTC) + timedelta(hours=9)).date().isoformat()
 
 
 def ensure_column(

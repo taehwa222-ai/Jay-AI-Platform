@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     ai_daily_limit: int = 100
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    stock_daily_automation_enabled: bool = False
+    stock_daily_automation_hour: int = 8
+    stock_daily_automation_minute: int = 30
     ffmpeg_binary: str = "ffmpeg"
     gemini_api_key: str = ""
     gemini_image_model: str = "gemini-3.1-flash-image"

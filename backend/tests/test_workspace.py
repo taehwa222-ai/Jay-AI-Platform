@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.main import app
+from app.schemas.stocks import StockHoldingPriceRefreshResponse
 from app.services.disclosures import Disclosure
 
 
@@ -108,9 +109,7 @@ def test_daily_stock_briefing_and_backup_management():
         data = client.get("/api/v1/workspace/data", headers=headers)
         backup = client.post("/api/v1/workspace/data/backups", headers=headers)
         filename = backup.json()["backup"]["filename"]
-        verified = client.post(
-            f"/api/v1/workspace/data/backups/{filename}/verify", headers=headers
-        )
+        verified = client.post(f"/api/v1/workspace/data/backups/{filename}/verify", headers=headers)
         exported = client.get("/api/v1/workspace/data/export", headers=headers)
         refused_restore = client.post(
             f"/api/v1/workspace/data/backups/{filename}/restore",
@@ -216,3 +215,46 @@ def test_important_disclosure_creates_one_high_priority_task():
     assert duplicate == 0
     assert tasks.json()[0]["priority"] == "high"
     assert tasks.json()[0]["source_ref"] == "dart:20260815000123"
+
+
+def test_daily_stock_automation_refreshes_once_and_creates_disclosure_task(monkeypatch):
+    get_settings().opendart_api_key = "test-key"
+    disclosure = Disclosure(
+        title="주요사항보고서(유상증자결정)",
+        date="2026-08-15",
+        receipt_no="20260815000999",
+        url="https://dart.example/daily-report",
+    )
+
+    async def refresh_prices(_user):
+        return StockHoldingPriceRefreshResponse(updated=[], failed=[])
+
+    async def get_disclosures(_ticker):
+        return [disclosure]
+
+    with TestClient(app) as client:
+        headers = owner_headers(client)
+        watchlist = client.post(
+            "/api/v1/stocks/watchlist",
+            headers=headers,
+            json={"ticker": "005930", "name": "Samsung"},
+        )
+        monkeypatch.setattr(app.state.stock_service, "refresh_holding_prices", refresh_prices)
+        monkeypatch.setattr(app.state.disclosure_service, "get_recent_disclosures", get_disclosures)
+
+        before = client.get("/api/v1/workspace/daily-stock", headers=headers)
+        first = client.post("/api/v1/workspace/daily-stock/run", headers=headers)
+        second = client.post("/api/v1/workspace/daily-stock/run", headers=headers)
+        tasks = client.get("/api/v1/workspace/tasks", headers=headers)
+
+    assert watchlist.status_code == 201
+    assert before.status_code == 200
+    assert before.json() is None
+    assert first.status_code == 200
+    assert first.json()["already_ran"] is False
+    assert first.json()["run"]["status"] == "completed"
+    assert first.json()["run"]["disclosure_count"] == 1
+    assert first.json()["run"]["task_created_count"] == 1
+    assert second.json()["already_ran"] is True
+    assert len(tasks.json()) == 1
+    assert tasks.json()[0]["source_ref"] == "dart:20260815000999"

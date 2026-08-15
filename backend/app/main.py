@@ -1,4 +1,6 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime, timedelta
 from time import perf_counter
 
 from fastapi import FastAPI, Request, status
@@ -60,7 +62,48 @@ async def lifespan(app: FastAPI):
     app.state.operations_service = operations_service
     app.state.video_pipeline_service = video_pipeline_service
     app.state.workspace_service = workspace_service
-    yield
+    scheduler_task: asyncio.Task[None] | None = None
+    if settings.app_env == "production" and settings.stock_daily_automation_enabled:
+        scheduler_task = asyncio.create_task(
+            run_daily_stock_scheduler(
+                auth_service,
+                stock_service,
+                disclosure_service,
+                telegram_service,
+                workspace_service,
+            )
+        )
+    try:
+        yield
+    finally:
+        if scheduler_task is not None:
+            scheduler_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await scheduler_task
+
+
+async def run_daily_stock_scheduler(
+    auth_service: AuthService,
+    stock_service: StockService,
+    disclosure_service: DisclosureService,
+    telegram_service: TelegramService,
+    workspace_service: WorkspaceService,
+) -> None:
+    """Run each eligible user's daily sync once after the configured Seoul time."""
+    while True:
+        now = datetime.now(UTC) + timedelta(hours=9)
+        scheduled = (settings.stock_daily_automation_hour, settings.stock_daily_automation_minute)
+        if (now.hour, now.minute) >= scheduled:
+            users = await asyncio.to_thread(auth_service.list_users)
+            for user in users:
+                if user.is_active and user.can_access_stocks:
+                    await workspace_service.run_daily_stock_automation(
+                        user,
+                        stock_service,
+                        disclosure_service,
+                        telegram_service,
+                    )
+        await asyncio.sleep(60)
 
 
 app = FastAPI(
@@ -127,6 +170,7 @@ async def enforce_ai_daily_limit(request: Request, call_next):
                 },
             )
     return await call_next(request)
+
 
 app.include_router(auth.router)
 app.include_router(admin.router)

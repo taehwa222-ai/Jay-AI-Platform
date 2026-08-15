@@ -75,6 +75,26 @@ class StockBriefingPublic(BaseModel):
     created_at: str
 
 
+class DailyStockRunPublic(BaseModel):
+    run_date: str
+    status: Literal["running", "completed", "partial", "failed"]
+    price_updated_count: int
+    price_failed_count: int
+    watchlist_count: int
+    disclosure_count: int
+    disclosure_failed_count: int
+    task_created_count: int
+    telegram_sent: bool
+    summary: str
+    started_at: str
+    completed_at: str | None
+
+
+class DailyStockRunResponse(BaseModel):
+    run: DailyStockRunPublic
+    already_ran: bool
+
+
 class BackupPublic(BaseModel):
     filename: str
     size_bytes: int

@@ -101,6 +101,26 @@ export type StockBriefing = {
   created_at: string;
 };
 
+export type DailyStockRun = {
+  run_date: string;
+  status: 'running' | 'completed' | 'partial' | 'failed';
+  price_updated_count: number;
+  price_failed_count: number;
+  watchlist_count: number;
+  disclosure_count: number;
+  disclosure_failed_count: number;
+  task_created_count: number;
+  telegram_sent: boolean;
+  summary: string;
+  started_at: string;
+  completed_at: string | null;
+};
+
+export type DailyStockRunResponse = {
+  run: DailyStockRun;
+  already_ran: boolean;
+};
+
 export type BackupInfo = {
   filename: string;
   size_bytes: number;

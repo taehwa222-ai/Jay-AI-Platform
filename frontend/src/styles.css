@@ -4596,6 +4596,10 @@ label {
 .briefing-panel article p { color: #eeeafa; line-height: 1.7; margin: 0; }
 .briefing-panel article > div { display: flex; gap: 8px; margin-top: 13px; }
 .briefing-panel article > div small { background: #ffffff15; border-radius: 999px; padding: 5px 9px; }
+.briefing-run-status { align-items: center; background: #ffffff10; border: 1px solid #ffffff20; border-radius: 12px; display: flex; gap: 16px; justify-content: space-between; margin-top: 16px; padding: 12px; }
+.briefing-run-status > div { display: grid; gap: 4px; }
+.briefing-run-status small { display: block; }
+@media (max-width: 640px) { .briefing-run-status { align-items: stretch; flex-direction: column; } }
 .version-history { background: #f7f7fb; border: 1px solid #e2e3eb; border-radius: 14px; display: grid; gap: 8px; margin: 14px; padding: 14px; }
 .version-history > div:first-child { align-items: center; display: flex; justify-content: space-between; }
 .version-history article { align-items: center; background: #fff; border: 1px solid #e5e7ee; border-radius: 10px; display: flex; gap: 12px; justify-content: space-between; padding: 10px 12px; }
