@@ -8,8 +8,9 @@ const owner: UserAccount = {
   id: 1,
   email: 'owner@example.com',
   name: 'Owner',
-  role: 'admin',
+  role: 'owner',
   is_active: true,
+  approval_status: 'approved',
   created_at: '2026-01-01T00:00:00Z',
   last_login_at: null,
 };
@@ -30,19 +31,25 @@ function props() {
     authLoading: false,
     authMessage: null,
     onSubmit: vi.fn(),
+    adminUsers: [],
+    adminUsersLoading: false,
+    adminUpdatingId: null,
+    adminMessage: null,
+    onRefreshAdminUsers: vi.fn(),
+    onUpdateAdminUser: vi.fn(),
   };
 }
 
-it('shows the one-time owner bootstrap form without billing controls', () => {
+it('shows the internal team signup form without billing controls', () => {
   render(<AuthScreen {...props()} />);
 
-  expect(screen.getByRole('heading', { name: '대표 전용 로그인' })).toBeInTheDocument();
-  expect(screen.getByLabelText('대표 이름')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: '대표 계정 생성' })).toBeInTheDocument();
-  expect(screen.queryByText(/Pro|결제|요금제/)).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '사내 구성원 로그인' })).toBeInTheDocument();
+  expect(screen.getByLabelText('이름')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: '가입 신청' })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /Pro|결제|요금제/ })).not.toBeInTheDocument();
 });
 
-it('switches to login mode and shows the owner session', async () => {
+it('switches to login mode and shows the owner session with user management', async () => {
   const user = userEvent.setup();
   const base = props();
   const { rerender } = render(<AuthScreen {...base} />);
@@ -51,6 +58,7 @@ it('switches to login mode and shows the owner session', async () => {
 
   rerender(<AuthScreen {...base} currentUser={owner} />);
   expect(screen.getByText('owner@example.com')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '사내 사용자 관리' })).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: /로그아웃/ }));
   expect(base.onLogout).toHaveBeenCalled();
 });

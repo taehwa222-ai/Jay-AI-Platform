@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.routers import (
+    admin,
     auth,
     content_ops,
     disclosures,
@@ -85,6 +86,7 @@ async def enforce_ai_daily_limit(request: Request, call_next):
     return await call_next(request)
 
 app.include_router(auth.router)
+app.include_router(admin.router)
 app.include_router(health.router)
 app.include_router(platform.router)
 app.include_router(stocks.router)

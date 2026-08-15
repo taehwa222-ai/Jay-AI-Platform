@@ -1,5 +1,6 @@
 import type {
   AuthResponse,
+  AdminUserUpdatePayload,
   ContentDocument,
   ContentKind,
   Disclosure,
@@ -10,6 +11,7 @@ import type {
   PlatformOverview,
   RoadmapPhase,
   SignupPayload,
+  SignupResponse,
   StockAnalysisRecord,
   StockAnalysisPayload,
   StockAnalysisResult,
@@ -45,7 +47,14 @@ async function request<T>(path: string, init?: RequestInit, token?: string): Pro
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Request failed: ${response.status}`);
+    let detail = text;
+    try {
+      const parsed = JSON.parse(text) as { detail?: string };
+      detail = parsed.detail ?? text;
+    } catch {
+      // Keep the original response when the server did not return JSON.
+    }
+    throw new Error(detail || `Request failed: ${response.status}`);
   }
 
   if (response.status === 204) {
@@ -79,8 +88,8 @@ export async function getRoadmap(): Promise<RoadmapPhase[]> {
   return response.phases;
 }
 
-export function signup(payload: SignupPayload): Promise<AuthResponse> {
-  return request<AuthResponse>('/api/v1/auth/signup', {
+export function signup(payload: SignupPayload): Promise<SignupResponse> {
+  return request<SignupResponse>('/api/v1/auth/signup', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -123,6 +132,22 @@ export function getEmoticonProjectDetail(
   return request<EmoticonProjectDetail>(
     `/api/v1/content-ops/emoticon/${encodeURIComponent(slug)}`,
     undefined,
+    token,
+  );
+}
+
+export function getAdminUsers(token: string): Promise<UserAccount[]> {
+  return request<UserAccount[]>('/api/v1/admin/users', undefined, token);
+}
+
+export function updateAdminUser(
+  token: string,
+  userId: number,
+  payload: AdminUserUpdatePayload,
+): Promise<UserAccount> {
+  return request<UserAccount>(
+    `/api/v1/admin/users/${userId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
     token,
   );
 }

@@ -6,6 +6,7 @@ from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
     SignupRequest,
+    SignupResponse,
     UserPublic,
 )
 from app.services.auth import AuthService, User
@@ -30,7 +31,7 @@ def get_current_user(
 
 
 def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
-    if user.role != "admin":
+    if user.role not in {"owner", "admin"}:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin role is required.",
@@ -38,15 +39,22 @@ def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
     return user
 
 
-@router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
 async def signup(
     payload: SignupRequest,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
-) -> AuthResponse:
+) -> SignupResponse:
     user = auth_service.create_user(payload.email, payload.password, payload.name)
-    return AuthResponse(
-        access_token=auth_service.create_token(user),
+    approved = user.approval_status == "approved"
+    return SignupResponse(
         user=UserPublic(**user.public()),
+        approval_status="approved" if approved else "pending",
+        access_token=auth_service.create_token(user) if approved else None,
+        message=(
+            "Owner account created."
+            if approved
+            else "Registration received. Wait for administrator approval."
+        ),
     )
 
 

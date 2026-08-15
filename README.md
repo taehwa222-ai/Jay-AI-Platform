@@ -1,7 +1,7 @@
 # Jay AI Platform
 
-Jay AI Platform은 대표 1인이 주식 리서치와 콘텐츠 제작을 운영하는 사내용 Business OS입니다.
-FastAPI, React/Vite, SQLite, Docker Compose로 구성되며 B2C 회원 관리·요금제·결제 기능은 포함하지
+Jay AI Platform은 대표가 운영하고 승인된 구성원이 함께 사용하는 사내용 Business OS입니다.
+FastAPI, React/Vite, SQLite, Docker Compose로 구성되며 B2C 요금제·결제·멀티테넌트 기능은 포함하지
 않습니다.
 
 ## 핵심 화면
@@ -11,8 +11,9 @@ FastAPI, React/Vite, SQLite, Docker Compose로 구성되며 B2C 회원 관리·�
 - **Content Ops**: `content/youtube/`, `content/emoticon/` 프로젝트와 Markdown 문서를 조회·편집·
   저장하고 기획안·대본 템플릿을 복사합니다.
 
-최초 가입한 계정 하나만 대표 계정으로 생성됩니다. 이후 추가 가입은 거부되며 모든 내부 API는
-이 대표 계정의 인증 토큰을 요구합니다.
+최초 가입 계정은 대표(`owner`)로 생성됩니다. 이후 가입자는 승인 대기 상태가 되며 대표 또는
+관리자가 활성화한 뒤 로그인할 수 있습니다. 대표는 관리자 지정까지 할 수 있고, 관리자는 일반
+구성원의 접근 상태만 관리합니다.
 
 ## 데이터와 외부 연동
 

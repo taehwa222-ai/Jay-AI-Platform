@@ -15,9 +15,9 @@ const LAST_VIEW_KEY = 'jay-ai-last-view';
 
 export const VIEW_META: Record<ViewId, { eyebrow: string; title: string; description: string }> = {
   auth: {
-    eyebrow: 'Owner Access',
-    title: '대표 전용 로그인',
-    description: '대표 계정 하나로 모든 내부 운영 도구에 안전하게 접근합니다.',
+    eyebrow: 'Team Access',
+    title: '사내 구성원 로그인',
+    description: '대표와 승인된 구성원이 내부 운영 도구에 안전하게 접근합니다.',
   },
   stocks: {
     eyebrow: 'Stock Intelligence',

@@ -10,6 +10,8 @@ const api = vi.hoisted(() => ({
   getStockWatchlist: vi.fn().mockResolvedValue([]),
   getStockAnalysisRecords: vi.fn().mockResolvedValue([]),
   getStockReports: vi.fn().mockResolvedValue([]),
+  getAdminUsers: vi.fn().mockResolvedValue([]),
+  updateAdminUser: vi.fn(),
 }));
 
 vi.mock('./api', async (loadOriginal) => {
@@ -21,8 +23,9 @@ const owner = {
   id: 1,
   email: 'owner@example.com',
   name: 'Owner',
-  role: 'admin',
+  role: 'owner',
   is_active: true,
+  approval_status: 'approved',
   created_at: '2026-01-01T00:00:00Z',
   last_login_at: null,
 };
@@ -32,14 +35,15 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/');
   api.getMe.mockReset();
   api.getMe.mockResolvedValue(owner);
+  api.getAdminUsers.mockClear();
 });
 
-it('sends an unauthenticated visitor to the owner login', async () => {
+it('sends an unauthenticated visitor to the internal team login', async () => {
   render(<App />);
 
   await waitFor(() => expect(window.location.hash).toBe('#auth'));
-  expect(screen.getByRole('heading', { name: '대표 전용 로그인', level: 1 })).toBeInTheDocument();
-  expect(screen.queryByText(/결제|요금제|Pro 업그레이드/)).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: '사내 구성원 로그인', level: 1 })).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /결제|요금제|Pro 업그레이드/ })).not.toBeInTheDocument();
 });
 
 it('shows only the two business modules after owner session restore', async () => {
@@ -49,8 +53,19 @@ it('shows only the two business modules after owner session restore', async () =
 
   await waitFor(() => expect(nav.getByRole('link', { name: /주식 분석 Lab/ })).toBeInTheDocument());
   expect(nav.getByRole('link', { name: /Content Ops/ })).toBeInTheDocument();
-  expect(nav.getByRole('link', { name: /대표 계정/ })).toBeInTheDocument();
+  expect(nav.getByRole('link', { name: /사내 계정/ })).toBeInTheDocument();
   expect(nav.queryByRole('link', { name: /관리자|수익화|대시보드/ })).not.toBeInTheDocument();
+});
+
+it('hides administrator notification controls from members', async () => {
+  api.getMe.mockResolvedValue({ ...owner, id: 2, role: 'member' });
+  localStorage.setItem('jay-ai-platform-token', 'member-token');
+  window.history.replaceState(null, '', '/#stocks');
+  render(<App />);
+
+  expect(await screen.findByRole('tab', { name: /보유종목/ })).toBeInTheDocument();
+  expect(screen.queryByRole('tab', { name: /알림 센터/ })).not.toBeInTheDocument();
+  expect(api.getAdminUsers).not.toHaveBeenCalled();
 });
 
 it('restores the last stock tab and opens quick navigation with Ctrl+K', async () => {

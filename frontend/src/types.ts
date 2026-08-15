@@ -39,8 +39,9 @@ export type UserAccount = {
   id: number;
   email: string;
   name: string;
-  role: 'admin' | string;
+  role: 'owner' | 'admin' | 'member';
   is_active: boolean;
+  approval_status: 'approved' | 'pending' | 'disabled';
   created_at: string;
   last_login_at: string | null;
 };
@@ -171,6 +172,19 @@ export type StockReport = {
   rating_label: string;
   report_type: string;
   created_at: string;
+};
+
+export type SignupResponse = {
+  user: UserAccount;
+  approval_status: 'approved' | 'pending';
+  message: string;
+  access_token: string | null;
+  token_type: string;
+};
+
+export type AdminUserUpdatePayload = {
+  role?: 'admin' | 'member';
+  is_active?: boolean;
 };
 
 export type StockMarketSnapshot = {

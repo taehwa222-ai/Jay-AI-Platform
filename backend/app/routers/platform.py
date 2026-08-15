@@ -44,12 +44,12 @@ async def manual() -> dict[str, object]:
             {
                 "id": "local-run",
                 "title": "로컬 실행",
-                "summary": "대표 전용 운영 시스템을 로컬에서 실행합니다.",
+                "summary": "사내 운영 시스템을 로컬에서 실행합니다.",
                 "commands": [
                     "powershell.exe -ExecutionPolicy Bypass -File scripts\\start-local-dev.ps1",
                     "http://127.0.0.1:5173",
                 ],
-                "checks": ["owner login", "stock lab", "content ops"],
+                "checks": ["team login", "stock lab", "content ops"],
             },
             {
                 "id": "daily-backup",

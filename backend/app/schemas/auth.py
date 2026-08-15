@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
@@ -9,6 +11,7 @@ class UserPublic(BaseModel):
     name: str
     role: str
     is_active: bool
+    approval_status: str
     created_at: str
     last_login_at: str | None = None
 
@@ -28,3 +31,16 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserPublic
+
+
+class SignupResponse(BaseModel):
+    user: UserPublic
+    approval_status: Literal["approved", "pending"]
+    message: str
+    access_token: str | None = None
+    token_type: str = "bearer"
+
+
+class AdminUserUpdateRequest(BaseModel):
+    role: Literal["admin", "member"] | None = None
+    is_active: bool | None = None

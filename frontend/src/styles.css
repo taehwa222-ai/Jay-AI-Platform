@@ -3403,7 +3403,7 @@ label {
   font-size: 11px;
 }
 
-/* Owner access */
+/* Team access */
 .auth-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
@@ -3585,6 +3585,179 @@ label {
 
 .owner-session-card h3 { font-size: 20px; }
 .owner-session-card .secondary-button { width: 100%; }
+
+.team-access-panel {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border: 1px solid var(--line-200);
+  border-radius: 20px;
+  padding: clamp(20px, 3vw, 30px);
+  background: #ffffff;
+  box-shadow: var(--shadow-md);
+}
+
+.team-access-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.team-access-head > div {
+  display: grid;
+  gap: 5px;
+}
+
+.team-access-head h3 {
+  color: var(--ink-950);
+  font-size: 20px;
+  letter-spacing: -0.035em;
+}
+
+.team-access-head p {
+  color: var(--ink-500);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.team-access-summary {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.team-access-summary > span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 7px 11px;
+  color: var(--ink-600);
+  background: #f1f5f5;
+  font-size: 10px;
+}
+
+.team-access-summary strong {
+  color: var(--ink-900);
+  font-size: 13px;
+}
+
+.team-access-summary .pending {
+  color: #8b6416;
+  background: #fff6d9;
+}
+
+.team-access-summary .pending strong { color: #75500b; }
+
+.team-user-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.team-user-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(290px, auto);
+  align-items: center;
+  gap: 16px;
+  min-height: 68px;
+  border: 1px solid #e7eded;
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: #fbfdfd;
+}
+
+.team-user-row.inactive { background: #f7f8f8; }
+
+.team-user-identity {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.team-user-avatar {
+  display: inline-flex;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: #ffffff;
+  background: linear-gradient(145deg, var(--teal-500), var(--teal-700));
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.team-user-identity > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.team-user-identity strong {
+  overflow: hidden;
+  color: var(--ink-900);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-user-identity small {
+  overflow: hidden;
+  color: var(--ink-500);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-user-state,
+.team-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.role-chip,
+.approval-chip {
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 9px;
+  font-weight: 780;
+  white-space: nowrap;
+}
+
+.role-chip.owner { color: #76510a; background: #fff1c5; }
+.role-chip.admin { color: #4d3d9d; background: #eee9ff; }
+.role-chip.member { color: var(--teal-700); background: #dff6ef; }
+.approval-chip.approved { color: #24765f; background: #e7f7f1; }
+.approval-chip.pending { color: #8b6416; background: #fff6d9; }
+.approval-chip.disabled { color: #7d858c; background: #eceff1; }
+
+.team-user-actions select {
+  min-width: 92px;
+  min-height: 34px;
+  border: 1px solid var(--line-200);
+  border-radius: 9px;
+  padding: 0 9px;
+  color: var(--ink-700);
+  background: #ffffff;
+  font: inherit;
+  font-size: 10px;
+}
+
+.team-user-actions select:disabled {
+  color: var(--ink-400);
+  background: #f3f5f6;
+}
+
+.compact-button {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 10px;
+  white-space: nowrap;
+}
 
 .command-trigger {
   display: inline-flex;
@@ -3793,6 +3966,8 @@ label {
   .content-editor-layout { grid-template-columns: 250px minmax(0, 1fr); }
   .editor-content-shell { grid-template-columns: minmax(0, 1fr) 170px; }
   .auth-layout { grid-template-columns: 1fr 420px; }
+  .team-user-row { grid-template-columns: minmax(190px, 1fr) auto; }
+  .team-user-actions { grid-column: 1 / -1; justify-content: flex-end; }
 }
 
 @media (max-width: 900px) {
@@ -3843,13 +4018,15 @@ label {
   .auth-layout { grid-template-columns: 1fr; }
   .auth-showcase { min-height: 420px; }
   .auth-card { width: 100%; }
+  .team-user-row { grid-template-columns: minmax(180px, 1fr) auto minmax(260px, auto); }
+  .team-user-actions { grid-column: auto; }
   .stock-operations-bar { align-items: stretch; flex-direction: column; }
   .stock-quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); }
   .stock-quick-actions button { justify-content: center; }
 }
 
 @media (max-width: 720px) {
-  .command-trigger span,
+  .command-trigger > span:not(.anticon),
   .command-trigger kbd { display: none; }
   .command-trigger { width: 38px; justify-content: center; padding: 0; }
   .workspace-intro { grid-template-columns: 1fr; min-height: 0; padding: 22px; }
@@ -3928,6 +4105,12 @@ label {
   .editor-actions { width: 100%; justify-content: space-between; }
   .editor-statusbar { align-items: flex-start; flex-direction: column; gap: 3px; }
   .auth-showcase { min-height: 370px; padding: 30px; }
+  .team-access-head { align-items: stretch; flex-direction: column; }
+  .team-access-head > .secondary-button { align-self: flex-start; }
+  .team-user-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .team-user-actions { grid-column: 1 / -1; justify-content: stretch; }
+  .team-user-actions select,
+  .team-user-actions button { flex: 1 1 50%; }
 }
 
 @media (max-width: 520px) {
@@ -3959,6 +4142,10 @@ label {
   .auth-showcase { display: none; }
   .auth-layout { min-height: 0; }
   .auth-card { padding: 24px 18px; }
+  .team-access-panel { padding: 18px 14px; }
+  .team-user-row { grid-template-columns: 1fr; gap: 9px; }
+  .team-user-state { justify-content: flex-start; }
+  .team-user-actions { grid-column: auto; }
 }
 
 @media (prefers-reduced-motion: reduce) {

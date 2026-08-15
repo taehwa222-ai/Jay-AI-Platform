@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.routers.auth import require_admin
+from app.routers.auth import get_current_user
 from app.schemas.content_ops import (
     ContentDocument,
     ContentDocumentUpdate,
@@ -25,7 +25,7 @@ def get_content_service(request: Request) -> ContentOpsService:
 async def list_documents(
     kind: str,
     slug: str,
-    _: Annotated[User, Depends(require_admin)],
+    _: Annotated[User, Depends(get_current_user)],
     content_service: Annotated[ContentOpsService, Depends(get_content_service)],
 ) -> list[ContentDocument]:
     documents = content_service.list_documents(kind, slug)
@@ -40,7 +40,7 @@ async def save_document(
     slug: str,
     filename: str,
     payload: ContentDocumentUpdate,
-    _: Annotated[User, Depends(require_admin)],
+    _: Annotated[User, Depends(get_current_user)],
     content_service: Annotated[ContentOpsService, Depends(get_content_service)],
 ) -> ContentDocument:
     try:
@@ -57,7 +57,7 @@ async def save_document(
 
 @router.get("/youtube", response_model=list[YoutubeProjectSummary])
 async def list_youtube_projects(
-    _: Annotated[User, Depends(require_admin)],
+    _: Annotated[User, Depends(get_current_user)],
     content_service: Annotated[ContentOpsService, Depends(get_content_service)],
 ) -> list[YoutubeProjectSummary]:
     return content_service.list_youtube_projects()
@@ -66,7 +66,7 @@ async def list_youtube_projects(
 @router.get("/youtube/{slug}", response_model=YoutubeProjectDetail)
 async def get_youtube_project(
     slug: str,
-    _: Annotated[User, Depends(require_admin)],
+    _: Annotated[User, Depends(get_current_user)],
     content_service: Annotated[ContentOpsService, Depends(get_content_service)],
 ) -> YoutubeProjectDetail:
     project = content_service.get_youtube_project(slug)
@@ -77,7 +77,7 @@ async def get_youtube_project(
 
 @router.get("/emoticon", response_model=list[EmoticonProjectSummary])
 async def list_emoticon_projects(
-    _: Annotated[User, Depends(require_admin)],
+    _: Annotated[User, Depends(get_current_user)],
     content_service: Annotated[ContentOpsService, Depends(get_content_service)],
 ) -> list[EmoticonProjectSummary]:
     return content_service.list_emoticon_projects()
@@ -86,7 +86,7 @@ async def list_emoticon_projects(
 @router.get("/emoticon/{slug}", response_model=EmoticonProjectDetail)
 async def get_emoticon_project(
     slug: str,
-    _: Annotated[User, Depends(require_admin)],
+    _: Annotated[User, Depends(get_current_user)],
     content_service: Annotated[ContentOpsService, Depends(get_content_service)],
 ) -> EmoticonProjectDetail:
     project = content_service.get_emoticon_project(slug)

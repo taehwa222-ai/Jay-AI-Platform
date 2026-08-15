@@ -26,11 +26,12 @@ http://localhost/api/v1/health
 powershell.exe -ExecutionPolicy Bypass -File scripts\stop-server.ps1
 ```
 
-## 대표 계정과 데이터
+## 사내 계정과 데이터
 
-최초 가입 계정만 대표 계정으로 생성되며 추가 가입은 거부됩니다. SQLite 데이터는
-`DATA_DIR/jay_ai_platform.db`에 저장됩니다. Docker/VPS의 `./data` 마운트 디렉터리를 재배포 중
-삭제하거나 덮어쓰지 마세요.
+최초 가입 계정은 대표(`owner`)가 됩니다. 이후 가입자는 승인 대기 상태로 저장되며 대표 또는
+관리자가 활성화한 뒤 로그인할 수 있습니다. 대표는 구성원을 관리자로 지정할 수 있고, 관리자는
+일반 구성원의 접근 상태만 관리합니다. SQLite 데이터는 `DATA_DIR/jay_ai_platform.db`에 저장됩니다.
+Docker/VPS의 `./data` 마운트 디렉터리를 재배포 중 삭제하거나 덮어쓰지 마세요.
 
 Content Ops 저장을 위해 Docker의 `./content`는 `/app/content`에 읽기/쓰기로 마운트됩니다.
 운영 서버에서 저장소와 `content/` 디렉터리의 소유권·권한을 임의로 바꾸지 마세요.
