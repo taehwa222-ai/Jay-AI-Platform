@@ -1,6 +1,7 @@
 ﻿import {
   BarChartOutlined,
   ClockCircleOutlined,
+  CloudServerOutlined,
   DeploymentUnitOutlined,
   FileSearchOutlined,
   LineChartOutlined,
@@ -53,6 +54,7 @@ import type { CommandItem } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ContentOpsScreen } from './components/ContentOpsScreen';
 import { NotificationCenterPanel } from './components/NotificationCenterPanel';
+import { OperationsDashboard } from './components/OperationsDashboard';
 import { StockAnalysisPanel } from './components/StockAnalysisPanel';
 import type { AnalysisForm } from './components/StockAnalysisPanel';
 import { StockHoldingsPanel } from './components/StockHoldingsPanel';
@@ -289,6 +291,16 @@ export default function App() {
       keywords: 'content markdown 콘텐츠',
       onSelect: () => requestNavigate('contentOps'),
     } satisfies CommandItem] : []),
+    ...(canManageUsers ? [{
+      id: 'view-operations',
+      label: '운영 현황 열기',
+      description: '서버, DB 백업, AI 사용량과 외부 API 상태 확인',
+      group: '화면 이동',
+      icon: <CloudServerOutlined />,
+      shortcut: 'G O',
+      keywords: 'operations monitoring health 운영 모니터링',
+      onSelect: () => requestNavigate('operations'),
+    } satisfies CommandItem] : []),
     {
       id: 'view-account',
       label: '사내 계정 열기',
@@ -391,11 +403,12 @@ export default function App() {
     if (!currentUser) return;
     if (
       (activeView === 'stocks' && !canAccessStocks) ||
-      (activeView === 'contentOps' && !canAccessContentOps)
+      (activeView === 'contentOps' && !canAccessContentOps) ||
+      (activeView === 'operations' && !canManageUsers)
     ) {
       navigateToView('auth');
     }
-  }, [activeView, canAccessContentOps, canAccessStocks, currentUser]);
+  }, [activeView, canAccessContentOps, canAccessStocks, canManageUsers, currentUser]);
 
   useEffect(() => {
     if (currentUser?.role === 'member' && activeStockTab === 'notifications') {
@@ -1218,6 +1231,12 @@ export default function App() {
                   <span className="nav-copy"><strong>Content Ops</strong><small>콘텐츠 생산</small></span>
                 </a>
               )}
+              {canManageUsers && (
+                <a className={activeView === 'operations' ? 'active' : ''} href="#operations" onClick={(event) => { event.preventDefault(); requestNavigate('operations'); }}>
+                  <span className="nav-icon"><CloudServerOutlined /></span>
+                  <span className="nav-copy"><strong>운영 현황</strong><small>서버·비용·데이터</small></span>
+                </a>
+              )}
             </>
           )}
           <a className={activeView === 'auth' ? 'active' : ''} href="#auth" onClick={(event) => { event.preventDefault(); requestNavigate('auth'); }}>
@@ -1319,6 +1338,10 @@ export default function App() {
             onDirtyChange={setContentOpsDirty}
             token={token}
           />
+        )}
+
+        {isSignedIn && canManageUsers && (
+          <OperationsDashboard active={activeView === 'operations'} token={token} />
         )}
 
         <section className={activeView === 'stocks' ? 'section-block' : 'screen-hidden'} id="stocks">

@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 
-export const VIEW_IDS = ['auth', 'stocks', 'contentOps'] as const;
+export const VIEW_IDS = ['auth', 'stocks', 'contentOps', 'operations'] as const;
 export type ViewId = (typeof VIEW_IDS)[number];
 
 const LAST_VIEW_KEY = 'jay-ai-last-view';
@@ -28,6 +28,11 @@ export const VIEW_META: Record<ViewId, { eyebrow: string; title: string; descrip
     eyebrow: 'Content Operations',
     title: 'Content Ops',
     description: 'YouTube와 이모티콘 기획 문서를 빠르게 찾고 편집합니다.',
+  },
+  operations: {
+    eyebrow: 'Operations Control',
+    title: '운영 현황',
+    description: '서버, 데이터 보존, AI 비용과 외부 API 상태를 한 화면에서 확인합니다.',
   },
 };
 

@@ -31,6 +31,7 @@ import type {
   YoutubeProjectDetail,
   YoutubeProjectSummary,
   NotificationCenterStatus,
+  OperationsOverview,
   TelegramNotificationResult,
 } from './types';
 
@@ -155,6 +156,10 @@ export function updateAdminUser(
 
 export function getAuditLogs(token: string): Promise<AuditLog[]> {
   return request<AuditLog[]>('/api/v1/admin/audit-logs?limit=50', undefined, token);
+}
+
+export function getOperations(token: string): Promise<OperationsOverview> {
+  return request<OperationsOverview>('/api/v1/admin/operations', undefined, token);
 }
 
 export function revokeUserSessions(token: string, userId: number): Promise<{ message: string }> {

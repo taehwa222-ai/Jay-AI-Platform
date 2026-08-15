@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({
   getStockReports: vi.fn().mockResolvedValue([]),
   getAdminUsers: vi.fn().mockResolvedValue([]),
   getAuditLogs: vi.fn().mockResolvedValue([]),
+  getOperations: vi.fn(),
   updateAdminUser: vi.fn(),
 }));
 
@@ -56,6 +57,7 @@ it('shows only the two business modules after owner session restore', async () =
 
   await waitFor(() => expect(nav.getByRole('link', { name: /주식 분석 Lab/ })).toBeInTheDocument());
   expect(nav.getByRole('link', { name: /Content Ops/ })).toBeInTheDocument();
+  expect(nav.getByRole('link', { name: /운영 현황/ })).toBeInTheDocument();
   expect(nav.getByRole('link', { name: /사내 계정/ })).toBeInTheDocument();
   expect(nav.queryByRole('link', { name: /관리자|수익화|대시보드/ })).not.toBeInTheDocument();
 });
@@ -80,6 +82,7 @@ it('hides administrator notification controls from members', async () => {
 
   expect(await screen.findByRole('tab', { name: /보유종목/ })).toBeInTheDocument();
   expect(screen.queryByRole('tab', { name: /알림 센터/ })).not.toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: /운영 현황/ })).not.toBeInTheDocument();
   expect(api.getAdminUsers).not.toHaveBeenCalled();
 });
 

@@ -202,6 +202,94 @@ export type AuditLog = {
   created_at: string;
 };
 
+export type OperationsRuntimeStatus = {
+  started_at: string;
+  uptime_seconds: number;
+  total_requests: number;
+  completed_requests: number;
+  in_flight_requests: number;
+  server_error_count: number;
+  telemetry_write_failures: number;
+  average_duration_ms: number;
+  status_counts: Record<string, number>;
+};
+
+export type OperationsDatabaseStatus = {
+  healthy: boolean;
+  file_name: string;
+  journal_mode: string;
+  integrity_check: string;
+  size_bytes: number;
+  disk_free_bytes: number;
+  disk_free_percent: number;
+};
+
+export type OperationsBackupStatus = {
+  available: boolean;
+  latest_file: string | null;
+  latest_created_at: string | null;
+  age_hours: number | null;
+  backup_count: number;
+};
+
+export type OperationsAIUsageDay = {
+  usage_date: string;
+  request_count: number;
+};
+
+export type OperationsAIUsageStatus = {
+  today_count: number;
+  daily_limit: number;
+  remaining: number;
+  usage_percent: number;
+  history: OperationsAIUsageDay[];
+};
+
+export type OperationsCacheStatus = {
+  name: string;
+  ttl_seconds: number;
+  entries: number;
+  requests: number;
+  hits: number;
+  misses: number;
+  loads: number;
+  load_errors: number;
+  coalesced_waits: number;
+  hit_rate: number;
+  last_hit_at: string | null;
+  last_miss_at: string | null;
+  last_load_at: string | null;
+};
+
+export type OperationsIntegrationStatus = {
+  name: string;
+  configured: boolean;
+  detail: string;
+};
+
+export type OperationsError = {
+  id: number;
+  occurred_at: string;
+  method: string;
+  path: string;
+  status_code: number;
+  error_type: string;
+  duration_ms: number;
+};
+
+export type OperationsOverview = {
+  generated_at: string;
+  status: 'healthy' | 'attention';
+  runtime: OperationsRuntimeStatus;
+  database: OperationsDatabaseStatus;
+  backup: OperationsBackupStatus;
+  ai_usage: OperationsAIUsageStatus;
+  caches: OperationsCacheStatus[];
+  integrations: OperationsIntegrationStatus[];
+  errors_last_24h: number;
+  recent_errors: OperationsError[];
+};
+
 export type StockMarketSnapshot = {
   ticker: string;
   provider_symbol: string;
