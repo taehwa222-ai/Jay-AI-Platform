@@ -64,6 +64,8 @@ docker compose logs -f backend
 Compose는 `./data`를 `/app/data`에, Content Ops 저장용 `./content`를 쓰기 가능한
 `/app/content`에 마운트합니다. 두 호스트 디렉터리를 재배포 중 삭제하지 마세요. `backup`
 서비스가 배포 직후와 이후 24시간마다 DB 무결성 검사·복원 리허설·30일 보관 백업을 수행합니다.
+배포 스크립트는 첫 복원 리허설의 성공 로그를 확인한 뒤에만 API/프론트 스모크 테스트로
+진행합니다.
 
 ## 5. Test
 

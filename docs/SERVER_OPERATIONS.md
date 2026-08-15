@@ -73,6 +73,9 @@ docker compose logs --tail=30 backup
 ls -lh data/backups
 ```
 
+배포는 `Restore check: passed` 로그를 최대 30초 기다리며, 백업 실패 또는 시간 초과 시 실패로
+종료됩니다.
+
 Windows 작업 스케줄러에서는 프로그램을 `.venv\Scripts\python.exe`, 인수를
 `scripts\backup_db.py --data-dir backend/data`, 시작 위치를 저장소 루트로 지정합니다. `--retention-days`
 옵션으로 보관 기간을 바꿀 수 있고, 긴급 점검 외에는 복원 검증을 끄지 않습니다.

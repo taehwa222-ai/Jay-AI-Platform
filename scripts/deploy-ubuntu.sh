@@ -50,6 +50,28 @@ echo "Containers"
 "${DOCKER[@]}" compose ps
 
 echo ""
+echo "Backup"
+backup_ready=false
+for _attempt in $(seq 1 30); do
+  backup_logs="$("${DOCKER[@]}" compose logs --no-color --tail=20 backup 2>&1 || true)"
+  if grep -q "Backup failed:" <<<"$backup_logs"; then
+    printf '%s\n' "$backup_logs"
+    exit 1
+  fi
+  if grep -q "Restore check: passed" <<<"$backup_logs"; then
+    printf '%s\n' "$backup_logs"
+    backup_ready=true
+    break
+  fi
+  sleep 1
+done
+if [ "$backup_ready" != "true" ]; then
+  printf '%s\n' "$backup_logs"
+  echo "Backup restore check did not complete within 30 seconds."
+  exit 1
+fi
+
+echo ""
 echo "Health"
 curl -fsS http://localhost/api/v1/health
 echo ""
