@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 
-export const VIEW_IDS = ['auth', 'stocks', 'contentOps', 'operations'] as const;
+export const VIEW_IDS = ['auth', 'home', 'stocks', 'contentOps', 'operations'] as const;
 export type ViewId = (typeof VIEW_IDS)[number];
 
 const LAST_VIEW_KEY = 'jay-ai-last-view';
@@ -18,6 +18,11 @@ export const VIEW_META: Record<ViewId, { eyebrow: string; title: string; descrip
     eyebrow: 'Team Access',
     title: '사내 구성원 로그인',
     description: '대표와 승인된 구성원이 내부 운영 도구에 안전하게 접근합니다.',
+  },
+  home: {
+    eyebrow: 'Executive Home',
+    title: '오늘의 업무',
+    description: '확인이 필요한 투자, 콘텐츠, 사용자와 운영 상태를 한곳에서 정리합니다.',
   },
   stocks: {
     eyebrow: 'Stock Intelligence',
@@ -71,12 +76,12 @@ export function getStockTabIcon(tabId: StockTabId): ReactNode {
 }
 
 export function getInitialView(): ViewId {
-  if (typeof window === 'undefined') return 'stocks';
+  if (typeof window === 'undefined') return 'home';
   const hashView = window.location.hash.replace('#', '');
   if (hashView === 'access') return 'auth';
   if (VIEW_IDS.includes(hashView as ViewId)) return hashView as ViewId;
   const storedView = localStorage.getItem(LAST_VIEW_KEY);
-  return VIEW_IDS.includes(storedView as ViewId) ? (storedView as ViewId) : 'stocks';
+  return VIEW_IDS.includes(storedView as ViewId) ? (storedView as ViewId) : 'home';
 }
 
 export function rememberView(view: ViewId) {

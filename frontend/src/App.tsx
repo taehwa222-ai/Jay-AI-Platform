@@ -4,6 +4,7 @@
   CloudServerOutlined,
   DeploymentUnitOutlined,
   FileSearchOutlined,
+  HomeOutlined,
   LineChartOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
@@ -53,6 +54,7 @@ import { CommandPalette } from './components/CommandPalette';
 import type { CommandItem } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ContentOpsScreen } from './components/ContentOpsScreen';
+import { HomeDashboard } from './components/HomeDashboard';
 import { NotificationCenterPanel } from './components/NotificationCenterPanel';
 import { OperationsDashboard } from './components/OperationsDashboard';
 import { StockAnalysisPanel } from './components/StockAnalysisPanel';
@@ -271,6 +273,16 @@ export default function App() {
     return matchesQuery && matchesRating;
   });
   const quickCommands: CommandItem[] = [
+    ...(isSignedIn ? [{
+      id: 'view-home',
+      label: '오늘의 업무 열기',
+      description: '확인이 필요한 투자, 콘텐츠와 운영 업무 요약',
+      group: '화면 이동',
+      icon: <HomeOutlined />,
+      shortcut: 'G H',
+      keywords: 'home today dashboard 홈 오늘 업무',
+      onSelect: () => requestNavigate('home'),
+    } satisfies CommandItem] : []),
     ...(canAccessStocks ? [{
       id: 'view-stocks',
       label: '주식 분석 Lab 열기',
@@ -364,6 +376,11 @@ export default function App() {
     );
     activeTabButton?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }, [activeStockTab]);
+
+  useEffect(() => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [activeView]);
 
   useEffect(() => {
     const handleCommandShortcut = (event: KeyboardEvent) => {
@@ -488,12 +505,8 @@ export default function App() {
     setCurrentUser(response.user);
     if (response.user.can_access_stocks) {
       void refreshStockWorkspace(response.access_token);
-      navigateToView('stocks');
-    } else if (response.user.can_access_content_ops) {
-      navigateToView('contentOps');
-    } else {
-      navigateToView('auth');
     }
+    navigateToView('home');
   }
 
   async function loadAdminUsers(activeToken = token) {
@@ -1219,6 +1232,12 @@ export default function App() {
         <nav className="nav-list" aria-label="Primary">
           {hasSessionNavigation && (
             <>
+              {isSignedIn && (
+                <a className={activeView === 'home' ? 'active' : ''} href="#home" onClick={(event) => { event.preventDefault(); requestNavigate('home'); }}>
+                  <span className="nav-icon"><HomeOutlined /></span>
+                  <span className="nav-copy"><strong>오늘의 업무</strong><small>통합 홈</small></span>
+                </a>
+              )}
               {canAccessStocks && (
                 <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks" onClick={(event) => { event.preventDefault(); requestNavigate('stocks'); }}>
                   <span className="nav-icon"><BarChartOutlined /></span>
@@ -1330,6 +1349,25 @@ export default function App() {
           onChangePassword={(currentPassword, nextPassword) => void handleChangePassword(currentPassword, nextPassword)}
           onRevokeOwnSessions={() => void handleRevokeOwnSessions()}
         />
+
+        {isSignedIn && currentUser && (
+          <HomeDashboard
+            active={activeView === 'home'}
+            canAccessContentOps={canAccessContentOps}
+            canAccessStocks={canAccessStocks}
+            canManageUsers={canManageUsers}
+            currentUser={currentUser}
+            holdings={holdings}
+            onOpenAccount={() => requestNavigate('auth')}
+            onOpenContentOps={() => requestNavigate('contentOps')}
+            onOpenOperations={() => requestNavigate('operations')}
+            onOpenStocks={() => requestNavigate('stocks')}
+            pendingUserCount={pendingUserCount}
+            stockAnalysisRecords={analysisRecords}
+            token={token}
+            watchlist={watchlist}
+          />
+        )}
 
         {isSignedIn && canAccessContentOps && (
           <ContentOpsScreen

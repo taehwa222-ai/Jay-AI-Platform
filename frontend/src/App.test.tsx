@@ -12,7 +12,9 @@ const api = vi.hoisted(() => ({
   getStockReports: vi.fn().mockResolvedValue([]),
   getAdminUsers: vi.fn().mockResolvedValue([]),
   getAuditLogs: vi.fn().mockResolvedValue([]),
-  getOperations: vi.fn(),
+  getEmoticonProjects: vi.fn().mockResolvedValue([]),
+  getOperations: vi.fn().mockResolvedValue(null),
+  getYoutubeProjects: vi.fn().mockResolvedValue([]),
   updateAdminUser: vi.fn(),
 }));
 
@@ -101,6 +103,7 @@ it('shows members only the modules granted by the owner', async () => {
   await waitFor(() => expect(window.location.hash).toBe('#auth'));
   const nav = within(screen.getByRole('navigation', { name: 'Primary' }));
   expect(nav.getByRole('link', { name: /주식 분석 Lab/ })).toBeInTheDocument();
+  expect(nav.getByRole('link', { name: /오늘의 업무/ })).toBeInTheDocument();
   expect(nav.queryByRole('link', { name: /Content Ops/ })).not.toBeInTheDocument();
 });
 
