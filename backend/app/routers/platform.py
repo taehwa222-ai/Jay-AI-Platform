@@ -17,6 +17,7 @@ async def overview() -> dict[str, object]:
             "korea-stock-lab",
             "portfolio-manager",
             "revenue-lab",
+            "content-ops",
         ],
     }
 
@@ -91,6 +92,19 @@ async def modules() -> dict[str, object]:
                     "disclosure lookup",
                     "B2B AI summary (planned)",
                     "education content (planned)",
+                ],
+            },
+            {
+                "id": "content-ops",
+                "title": "콘텐츠 운영 (대표 전용)",
+                "status": "active",
+                "description": (
+                    "이 앱의 회원 기능이 아니라 대표 개인의 콘텐츠 제작 파이프라인 결과물을 "
+                    "관리자 화면에서 읽기 전용으로 확인하는 도구입니다."
+                ),
+                "items": [
+                    "youtube pipeline viewer (active)",
+                    "emoticon pipeline viewer (in progress)",
                 ],
             },
         ]
@@ -235,6 +249,12 @@ async def roadmap() -> dict[str, object]:
                 "title": "Revenue Modules",
                 "status": "active",
                 "items": ["Korea stock lab", "portfolio manager", "paid reports", "subscription"],
+            },
+            {
+                "id": "content-ops",
+                "title": "Content Ops (Owner-Only)",
+                "status": "active",
+                "items": ["youtube pipeline viewer", "emoticon pipeline viewer (in progress)"],
             },
         ]
     }

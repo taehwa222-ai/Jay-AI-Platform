@@ -337,3 +337,38 @@ export type YoutubeProjectDetail = {
   review: string | null;
   review_metrics: ReviewMetrics | null;
 };
+
+export type EmoticonSetSummary = {
+  set_key: string;
+  has_set_doc: boolean;
+  has_submission_checklist: boolean;
+  has_submission_copy: boolean;
+};
+
+export type EmoticonProjectSummary = {
+  slug: string;
+  has_character: boolean;
+  has_research: boolean;
+  has_qa: boolean;
+  has_friends: boolean;
+  has_review: boolean;
+  sets: EmoticonSetSummary[];
+  updated_at: string;
+};
+
+export type EmoticonSetDetail = {
+  set_key: string;
+  set_doc: string | null;
+  submission_checklist: string | null;
+  submission_copy: string | null;
+};
+
+export type EmoticonProjectDetail = {
+  slug: string;
+  character: string | null;
+  research: string | null;
+  qa: string | null;
+  friends: string | null;
+  review: string | null;
+  sets: EmoticonSetDetail[];
+};

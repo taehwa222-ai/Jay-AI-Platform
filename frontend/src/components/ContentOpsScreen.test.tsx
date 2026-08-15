@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ContentOpsScreen } from './ContentOpsScreen';
-import type { YoutubeProjectSummary } from '../types';
+import type { EmoticonProjectSummary, YoutubeProjectSummary } from '../types';
 
 const projects: YoutubeProjectSummary[] = [
   {
@@ -16,6 +16,26 @@ const projects: YoutubeProjectSummary[] = [
     has_review: false,
     updated_at: '2026-01-01T00:00:00Z',
     view_count: null,
+  },
+];
+
+const emoticonProjects: EmoticonProjectSummary[] = [
+  {
+    slug: 'gyeotgom',
+    has_character: true,
+    has_research: true,
+    has_qa: true,
+    has_friends: false,
+    has_review: false,
+    sets: [
+      {
+        set_key: 'basic-24',
+        has_set_doc: true,
+        has_submission_checklist: true,
+        has_submission_copy: true,
+      },
+    ],
+    updated_at: '2026-08-09T00:00:00Z',
   },
 ];
 
@@ -34,6 +54,15 @@ function baseProps() {
     projectDetail: null,
     detailLoading: false,
     detailMessage: null,
+    emoticonProjects,
+    emoticonProjectsLoading: false,
+    emoticonProjectsMessage: null,
+    onRefreshEmoticonProjects: vi.fn(),
+    selectedEmoticonSlug: null,
+    onSelectEmoticonProject: vi.fn(),
+    emoticonProjectDetail: null,
+    emoticonDetailLoading: false,
+    emoticonDetailMessage: null,
   };
 }
 
@@ -139,5 +168,58 @@ describe('ContentOpsScreen', () => {
     expect(screen.getByText('CTR')).toBeInTheDocument();
     expect(screen.getByText('4.2%')).toBeInTheDocument();
     expect(screen.queryByText('평균 시청 지속시간')).not.toBeInTheDocument();
+  });
+
+  it('lists emoticon characters and reports their set count', () => {
+    render(<ContentOpsScreen {...baseProps()} activeTab="character" />);
+
+    expect(screen.getByText('gyeotgom')).toBeInTheDocument();
+    expect(screen.getByText('세트 1개')).toBeInTheDocument();
+    expect(
+      screen.getByText('왼쪽에서 캐릭터를 선택하면 단계별 내용을 볼 수 있습니다.'),
+    ).toBeInTheDocument();
+  });
+
+  it('calls onSelectEmoticonProject when a character card is clicked', async () => {
+    const user = userEvent.setup();
+    const props = baseProps();
+    render(<ContentOpsScreen {...props} activeTab="character" />);
+
+    await user.click(screen.getByText('gyeotgom'));
+
+    expect(props.onSelectEmoticonProject).toHaveBeenCalledWith('gyeotgom');
+  });
+
+  it('renders the selected emoticon project detail and set sections', () => {
+    render(
+      <ContentOpsScreen
+        {...baseProps()}
+        activeTab="character"
+        selectedEmoticonSlug="gyeotgom"
+        emoticonProjectDetail={{
+          slug: 'gyeotgom',
+          character: '# 곁곰',
+          research: null,
+          qa: null,
+          friends: null,
+          review: null,
+          sets: [
+            {
+              set_key: 'basic-24',
+              set_doc: '# set-basic-24',
+              submission_checklist: '체크리스트 내용',
+              submission_copy: '제출 문구 내용',
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText('캐릭터 컨셉')).toBeInTheDocument();
+    expect(screen.getByText('# 곁곰')).toBeInTheDocument();
+    expect(screen.getByText('세트: basic-24')).toBeInTheDocument();
+    expect(screen.getByText('# set-basic-24')).toBeInTheDocument();
+    expect(screen.getByText('제출 문구 내용')).toBeInTheDocument();
+    expect(screen.getByText('체크리스트 내용')).toBeInTheDocument();
   });
 });

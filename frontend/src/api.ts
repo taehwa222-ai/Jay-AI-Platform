@@ -31,6 +31,8 @@ import type {
   StockWatchlistItem,
   StockWatchlistPayload,
   UserAccount,
+  EmoticonProjectDetail,
+  EmoticonProjectSummary,
   YoutubeProjectDetail,
   YoutubeProjectSummary,
 } from './types';
@@ -128,6 +130,21 @@ export function getYoutubeProjectDetail(
 ): Promise<YoutubeProjectDetail> {
   return request<YoutubeProjectDetail>(
     `/api/v1/content-ops/youtube/${encodeURIComponent(slug)}`,
+    undefined,
+    token,
+  );
+}
+
+export function getEmoticonProjects(token: string): Promise<EmoticonProjectSummary[]> {
+  return request<EmoticonProjectSummary[]>('/api/v1/content-ops/emoticon', undefined, token);
+}
+
+export function getEmoticonProjectDetail(
+  token: string,
+  slug: string,
+): Promise<EmoticonProjectDetail> {
+  return request<EmoticonProjectDetail>(
+    `/api/v1/content-ops/emoticon/${encodeURIComponent(slug)}`,
     undefined,
     token,
   );

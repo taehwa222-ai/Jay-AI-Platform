@@ -155,3 +155,92 @@ def test_missing_and_traversal_youtube_projects_return_404():
     assert missing.status_code == 404
     assert missing.json()["detail"] == "Project not found."
     assert traversal.status_code == 404
+
+
+def test_list_emoticon_projects_returns_empty_when_directory_is_missing():
+    with TestClient(app) as client:
+        token = create_admin(client)
+        response = client.get(
+            "/api/v1/content-ops/emoticon",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_list_and_get_emoticon_project_with_suffix_fallback():
+    project_dir = get_settings().content_dir / "emoticon" / "gyeotgom"
+    project_dir.mkdir(parents=True)
+    files = {
+        "character.md": "# Character",
+        "research.md": "# Research",
+        "qa.md": "# QA",
+        "set-basic-24.md": "# Basic set",
+        "set-monday-24.md": "# Monday set",
+        "submission-checklist.md": "# Basic checklist",
+        "submission-checklist-monday.md": "# Monday checklist",
+        "submission-copy.md": "# Basic copy",
+        "submission-copy-monday.md": "# Monday copy",
+    }
+    for filename, content in files.items():
+        (project_dir / filename).write_text(content, encoding="utf-8")
+
+    with TestClient(app) as client:
+        token = create_admin(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        listed = client.get("/api/v1/content-ops/emoticon", headers=headers)
+        detail = client.get("/api/v1/content-ops/emoticon/gyeotgom", headers=headers)
+
+    assert listed.status_code == 200
+    listed_body = listed.json()
+    assert len(listed_body) == 1
+    summary = listed_body[0]
+    assert summary["slug"] == "gyeotgom"
+    assert summary["has_character"] is True
+    assert summary["has_research"] is True
+    assert summary["has_qa"] is True
+    assert summary["has_friends"] is False
+    assert summary["has_review"] is False
+    assert [item["set_key"] for item in summary["sets"]] == ["basic-24", "monday-24"]
+    assert all(item["has_set_doc"] for item in summary["sets"])
+    assert all(item["has_submission_checklist"] for item in summary["sets"])
+    assert all(item["has_submission_copy"] for item in summary["sets"])
+
+    assert detail.status_code == 200
+    details_by_set = {item["set_key"]: item for item in detail.json()["sets"]}
+    assert details_by_set["basic-24"]["submission_checklist"] == "# Basic checklist"
+    assert details_by_set["basic-24"]["submission_copy"] == "# Basic copy"
+    assert details_by_set["monday-24"]["submission_checklist"] == "# Monday checklist"
+    assert details_by_set["monday-24"]["submission_copy"] == "# Monday copy"
+
+
+def test_member_cannot_list_emoticon_projects():
+    with TestClient(app) as client:
+        create_admin(client)
+        member_signup = client.post(
+            "/api/v1/auth/signup",
+            json={"email": "member@example.com", "password": "password123", "name": "Member"},
+        )
+        member_token = member_signup.json()["access_token"]
+        response = client.get(
+            "/api/v1/content-ops/emoticon",
+            headers={"Authorization": f"Bearer {member_token}"},
+        )
+
+    assert response.status_code == 403
+
+
+def test_missing_and_traversal_emoticon_projects_return_404():
+    with TestClient(app) as client:
+        token = create_admin(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        missing = client.get("/api/v1/content-ops/emoticon/not-found", headers=headers)
+        traversal = client.get(
+            "/api/v1/content-ops/emoticon/..%2F..%2Fetc",
+            headers=headers,
+        )
+
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "Project not found."
+    assert traversal.status_code == 404

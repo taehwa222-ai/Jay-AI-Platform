@@ -37,6 +37,8 @@ import {
   getStockAnalysisRecords,
   getHealth,
   getManual,
+  getEmoticonProjectDetail,
+  getEmoticonProjects,
   getMe,
   getModules,
   getMonetizationIdeas,
@@ -83,6 +85,8 @@ import type {
   AdminUserUsage,
   AuthResponse,
   Disclosure,
+  EmoticonProjectDetail,
+  EmoticonProjectSummary,
   HealthStatus,
   ManualSection,
   MonetizationIdea,
@@ -290,6 +294,15 @@ export default function App() {
   const [youtubeProjectDetail, setYoutubeProjectDetail] = useState<YoutubeProjectDetail | null>(null);
   const [youtubeDetailLoading, setYoutubeDetailLoading] = useState(false);
   const [youtubeDetailMessage, setYoutubeDetailMessage] = useState<string | null>(null);
+  const [emoticonProjects, setEmoticonProjects] = useState<EmoticonProjectSummary[]>([]);
+  const [emoticonProjectsMessage, setEmoticonProjectsMessage] = useState<string | null>(null);
+  const [emoticonProjectsLoading, setEmoticonProjectsLoading] = useState(false);
+  const [selectedEmoticonSlug, setSelectedEmoticonSlug] = useState<string | null>(null);
+  const [emoticonProjectDetail, setEmoticonProjectDetail] = useState<EmoticonProjectDetail | null>(
+    null,
+  );
+  const [emoticonDetailLoading, setEmoticonDetailLoading] = useState(false);
+  const [emoticonDetailMessage, setEmoticonDetailMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewId>(() => getInitialView());
@@ -449,6 +462,7 @@ export default function App() {
         await loadAdminContentStats(savedToken);
         await loadAdminProRequests(savedToken);
         await loadYoutubeProjects(savedToken);
+        await loadEmoticonProjects(savedToken);
       }
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -462,6 +476,9 @@ export default function App() {
       setYoutubeProjects([]);
       setYoutubeProjectDetail(null);
       setSelectedYoutubeSlug(null);
+      setEmoticonProjects([]);
+      setEmoticonProjectDetail(null);
+      setSelectedEmoticonSlug(null);
       setHoldings([]);
       setWatchlist([]);
       setAnalysisRecords([]);
@@ -568,6 +585,44 @@ export default function App() {
       );
     } finally {
       setYoutubeDetailLoading(false);
+    }
+  }
+
+  async function loadEmoticonProjects(activeToken = token) {
+    if (!activeToken) return;
+    setEmoticonProjectsLoading(true);
+    setEmoticonProjectsMessage(null);
+
+    try {
+      const projects = await getEmoticonProjects(activeToken);
+      setEmoticonProjects(projects);
+    } catch (requestError) {
+      setEmoticonProjectsMessage(
+        requestError instanceof Error
+          ? requestError.message
+          : '이모티콘 프로젝트를 불러오지 못했습니다.',
+      );
+    } finally {
+      setEmoticonProjectsLoading(false);
+    }
+  }
+
+  async function handleSelectEmoticonProject(slug: string) {
+    if (!token) return;
+    setSelectedEmoticonSlug(slug);
+    setEmoticonProjectDetail(null);
+    setEmoticonDetailLoading(true);
+    setEmoticonDetailMessage(null);
+
+    try {
+      const detail = await getEmoticonProjectDetail(token, slug);
+      setEmoticonProjectDetail(detail);
+    } catch (requestError) {
+      setEmoticonDetailMessage(
+        requestError instanceof Error ? requestError.message : '캐릭터 내용을 불러오지 못했습니다.',
+      );
+    } finally {
+      setEmoticonDetailLoading(false);
     }
   }
 
@@ -1241,6 +1296,9 @@ export default function App() {
     setYoutubeProjects([]);
     setYoutubeProjectDetail(null);
     setSelectedYoutubeSlug(null);
+    setEmoticonProjects([]);
+    setEmoticonProjectDetail(null);
+    setSelectedEmoticonSlug(null);
     setAuthMessage('로그아웃되었습니다.');
     navigateToView('auth');
   }
@@ -1405,6 +1463,15 @@ export default function App() {
           projectDetail={youtubeProjectDetail}
           detailLoading={youtubeDetailLoading}
           detailMessage={youtubeDetailMessage}
+          emoticonProjects={emoticonProjects}
+          emoticonProjectsLoading={emoticonProjectsLoading}
+          emoticonProjectsMessage={emoticonProjectsMessage}
+          onRefreshEmoticonProjects={() => void loadEmoticonProjects()}
+          selectedEmoticonSlug={selectedEmoticonSlug}
+          onSelectEmoticonProject={(slug) => void handleSelectEmoticonProject(slug)}
+          emoticonProjectDetail={emoticonProjectDetail}
+          emoticonDetailLoading={emoticonDetailLoading}
+          emoticonDetailMessage={emoticonDetailMessage}
         />
 
         <section className={activeView === 'dashboard' ? 'section-block' : 'screen-hidden'}>

@@ -1,6 +1,12 @@
-import { ReloadOutlined, VideoCameraOutlined } from '@ant-design/icons';
+import { ReloadOutlined, SmileOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { SectionTitle } from './shared';
-import type { ReviewMetrics, YoutubeProjectDetail, YoutubeProjectSummary } from '../types';
+import type {
+  EmoticonProjectDetail,
+  EmoticonProjectSummary,
+  ReviewMetrics,
+  YoutubeProjectDetail,
+  YoutubeProjectSummary,
+} from '../types';
 
 const CONTENT_OPS_TABS = [
   {
@@ -11,7 +17,7 @@ const CONTENT_OPS_TABS = [
   {
     id: 'character',
     title: '캐릭터·이모티콘',
-    description: '카카오톡 이모티콘 파이프라인 — 아직 준비 중입니다.',
+    description: '카카오톡 이모티콘 파이프라인 결과물을 봅니다.',
   },
 ] as const;
 
@@ -32,6 +38,22 @@ const YOUTUBE_DETAIL_SECTIONS = [
   ['qa', '검수'],
   ['script', '대본'],
   ['production', '컷 구성'],
+  ['review', '성과'],
+] as const;
+
+const EMOTICON_STAGE_LABELS: { key: keyof EmoticonProjectSummary; label: string }[] = [
+  { key: 'has_character', label: '캐릭터' },
+  { key: 'has_research', label: '조사' },
+  { key: 'has_qa', label: '검수' },
+  { key: 'has_friends', label: '서브캐릭터' },
+  { key: 'has_review', label: '성과' },
+];
+
+const EMOTICON_DETAIL_SECTIONS = [
+  ['character', '캐릭터 컨셉'],
+  ['research', '시장조사'],
+  ['qa', '검수'],
+  ['friends', '서브 캐릭터'],
   ['review', '성과'],
 ] as const;
 
@@ -58,6 +80,15 @@ export function ContentOpsScreen({
   projectDetail,
   detailLoading,
   detailMessage,
+  emoticonProjects,
+  emoticonProjectsLoading,
+  emoticonProjectsMessage,
+  onRefreshEmoticonProjects,
+  selectedEmoticonSlug,
+  onSelectEmoticonProject,
+  emoticonProjectDetail,
+  emoticonDetailLoading,
+  emoticonDetailMessage,
 }: {
   active: boolean;
   isAdmin: boolean;
@@ -72,6 +103,15 @@ export function ContentOpsScreen({
   projectDetail: YoutubeProjectDetail | null;
   detailLoading: boolean;
   detailMessage: string | null;
+  emoticonProjects: EmoticonProjectSummary[];
+  emoticonProjectsLoading: boolean;
+  emoticonProjectsMessage: string | null;
+  onRefreshEmoticonProjects: () => void;
+  selectedEmoticonSlug: string | null;
+  onSelectEmoticonProject: (slug: string) => void;
+  emoticonProjectDetail: EmoticonProjectDetail | null;
+  emoticonDetailLoading: boolean;
+  emoticonDetailMessage: string | null;
 }) {
   return (
     <section className={active ? 'section-block' : 'screen-hidden'} id="contentOps">
@@ -192,11 +232,103 @@ export function ContentOpsScreen({
           {activeTab === 'character' && (
             <article className="tool-pane">
               <div className="pane-title">
-                <VideoCameraOutlined />
-                <h3>캐릭터·이모티콘</h3>
+                <SmileOutlined />
+                <h3>카카오톡 이모티콘 파이프라인</h3>
+                <button
+                  className="secondary-button"
+                  onClick={onRefreshEmoticonProjects}
+                  type="button"
+                >
+                  <ReloadOutlined />
+                  새로고침
+                </button>
               </div>
               <div className="pane-body">
-                <div className="empty-state">카카오톡 이모티콘 파이프라인은 아직 준비 중입니다.</div>
+                {emoticonProjectsMessage && (
+                  <div className="inline-message">{emoticonProjectsMessage}</div>
+                )}
+                {emoticonProjectsLoading && emoticonProjects.length === 0 ? (
+                  <div className="empty-state">불러오는 중...</div>
+                ) : emoticonProjects.length === 0 ? (
+                  <div className="empty-state">
+                    아직 만들어진 캐릭터가 없습니다. Claude Code에서 /emo-pipeline 을 실행하면
+                    여기에 나타납니다.
+                  </div>
+                ) : (
+                  <div className="content-ops-layout">
+                    <div className="content-ops-list">
+                      {emoticonProjects.map((project) => (
+                        <button
+                          className={`content-ops-card ${
+                            selectedEmoticonSlug === project.slug ? 'active' : ''
+                          }`}
+                          key={project.slug}
+                          onClick={() => onSelectEmoticonProject(project.slug)}
+                          type="button"
+                        >
+                          <strong>{project.slug}</strong>
+                          <span>세트 {project.sets.length}개</span>
+                          <div className="content-ops-stages">
+                            {EMOTICON_STAGE_LABELS.map(({ key, label }) => (
+                              <small
+                                className={project[key] ? 'stage-done' : 'stage-pending'}
+                                key={key}
+                              >
+                                {label}
+                              </small>
+                            ))}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="content-ops-detail">
+                      {emoticonDetailMessage && (
+                        <div className="inline-message">{emoticonDetailMessage}</div>
+                      )}
+                      {!selectedEmoticonSlug && (
+                        <div className="empty-state">
+                          왼쪽에서 캐릭터를 선택하면 단계별 내용을 볼 수 있습니다.
+                        </div>
+                      )}
+                      {selectedEmoticonSlug && emoticonDetailLoading && (
+                        <div className="empty-state">불러오는 중...</div>
+                      )}
+                      {selectedEmoticonSlug &&
+                        !emoticonDetailLoading &&
+                        emoticonProjectDetail &&
+                        EMOTICON_DETAIL_SECTIONS.map(([key, label]) =>
+                          emoticonProjectDetail[key] ? (
+                            <div className="content-ops-stage-block" key={key}>
+                              <h4>{label}</h4>
+                              <pre className="report-body">{emoticonProjectDetail[key]}</pre>
+                            </div>
+                          ) : null,
+                        )}
+                      {selectedEmoticonSlug &&
+                        !emoticonDetailLoading &&
+                        emoticonProjectDetail?.sets.map((set) => (
+                          <div className="content-ops-stage-block" key={set.set_key}>
+                            <h4>세트: {set.set_key}</h4>
+                            {set.set_doc && (
+                              <pre className="report-body">{set.set_doc}</pre>
+                            )}
+                            {set.submission_copy && (
+                              <>
+                                <h4>제출 문구</h4>
+                                <pre className="report-body">{set.submission_copy}</pre>
+                              </>
+                            )}
+                            {set.submission_checklist && (
+                              <>
+                                <h4>제출 체크리스트</h4>
+                                <pre className="report-body">{set.submission_checklist}</pre>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </article>
           )}

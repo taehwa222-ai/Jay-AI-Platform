@@ -33,3 +33,38 @@ class YoutubeProjectDetail(BaseModel):
     production: str | None
     review: str | None
     review_metrics: ReviewMetrics | None = None
+
+
+class EmoticonSetSummary(BaseModel):
+    set_key: str
+    has_set_doc: bool
+    has_submission_checklist: bool
+    has_submission_copy: bool
+
+
+class EmoticonProjectSummary(BaseModel):
+    slug: str
+    has_character: bool
+    has_research: bool
+    has_qa: bool
+    has_friends: bool
+    has_review: bool
+    sets: list[EmoticonSetSummary]
+    updated_at: str
+
+
+class EmoticonSetDetail(BaseModel):
+    set_key: str
+    set_doc: str | None
+    submission_checklist: str | None
+    submission_copy: str | None
+
+
+class EmoticonProjectDetail(BaseModel):
+    slug: str
+    character: str | None
+    research: str | None
+    qa: str | None
+    friends: str | None
+    review: str | None
+    sets: list[EmoticonSetDetail]

@@ -3,7 +3,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from app.config import Settings
-from app.schemas.content_ops import ReviewMetrics, YoutubeProjectDetail, YoutubeProjectSummary
+from app.schemas.content_ops import (
+    EmoticonProjectDetail,
+    EmoticonProjectSummary,
+    EmoticonSetDetail,
+    EmoticonSetSummary,
+    ReviewMetrics,
+    YoutubeProjectDetail,
+    YoutubeProjectSummary,
+)
 
 CONTENT_FILES = (
     "research.md",
@@ -11,6 +19,13 @@ CONTENT_FILES = (
     "qa.md",
     "script.md",
     "production.md",
+    "review.md",
+)
+EMOTICON_CHARACTER_FILES = (
+    "character.md",
+    "research.md",
+    "qa.md",
+    "friends.md",
     "review.md",
 )
 DATE_PREFIX = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2})(?:-|$)")
@@ -72,6 +87,126 @@ class ContentOpsService:
             review=contents["review"],
             review_metrics=self._parse_review_metrics(contents["review"]),
         )
+
+    def list_emoticon_projects(self) -> list[EmoticonProjectSummary]:
+        emoticon_dir = self.content_dir / "emoticon"
+        if not emoticon_dir.is_dir():
+            return []
+
+        projects = [
+            self._emoticon_summary(project_dir)
+            for project_dir in emoticon_dir.iterdir()
+            if project_dir.is_dir() and not project_dir.is_symlink()
+        ]
+        return sorted(projects, key=lambda project: project.updated_at, reverse=True)
+
+    def get_emoticon_project(self, slug: str) -> EmoticonProjectDetail | None:
+        emoticon_dir = self.content_dir / "emoticon"
+        if not emoticon_dir.is_dir():
+            return None
+
+        project_dir = next(
+            (
+                candidate
+                for candidate in emoticon_dir.iterdir()
+                if candidate.name == slug and candidate.is_dir() and not candidate.is_symlink()
+            ),
+            None,
+        )
+        if project_dir is None:
+            return None
+
+        contents = {
+            name.removesuffix(".md"): self._read_file(project_dir / name)
+            for name in EMOTICON_CHARACTER_FILES
+        }
+        return EmoticonProjectDetail(
+            slug=project_dir.name,
+            character=contents["character"],
+            research=contents["research"],
+            qa=contents["qa"],
+            friends=contents["friends"],
+            review=contents["review"],
+            sets=self._emoticon_set_details(project_dir),
+        )
+
+    def _emoticon_summary(self, project_dir: Path) -> EmoticonProjectSummary:
+        files = {name: self._is_safe_file(project_dir / name) for name in EMOTICON_CHARACTER_FILES}
+        sets = self._emoticon_set_summaries(project_dir)
+        tracked_files = [
+            path
+            for pattern in (
+                *EMOTICON_CHARACTER_FILES,
+                "set-*.md",
+                "submission-checklist*.md",
+                "submission-copy*.md",
+            )
+            for path in project_dir.glob(pattern)
+            if self._is_safe_file(path)
+        ]
+        latest_mtime = max((path.stat().st_mtime for path in tracked_files), default=None)
+        updated_at = (
+            datetime.fromtimestamp(latest_mtime, tz=UTC).isoformat()
+            if latest_mtime is not None
+            else ""
+        )
+        return EmoticonProjectSummary(
+            slug=project_dir.name,
+            has_character=files["character.md"],
+            has_research=files["research.md"],
+            has_qa=files["qa.md"],
+            has_friends=files["friends.md"],
+            has_review=files["review.md"],
+            sets=sets,
+            updated_at=updated_at,
+        )
+
+    def _emoticon_set_summaries(self, project_dir: Path) -> list[EmoticonSetSummary]:
+        return [
+            EmoticonSetSummary(
+                set_key=set_key,
+                has_set_doc=self._is_safe_file(set_path),
+                has_submission_checklist=self._is_safe_file(
+                    self._emoticon_submission_path(project_dir, "submission-checklist", set_key)
+                ),
+                has_submission_copy=self._is_safe_file(
+                    self._emoticon_submission_path(project_dir, "submission-copy", set_key)
+                ),
+            )
+            for set_key, set_path in self._emoticon_set_files(project_dir)
+        ]
+
+    def _emoticon_set_details(self, project_dir: Path) -> list[EmoticonSetDetail]:
+        return [
+            EmoticonSetDetail(
+                set_key=set_key,
+                set_doc=self._read_file(set_path),
+                submission_checklist=self._read_file(
+                    self._emoticon_submission_path(project_dir, "submission-checklist", set_key)
+                ),
+                submission_copy=self._read_file(
+                    self._emoticon_submission_path(project_dir, "submission-copy", set_key)
+                ),
+            )
+            for set_key, set_path in self._emoticon_set_files(project_dir)
+        ]
+
+    def _emoticon_set_files(self, project_dir: Path) -> list[tuple[str, Path]]:
+        set_files = sorted(
+            (path for path in project_dir.glob("set-*.md") if self._is_safe_file(path)),
+            key=lambda path: path.name,
+        )
+        return [
+            (set_path.name.removeprefix("set-").removesuffix(".md"), set_path)
+            for set_path in set_files
+        ]
+
+    def _emoticon_submission_path(self, project_dir: Path, prefix: str, set_key: str) -> Path:
+        set_name = re.sub(r"-\d+$", "", set_key)
+        set_specific_path = project_dir / f"{prefix}-{set_name}.md"
+        if self._is_safe_file(set_specific_path):
+            return set_specific_path
+        return project_dir / f"{prefix}.md"
 
     def _summary(self, project_dir: Path) -> YoutubeProjectSummary:
         files = {name: self._is_safe_file(project_dir / name) for name in CONTENT_FILES}
