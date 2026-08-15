@@ -77,14 +77,15 @@ Telegram 연결 확인은 로그인 후 `POST /api/v1/notifications/telegram/tes
 ## DB 백업
 
 백업 스크립트는 SQLite online backup API로 일관된 복사본을 만들며 같은 날짜의 백업이 이미
-있으면 다시 생성하지 않습니다.
+있으면 다시 생성하지 않습니다. 생성 후 무결성 검사와 임시 DB 복원 리허설을 수행하고 기본
+30일이 지난 백업을 정리합니다.
 
 ```powershell
 python scripts\backup_db.py --data-dir backend/data
 ```
 
-운영 환경에서는 cron 또는 Windows 작업 스케줄러로 하루 한 번 호출합니다. 상세 예시는
-[`docs/SERVER_OPERATIONS.md`](docs/SERVER_OPERATIONS.md)에 있습니다. 백업 파일은
+Docker 운영 환경에서는 `backup` 서비스가 배포 직후 한 번, 이후 24시간마다 자동 실행합니다.
+상세 운영법은 [`docs/SERVER_OPERATIONS.md`](docs/SERVER_OPERATIONS.md)에 있습니다. 백업 파일은
 `DATA_DIR/backups/jay_ai_platform-YYYYMMDD.db`에 저장됩니다.
 
 ## 검증
@@ -97,7 +98,8 @@ npm run verify
 ```
 
 백엔드가 실행 중일 때 `python scripts/smoke-platform.py`로 기본 API 스모크 테스트를 수행할 수
-있습니다.
+있습니다. 대표 계정 환경 변수 `SMOKE_OWNER_EMAIL`, `SMOKE_OWNER_PASSWORD`를 함께 설정하면
+주식·Content Ops·알림의 인증 API도 읽기 전용으로 점검합니다.
 
 ## 배포
 
@@ -116,5 +118,6 @@ backend/app/services/     SQLite 스키마, 캐시, AI 가드레일, Telegram
 frontend/src/             React 내부 운영 UI
 content/                  유튜브·이모티콘 Markdown 작업물
 scripts/backup_db.py      일일 SQLite 백업
+scripts/smoke-platform.py 운영 API 읽기 전용 스모크 테스트
 docs/                     배포·운영 가이드
 ```

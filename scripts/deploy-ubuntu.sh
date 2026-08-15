@@ -51,6 +51,8 @@ echo "Containers"
 
 echo ""
 echo "Health"
-curl -fsS http://localhost/api/v1/health || true
+curl -fsS http://localhost/api/v1/health
+echo ""
+python3 scripts/smoke-platform.py --base-url http://localhost --frontend-url http://localhost
 echo ""
 echo "Deployment complete."

@@ -51,7 +51,8 @@ connection.close()
 ## 일일 DB 백업
 
 스크립트는 실행 날짜별 파일을 하나만 만들기 때문에 하루 중 중복 실행되어도 새 백업을 계속
-쌓지 않습니다.
+쌓지 않습니다. 생성한 백업은 무결성 검사와 임시 복원 리허설을 통과해야 하며 기본 30일 보관 후
+자동 정리됩니다.
 
 ```powershell
 python scripts\backup_db.py --data-dir backend/data
@@ -63,16 +64,18 @@ python scripts\backup_db.py --data-dir backend/data
 DATA_DIR/backups/jay_ai_platform-YYYYMMDD.db
 ```
 
-Ubuntu cron 예시(매일 03:20):
+Docker/VPS에서는 Compose의 `backup` 서비스가 배포 직후 한 번, 이후 24시간마다 이 작업을
+실행합니다. 상태와 최근 결과는 다음과 같이 확인합니다.
 
-```cron
-20 3 * * * cd /opt/jay-ai-platform && /usr/bin/python3 scripts/backup_db.py --data-dir data >> data/backups/backup.log 2>&1
+```bash
+docker compose ps backup
+docker compose logs --tail=30 backup
+ls -lh data/backups
 ```
 
 Windows 작업 스케줄러에서는 프로그램을 `.venv\Scripts\python.exe`, 인수를
-`scripts\backup_db.py --data-dir backend/data`, 시작 위치를 저장소 루트로 지정합니다. 스케줄을
-등록한 뒤 한 번 수동 실행하여 백업 파일 생성과 복구 가능성을 확인하세요. 이 저장소의 작업
-과정에서는 운영 서버의 cron/작업 스케줄러를 자동 변경하지 않습니다.
+`scripts\backup_db.py --data-dir backend/data`, 시작 위치를 저장소 루트로 지정합니다. `--retention-days`
+옵션으로 보관 기간을 바꿀 수 있고, 긴급 점검 외에는 복원 검증을 끄지 않습니다.
 
 ## 외부 API와 비용 가드레일
 
@@ -111,6 +114,16 @@ ruff check backend scripts/backup_db.py
 cd frontend
 npm run verify
 ```
+
+실제 서버의 공개 화면과 API를 읽기 전용으로 점검합니다.
+
+```powershell
+python scripts\smoke-platform.py --base-url http://YOUR_SERVER_IP --frontend-url http://YOUR_SERVER_IP
+```
+
+대표 계정까지 점검하려면 `SMOKE_OWNER_EMAIL`, `SMOKE_OWNER_PASSWORD`를 현재 터미널에만 설정하고
+같은 명령을 실행합니다. 외부 Yahoo Finance/OpenDART 호출도 포함하려면 `--external`을 추가합니다.
+자격 증명은 명령행 기록이나 저장소 파일에 남기지 않습니다.
 
 점검 후에는 다음 항목을 함께 확인합니다.
 

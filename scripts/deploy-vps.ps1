@@ -73,13 +73,10 @@ Write-Host "Deploying on VPS $remote..."
 ssh @sshArgs
 
 Write-Host ""
-Write-Host "Checking public health endpoint..."
-try {
-    Invoke-RestMethod "http://$ServerHost/api/v1/health"
-}
-catch {
-    Write-Host "Health check failed: $($_.Exception.Message)"
-}
+Write-Host "Running public smoke checks..."
+.\.venv\Scripts\python.exe scripts\smoke-platform.py `
+    --base-url "http://$ServerHost" `
+    --frontend-url "http://$ServerHost"
 
 Write-Host ""
 Write-Host "VPS deployment complete."

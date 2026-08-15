@@ -1,8 +1,17 @@
+import os
 import sqlite3
+from contextlib import closing
+from datetime import datetime, timedelta
 
 import httpx
 from fastapi.testclient import TestClient
-from scripts.backup_db import backup_database
+from scripts.backup_db import (
+    backup_database,
+    prune_backups,
+    restore_database,
+    verify_database,
+    verify_restore,
+)
 
 from app.config import get_settings
 from app.main import app
@@ -47,9 +56,50 @@ def test_database_runs_in_wal_mode_and_daily_backup_is_consistent():
     assert created is True
     assert created_again is False
     assert destination == same_destination
+    verify_database(destination)
+    verify_restore(destination)
     with sqlite3.connect(destination) as backup:
         assert backup.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert backup.execute("SELECT COUNT(*) FROM users").fetchone()[0] == 1
+
+
+def test_backup_restore_refuses_overwrite_and_prunes_only_expired_files(tmp_path):
+    backup_dir = tmp_path / "backups"
+    backup_dir.mkdir()
+    recent = backup_dir / "jay_ai_platform-20260815.db"
+    expired = backup_dir / "jay_ai_platform-20260701.db"
+    unrelated = backup_dir / "notes.db"
+    for path in (recent, expired, unrelated):
+        with closing(sqlite3.connect(path)) as connection:
+            connection.execute("CREATE TABLE marker (value TEXT)")
+            connection.commit()
+
+    now = datetime(2026, 8, 15, 12, 0, 0)
+    recent_timestamp = (now - timedelta(days=2)).timestamp()
+    expired_timestamp = (now - timedelta(days=45)).timestamp()
+    recent.touch()
+    expired.touch()
+    unrelated.touch()
+    os.utime(recent, (recent_timestamp, recent_timestamp))
+    os.utime(expired, (expired_timestamp, expired_timestamp))
+    os.utime(unrelated, (expired_timestamp, expired_timestamp))
+
+    removed = prune_backups(backup_dir, 30, now=now)
+
+    assert removed == [expired]
+    assert recent.exists()
+    assert not expired.exists()
+    assert unrelated.exists()
+
+    restore_target = tmp_path / "restored.db"
+    restore_database(recent, restore_target)
+    assert restore_target.exists()
+    try:
+        restore_database(recent, restore_target)
+    except FileExistsError:
+        pass
+    else:
+        raise AssertionError("restore_database must not overwrite an existing database")
 
 
 def test_daily_ai_guardrail_blocks_requests_after_configured_limit(monkeypatch):

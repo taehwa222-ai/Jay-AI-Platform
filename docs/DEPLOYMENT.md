@@ -62,8 +62,8 @@ docker compose logs -f backend
 ```
 
 Compose는 `./data`를 `/app/data`에, Content Ops 저장용 `./content`를 쓰기 가능한
-`/app/content`에 마운트합니다. 두 호스트 디렉터리를 재배포 중 삭제하지 말고, DB 일일 백업은
-`SERVER_OPERATIONS.md`의 cron 예시를 적용하세요.
+`/app/content`에 마운트합니다. 두 호스트 디렉터리를 재배포 중 삭제하지 마세요. `backup`
+서비스가 배포 직후와 이후 24시간마다 DB 무결성 검사·복원 리허설·30일 보관 백업을 수행합니다.
 
 ## 5. Test
 
@@ -83,6 +83,12 @@ Health check:
 
 ```bash
 curl http://YOUR_SERVER_IP/api/v1/health
+```
+
+Public smoke check:
+
+```bash
+python3 scripts/smoke-platform.py --base-url http://YOUR_SERVER_IP --frontend-url http://YOUR_SERVER_IP
 ```
 
 Platform overview:
@@ -121,7 +127,7 @@ powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
 ```
 
 This runs checks, pushes to GitHub, SSHes into the VPS, pulls the latest code,
-rebuilds containers, and checks `/api/v1/health`.
+rebuilds containers, and runs public API/frontend smoke checks.
 
 ## 8. Auto Deploy From GitHub
 
