@@ -17,6 +17,7 @@ from app.routers import (
     platform,
     stocks,
     video_pipeline,
+    workspace,
 )
 from app.services.ai_guardrail import AIDailyLimitReached, AIGuardrailService
 from app.services.auth import AuthService
@@ -26,6 +27,7 @@ from app.services.operations import OperationsService
 from app.services.stocks import StockService
 from app.services.telegram import TelegramService
 from app.services.video_pipeline import VideoPipelineService
+from app.services.workspace import WorkspaceService
 
 settings = get_settings()
 
@@ -47,6 +49,8 @@ async def lifespan(app: FastAPI):
     operations_service.init_db()
     video_pipeline_service = VideoPipelineService(settings)
     video_pipeline_service.init_db()
+    workspace_service = WorkspaceService(settings)
+    workspace_service.init_db()
     app.state.auth_service = auth_service
     app.state.stock_service = stock_service
     app.state.disclosure_service = disclosure_service
@@ -55,6 +59,7 @@ async def lifespan(app: FastAPI):
     app.state.telegram_service = telegram_service
     app.state.operations_service = operations_service
     app.state.video_pipeline_service = video_pipeline_service
+    app.state.workspace_service = workspace_service
     yield
 
 
@@ -133,6 +138,7 @@ app.include_router(content_ops.router)
 app.include_router(notifications.router)
 app.include_router(operations.router)
 app.include_router(video_pipeline.router)
+app.include_router(workspace.router)
 
 
 @app.get("/")

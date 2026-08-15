@@ -6,6 +6,8 @@ from app.routers.auth import require_admin
 from app.schemas.auth import (
     AdminUserUpdateRequest,
     AuditLogPublic,
+    InvitationCreateRequest,
+    InvitationPublic,
     MessageResponse,
     PasswordResetRequest,
     UserPublic,
@@ -73,3 +75,42 @@ async def audit_logs(
     limit: int = 50,
 ) -> list[AuditLogPublic]:
     return [AuditLogPublic(**log.__dict__) for log in auth_service.list_audit_logs(limit)]
+
+
+@router.get("/invitations", response_model=list[InvitationPublic])
+async def list_invitations(
+    _: Annotated[User, Depends(require_admin)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> list[InvitationPublic]:
+    return [InvitationPublic(**item.public()) for item in auth_service.list_invitations()]
+
+
+@router.post(
+    "/invitations",
+    response_model=InvitationPublic,
+    status_code=201,
+)
+async def create_invitation(
+    payload: InvitationCreateRequest,
+    actor: Annotated[User, Depends(require_admin)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> InvitationPublic:
+    invitation, token = auth_service.create_invitation(
+        actor,
+        payload.email,
+        payload.role,
+        payload.can_access_stocks,
+        payload.can_access_content_ops,
+        payload.expires_in_days,
+    )
+    return InvitationPublic(**invitation.public(token))
+
+
+@router.delete("/invitations/{invitation_id}", response_model=InvitationPublic)
+async def revoke_invitation(
+    invitation_id: int,
+    actor: Annotated[User, Depends(require_admin)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> InvitationPublic:
+    invitation = auth_service.revoke_invitation(invitation_id, actor)
+    return InvitationPublic(**invitation.public())

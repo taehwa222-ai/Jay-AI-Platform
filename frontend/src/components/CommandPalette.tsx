@@ -17,30 +17,66 @@ export function CommandPalette({
   open,
   commands,
   onClose,
+  searchProvider,
 }: {
   open: boolean;
   commands: CommandItem[];
   onClose: () => void;
+  searchProvider?: (query: string) => Promise<CommandItem[]>;
 }) {
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
+  const [remoteCommands, setRemoteCommands] = useState<CommandItem[]>([]);
+  const [searching, setSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return commands;
-    return commands.filter((command) =>
+    const local = commands.filter((command) =>
       `${command.label} ${command.description} ${command.group} ${command.keywords ?? ''}`
         .toLowerCase()
         .includes(normalized),
     );
-  }, [commands, query]);
+    return [
+      ...local,
+      ...remoteCommands.filter(
+        (item) => !local.some((localItem) => localItem.id === item.id),
+      ),
+    ];
+  }, [commands, query, remoteCommands]);
 
   useEffect(() => {
     if (!open) return;
     setQuery('');
+    setRemoteCommands([]);
     setActiveIndex(0);
     queueMicrotask(() => inputRef.current?.focus());
   }, [open]);
+
+  useEffect(() => {
+    const normalized = query.trim();
+    if (!open || normalized.length < 2 || !searchProvider) {
+      setRemoteCommands([]);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      setSearching(true);
+      try {
+        const results = await searchProvider(normalized);
+        if (!cancelled) setRemoteCommands(results);
+      } catch {
+        if (!cancelled) setRemoteCommands([]);
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 220);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [open, query, searchProvider]);
 
   if (!open) return null;
 
@@ -93,7 +129,8 @@ export function CommandPalette({
               {command.shortcut && <kbd>{command.shortcut}</kbd>}
             </button>
           ))}
-          {filtered.length === 0 && <div className="command-empty">일치하는 명령이 없습니다.</div>}
+          {searching && <div className="command-empty">워크스페이스 전체를 검색하고 있습니다.</div>}
+          {!searching && filtered.length === 0 && <div className="command-empty">일치하는 화면, 종목, 문서 또는 업무가 없습니다.</div>}
         </div>
         <div className="command-footer"><span>↑↓ 이동</span><span>Enter 실행</span><span>Esc 닫기</span></div>
       </div>

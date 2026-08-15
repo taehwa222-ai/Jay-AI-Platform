@@ -61,6 +61,33 @@ class AuditLog:
     created_at: str
 
 
+@dataclass(frozen=True)
+class Invitation:
+    id: int
+    email: str
+    role: str
+    can_access_stocks: bool
+    can_access_content_ops: bool
+    expires_at: str
+    used_at: str | None
+    revoked_at: str | None
+    created_at: str
+
+    def public(self, token: str | None = None) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "email": self.email,
+            "role": self.role,
+            "can_access_stocks": self.can_access_stocks,
+            "can_access_content_ops": self.can_access_content_ops,
+            "expires_at": self.expires_at,
+            "used_at": self.used_at,
+            "revoked_at": self.revoked_at,
+            "created_at": self.created_at,
+            "token": token,
+        }
+
+
 class AuthService:
     """Authentication for one internal organization with managed user access."""
 
@@ -125,6 +152,23 @@ class AuthService:
                 """
             )
             connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS auth_invitations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    email TEXT NOT NULL,
+                    role TEXT NOT NULL DEFAULT 'member',
+                    can_access_stocks INTEGER NOT NULL DEFAULT 1,
+                    can_access_content_ops INTEGER NOT NULL DEFAULT 1,
+                    expires_at TEXT NOT NULL,
+                    used_at TEXT,
+                    revoked_at TEXT,
+                    created_by_user_id INTEGER NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+            connection.execute(
                 "UPDATE users SET role = 'member' WHERE role NOT IN ('owner', 'admin', 'member')"
             )
             connection.execute(
@@ -170,16 +214,32 @@ class AuthService:
     def connect(self) -> sqlite3.Connection:
         return connect_database(self.db_path)
 
-    def create_user(self, email: str, password: str, name: str) -> User:
+    def create_user(
+        self,
+        email: str,
+        password: str,
+        name: str,
+        invite_token: str | None = None,
+    ) -> User:
         normalized_email = normalize_email(email)
         created_at = now_iso()
         with self.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             is_first_user = self.user_count(connection) == 0
-            role = "owner" if is_first_user else "member"
-            is_active = int(is_first_user)
-            approval_status = "approved" if is_first_user else "pending"
-            module_access = int(is_first_user)
+            invitation = None
+            if not is_first_user and invite_token:
+                invitation = self._valid_invitation(
+                    connection, invite_token, normalized_email
+                )
+            role = "owner" if is_first_user else invitation.role if invitation else "member"
+            is_active = int(is_first_user or invitation is not None)
+            approval_status = "approved" if is_active else "pending"
+            stock_access = int(
+                is_first_user or bool(invitation and invitation.can_access_stocks)
+            )
+            content_access = int(
+                is_first_user or bool(invitation and invitation.can_access_content_ops)
+            )
             try:
                 cursor = connection.execute(
                     """
@@ -195,8 +255,8 @@ class AuthService:
                         hash_password(password),
                         is_active,
                         approval_status,
-                        module_access,
-                        module_access,
+                        stock_access,
+                        content_access,
                         created_at,
                     ),
                 )
@@ -205,6 +265,11 @@ class AuthService:
             user = self.get_user_by_id(cursor.lastrowid, connection)
             if user is None:
                 raise HTTPException(status_code=500, detail="User account creation failed.")
+            if invitation is not None:
+                connection.execute(
+                    "UPDATE auth_invitations SET used_at = ? WHERE id = ?",
+                    (created_at, invitation.id),
+                )
             self._write_audit(
                 connection,
                 "account_created",
@@ -213,6 +278,118 @@ class AuthService:
                 details={"role": role, "approval_status": approval_status},
             )
             return user
+
+    def create_invitation(
+        self,
+        actor: User,
+        email: str,
+        role: str,
+        can_access_stocks: bool,
+        can_access_content_ops: bool,
+        expires_in_days: int,
+    ) -> tuple[Invitation, str]:
+        if role == "admin" and actor.role != "owner":
+            raise HTTPException(status_code=403, detail="Owner role is required.")
+        token = secrets.token_urlsafe(32)
+        created_at = now_iso()
+        expires_at = (datetime.now(UTC) + timedelta(days=expires_in_days)).isoformat()
+        normalized_email = normalize_email(email)
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE auth_invitations SET revoked_at = ?
+                WHERE email = ? AND used_at IS NULL AND revoked_at IS NULL
+                """,
+                (created_at, normalized_email),
+            )
+            cursor = connection.execute(
+                """
+                INSERT INTO auth_invitations (
+                    token_hash, email, role, can_access_stocks,
+                    can_access_content_ops, expires_at, created_by_user_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    invitation_token_hash(token),
+                    normalized_email,
+                    role,
+                    int(can_access_stocks),
+                    int(can_access_content_ops),
+                    expires_at,
+                    actor.id,
+                    created_at,
+                ),
+            )
+            invitation = self._get_invitation(int(cursor.lastrowid), connection)
+            self._write_audit(
+                connection,
+                "invitation_created",
+                actor.id,
+                None,
+                {"email": normalized_email, "role": role},
+            )
+        assert invitation is not None
+        return invitation, token
+
+    def list_invitations(self) -> list[Invitation]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM auth_invitations ORDER BY created_at DESC, id DESC LIMIT 100"
+            ).fetchall()
+        return [row_to_invitation(row) for row in rows]
+
+    def revoke_invitation(self, invitation_id: int, actor: User) -> Invitation:
+        with self.connect() as connection:
+            invitation = self._get_invitation(invitation_id, connection)
+            if invitation is None:
+                raise HTTPException(status_code=404, detail="Invitation not found.")
+            if invitation.used_at is not None:
+                raise HTTPException(status_code=409, detail="Invitation has already been used.")
+            connection.execute(
+                "UPDATE auth_invitations SET revoked_at = ? WHERE id = ?",
+                (now_iso(), invitation_id),
+            )
+            self._write_audit(
+                connection,
+                "invitation_revoked",
+                actor.id,
+                None,
+                {"email": invitation.email},
+            )
+            updated = self._get_invitation(invitation_id, connection)
+        assert updated is not None
+        return updated
+
+    def _valid_invitation(
+        self,
+        connection: sqlite3.Connection,
+        token: str,
+        email: str,
+    ) -> Invitation:
+        row = connection.execute(
+            "SELECT * FROM auth_invitations WHERE token_hash = ?",
+            (invitation_token_hash(token),),
+        ).fetchone()
+        invitation = row_to_invitation(row) if row is not None else None
+        if invitation is None:
+            raise HTTPException(status_code=400, detail="Invitation is invalid.")
+        if invitation.email != email:
+            raise HTTPException(status_code=400, detail="Invitation email does not match.")
+        if invitation.used_at is not None or invitation.revoked_at is not None:
+            raise HTTPException(status_code=400, detail="Invitation is no longer active.")
+        if datetime.fromisoformat(invitation.expires_at) <= datetime.now(UTC):
+            raise HTTPException(status_code=400, detail="Invitation has expired.")
+        return invitation
+
+    @staticmethod
+    def _get_invitation(
+        invitation_id: int,
+        connection: sqlite3.Connection,
+    ) -> Invitation | None:
+        row = connection.execute(
+            "SELECT * FROM auth_invitations WHERE id = ?", (invitation_id,)
+        ).fetchone()
+        return row_to_invitation(row) if row is not None else None
 
     def authenticate(self, email: str, password: str) -> User:
         normalized_email = normalize_email(email)
@@ -587,6 +764,24 @@ def normalize_email(email: str) -> str:
 
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def invitation_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def row_to_invitation(row: sqlite3.Row) -> Invitation:
+    return Invitation(
+        id=int(row["id"]),
+        email=str(row["email"]),
+        role=str(row["role"]),
+        can_access_stocks=bool(row["can_access_stocks"]),
+        can_access_content_ops=bool(row["can_access_content_ops"]),
+        expires_at=str(row["expires_at"]),
+        used_at=str(row["used_at"]) if row["used_at"] else None,
+        revoked_at=str(row["revoked_at"]) if row["revoked_at"] else None,
+        created_at=str(row["created_at"]),
+    )
 
 
 def parse_iso(value: str) -> datetime:

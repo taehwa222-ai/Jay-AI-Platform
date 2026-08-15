@@ -1,6 +1,7 @@
 ﻿import {
   BarChartOutlined,
   ClockCircleOutlined,
+  CheckSquareOutlined,
   CloudServerOutlined,
   DeploymentUnitOutlined,
   FileSearchOutlined,
@@ -16,7 +17,7 @@
   UserOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import {
   analyzeStock,
   changePassword,
@@ -44,6 +45,7 @@ import {
   revokeOwnSessions,
   revokeUserSessions,
   scanStocks,
+  searchWorkspace,
   signup,
   updateAdminUser,
   updateStockHolding,
@@ -65,6 +67,8 @@ import { StockReportsPanel } from './components/StockReportsPanel';
 import { StockDisclosurePanel } from './components/StockDisclosurePanel';
 import { StockScanPanel } from './components/StockScanPanel';
 import { StockWatchlistPanel } from './components/StockWatchlistPanel';
+import { StockBriefingPanel } from './components/StockBriefingPanel';
+import { WorkInbox } from './components/WorkInbox';
 import type { WatchlistForm } from './components/StockWatchlistPanel';
 import { usePersistentState } from './hooks/usePersistentState';
 import {
@@ -293,6 +297,16 @@ export default function App() {
       keywords: 'stock portfolio 주식',
       onSelect: () => requestNavigate('stocks'),
     } satisfies CommandItem] : []),
+    ...(isSignedIn ? [{
+      id: 'view-tasks',
+      label: '업무 인박스 열기',
+      description: '할 일, 진행 중 업무와 마감일 관리',
+      group: '화면 이동',
+      icon: <CheckSquareOutlined />,
+      shortcut: 'G T',
+      keywords: 'task todo inbox 업무 할일',
+      onSelect: () => requestNavigate('tasks'),
+    } satisfies CommandItem] : []),
     ...(canAccessContentOps ? [{
       id: 'view-content-ops',
       label: 'Content Ops 열기',
@@ -354,6 +368,25 @@ export default function App() {
       onSelect: () => void refreshState(),
     },
   ];
+
+  const searchAll = useCallback(async (query: string): Promise<CommandItem[]> => {
+    if (!token) return [];
+    const results = await searchWorkspace(token, query);
+    return results.map((result) => ({
+      id: `search-${result.id}`,
+      label: result.title,
+      description: result.description,
+      group: result.kind === 'task' ? '업무' : result.view === 'stocks' ? '주식 데이터' : 'Content Ops',
+      icon: result.kind === 'task' ? <CheckSquareOutlined /> : result.view === 'stocks' ? <BarChartOutlined /> : <FileSearchOutlined />,
+      keywords: result.kind,
+      onSelect: () => {
+        if (result.view === 'stocks' && isStockTabId(result.section)) {
+          setActiveStockTab(result.section);
+        }
+        requestNavigate(result.view);
+      },
+    }));
+  }, [setActiveStockTab, token]);
 
   useEffect(() => {
     void refreshState();
@@ -473,7 +506,8 @@ export default function App() {
 
     try {
       if (authMode === 'signup') {
-        const response = await signup({ email, password, name });
+        const inviteToken = new URLSearchParams(window.location.search).get('invite') ?? undefined;
+        const response = await signup({ email, password, name, invite_token: inviteToken });
         setPassword('');
         if (response.access_token) {
           applyAuth({
@@ -1238,6 +1272,12 @@ export default function App() {
                   <span className="nav-copy"><strong>오늘의 업무</strong><small>통합 홈</small></span>
                 </a>
               )}
+              {isSignedIn && (
+                <a className={activeView === 'tasks' ? 'active' : ''} href="#tasks" onClick={(event) => { event.preventDefault(); requestNavigate('tasks'); }}>
+                  <span className="nav-icon"><CheckSquareOutlined /></span>
+                  <span className="nav-copy"><strong>업무 인박스</strong><small>할 일·마감 관리</small></span>
+                </a>
+              )}
               {canAccessStocks && (
                 <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks" onClick={(event) => { event.preventDefault(); requestNavigate('stocks'); }}>
                   <span className="nav-icon"><BarChartOutlined /></span>
@@ -1369,6 +1409,8 @@ export default function App() {
           />
         )}
 
+        {isSignedIn && <WorkInbox active={activeView === 'tasks'} token={token} />}
+
         {isSignedIn && canAccessContentOps && (
           <ContentOpsScreen
             active={activeView === 'contentOps'}
@@ -1492,7 +1534,7 @@ export default function App() {
 
               <div className="stock-workspace stock-workspace-tabs">
                 {activeStockTab === 'holdings' && (
-                  <StockHoldingsPanel
+                  <><StockBriefingPanel token={token} /><StockHoldingsPanel
                     currentPriceDrafts={currentPriceDrafts}
                     holdingForm={holdingForm}
                     holdingLoading={holdingLoading}
@@ -1523,7 +1565,7 @@ export default function App() {
                     prefillAnalysisLoadingKey={prefillAnalysisLoadingKey}
                     quickAnalysisLoadingKey={quickAnalysisLoadingKey}
                     savingCurrentPriceId={savingCurrentPriceId}
-                  />
+                  /></>
                 )}
 
                 {activeStockTab === 'watchlist' && (
@@ -1647,6 +1689,7 @@ export default function App() {
         commands={quickCommands}
         onClose={() => setCommandPaletteOpen(false)}
         open={commandPaletteOpen}
+        searchProvider={searchAll}
       />
       <ConfirmDialog
         busy={deleteConfirmLoading}

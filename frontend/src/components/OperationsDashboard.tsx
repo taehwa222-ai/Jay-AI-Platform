@@ -17,6 +17,7 @@ import type {
   OperationsIntegrationStatus,
   OperationsOverview,
 } from '../types';
+import { DataControlPanel } from './DataControlPanel';
 
 type OperationsDashboardProps = {
   active: boolean;
@@ -197,6 +198,8 @@ export function OperationsDashboard({ active, token }: OperationsDashboardProps)
               )}
             </article>
           </div>
+
+          <DataControlPanel token={token} />
 
           <p className="operations-updated-at">
             30초마다 자동 갱신 · 마지막 수집 {formatDateTime(overview.generated_at)}

@@ -52,6 +52,79 @@ export type SignupPayload = {
   email: string;
   password: string;
   name: string;
+  invite_token?: string;
+};
+
+export type GlobalSearchResult = {
+  id: string;
+  kind: string;
+  title: string;
+  description: string;
+  view: 'stocks' | 'contentOps' | 'tasks';
+  section: string;
+  resource_id: string;
+  score: number;
+};
+
+export type WorkTask = {
+  id: number;
+  title: string;
+  description: string;
+  status: 'todo' | 'doing' | 'done';
+  priority: 'low' | 'normal' | 'high';
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at: string | null;
+};
+
+export type ContentVersion = {
+  id: number;
+  kind: ContentKind;
+  slug: string;
+  filename: string;
+  content: string;
+  created_at: string;
+  created_by_user_id: number;
+};
+
+export type StockBriefing = {
+  id: number;
+  briefing_date: string;
+  title: string;
+  body: string;
+  holding_count: number;
+  watchlist_count: number;
+  analysis_count: number;
+  created_at: string;
+};
+
+export type BackupInfo = {
+  filename: string;
+  size_bytes: number;
+  created_at: string;
+  integrity: 'unchecked' | 'ok' | 'failed';
+};
+
+export type DataStatus = {
+  database_size_bytes: number;
+  content_file_count: number;
+  content_size_bytes: number;
+  wal_enabled: boolean;
+  backups: BackupInfo[];
+};
+
+export type Invitation = {
+  id: number;
+  email: string;
+  role: 'admin' | 'member';
+  can_access_stocks: boolean;
+  can_access_content_ops: boolean;
+  expires_at: string;
+  used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  token: string | null;
 };
 
 export type LoginPayload = {

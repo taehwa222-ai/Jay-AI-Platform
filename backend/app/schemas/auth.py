@@ -22,6 +22,7 @@ class SignupRequest(BaseModel):
     email: str = Field(pattern=EMAIL_PATTERN, max_length=254)
     password: str = Field(min_length=8, max_length=128)
     name: str = Field(min_length=1, max_length=80)
+    invite_token: str | None = Field(default=None, min_length=20, max_length=200)
 
 
 class LoginRequest(BaseModel):
@@ -72,3 +73,24 @@ class AuditLogPublic(BaseModel):
     target_name: str | None
     details: dict[str, Any]
     created_at: str
+
+
+class InvitationCreateRequest(BaseModel):
+    email: str = Field(pattern=EMAIL_PATTERN, max_length=254)
+    role: Literal["admin", "member"] = "member"
+    can_access_stocks: bool = True
+    can_access_content_ops: bool = True
+    expires_in_days: int = Field(default=7, ge=1, le=30)
+
+
+class InvitationPublic(BaseModel):
+    id: int
+    email: str
+    role: str
+    can_access_stocks: bool
+    can_access_content_ops: bool
+    expires_at: str
+    used_at: str | None
+    revoked_at: str | None
+    created_at: str
+    token: str | None = None

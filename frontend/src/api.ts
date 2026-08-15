@@ -33,6 +33,13 @@ import type {
   NotificationCenterStatus,
   OperationsOverview,
   TelegramNotificationResult,
+  BackupInfo,
+  ContentVersion,
+  DataStatus,
+  GlobalSearchResult,
+  Invitation,
+  StockBriefing,
+  WorkTask,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -438,6 +445,165 @@ export function retryNotification(
   return request<TelegramNotificationResult>(
     `/api/v1/notifications/events/${eventId}/retry`,
     { method: 'POST' },
+    token,
+  );
+}
+
+export async function searchWorkspace(
+  token: string,
+  query: string,
+): Promise<GlobalSearchResult[]> {
+  const response = await request<{ query: string; results: GlobalSearchResult[] }>(
+    `/api/v1/workspace/search?q=${encodeURIComponent(query)}`,
+    undefined,
+    token,
+  );
+  return response.results;
+}
+
+export function getTasks(token: string): Promise<WorkTask[]> {
+  return request<WorkTask[]>('/api/v1/workspace/tasks', undefined, token);
+}
+
+export function createTask(
+  token: string,
+  payload: Pick<WorkTask, 'title' | 'description' | 'priority' | 'due_date'>,
+): Promise<WorkTask> {
+  return request<WorkTask>(
+    '/api/v1/workspace/tasks',
+    { method: 'POST', body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export function updateTask(
+  token: string,
+  taskId: number,
+  payload: Partial<Pick<WorkTask, 'title' | 'description' | 'status' | 'priority' | 'due_date'>>,
+): Promise<WorkTask> {
+  return request<WorkTask>(
+    `/api/v1/workspace/tasks/${taskId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export function deleteTask(token: string, taskId: number): Promise<void> {
+  return request<void>(
+    `/api/v1/workspace/tasks/${taskId}`,
+    { method: 'DELETE' },
+    token,
+  );
+}
+
+export function getContentVersions(
+  token: string,
+  kind: ContentKind,
+  slug: string,
+  filename: string,
+): Promise<ContentVersion[]> {
+  return request<ContentVersion[]>(
+    `/api/v1/content-ops/documents/${kind}/${encodeURIComponent(slug)}/${encodeURIComponent(filename)}/versions`,
+    undefined,
+    token,
+  );
+}
+
+export function restoreContentVersion(
+  token: string,
+  version: ContentVersion,
+): Promise<ContentDocument> {
+  return request<ContentDocument>(
+    `/api/v1/content-ops/documents/${version.kind}/${encodeURIComponent(version.slug)}/${encodeURIComponent(version.filename)}/versions/${version.id}/restore`,
+    { method: 'POST' },
+    token,
+  );
+}
+
+export function getStockBriefing(token: string, refresh = false): Promise<StockBriefing> {
+  return request<StockBriefing>(
+    `/api/v1/workspace/stock-briefing${refresh ? '?refresh=true' : ''}`,
+    undefined,
+    token,
+  );
+}
+
+export function getDataStatus(token: string): Promise<DataStatus> {
+  return request<DataStatus>('/api/v1/workspace/data', undefined, token);
+}
+
+export function createDatabaseBackup(
+  token: string,
+): Promise<{ backup: BackupInfo; created: boolean; message: string }> {
+  return request(
+    '/api/v1/workspace/data/backups',
+    { method: 'POST' },
+    token,
+  );
+}
+
+export function verifyDatabaseBackup(token: string, filename: string): Promise<BackupInfo> {
+  return request<BackupInfo>(
+    `/api/v1/workspace/data/backups/${encodeURIComponent(filename)}/verify`,
+    { method: 'POST' },
+    token,
+  );
+}
+
+export async function downloadDatabaseBackup(token: string, filename: string): Promise<Blob> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/workspace/data/backups/${encodeURIComponent(filename)}/download`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!response.ok) throw new Error(await response.text());
+  return response.blob();
+}
+
+export async function exportWorkspaceData(token: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/workspace/data/export`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.blob();
+}
+
+export function restoreDatabaseBackup(
+  token: string,
+  filename: string,
+  confirmation: string,
+): Promise<{ restored_from: string; safety_backup: string; message: string }> {
+  return request(
+    `/api/v1/workspace/data/backups/${encodeURIComponent(filename)}/restore`,
+    { method: 'POST', body: JSON.stringify({ confirmation }) },
+    token,
+  );
+}
+
+export function getInvitations(token: string): Promise<Invitation[]> {
+  return request<Invitation[]>('/api/v1/admin/invitations', undefined, token);
+}
+
+export function createInvitation(
+  token: string,
+  payload: {
+    email: string;
+    role: 'admin' | 'member';
+    can_access_stocks: boolean;
+    can_access_content_ops: boolean;
+    expires_in_days: number;
+  },
+): Promise<Invitation> {
+  return request<Invitation>(
+    '/api/v1/admin/invitations',
+    { method: 'POST', body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export function revokeInvitation(token: string, invitationId: number): Promise<Invitation> {
+  return request<Invitation>(
+    `/api/v1/admin/invitations/${invitationId}`,
+    { method: 'DELETE' },
     token,
   );
 }

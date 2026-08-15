@@ -3,12 +3,13 @@ import {
   BarChartOutlined,
   BellOutlined,
   BookOutlined,
+  CheckSquareOutlined,
   FileSearchOutlined,
   LineChartOutlined,
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 
-export const VIEW_IDS = ['auth', 'home', 'stocks', 'contentOps', 'operations'] as const;
+export const VIEW_IDS = ['auth', 'home', 'tasks', 'stocks', 'contentOps', 'operations'] as const;
 export type ViewId = (typeof VIEW_IDS)[number];
 
 const LAST_VIEW_KEY = 'jay-ai-last-view';
@@ -23,6 +24,11 @@ export const VIEW_META: Record<ViewId, { eyebrow: string; title: string; descrip
     eyebrow: 'Executive Home',
     title: '오늘의 업무',
     description: '확인이 필요한 투자, 콘텐츠, 사용자와 운영 상태를 한곳에서 정리합니다.',
+  },
+  tasks: {
+    eyebrow: 'Work Inbox',
+    title: '업무 인박스',
+    description: '오늘 처리할 업무를 수집하고 진행 상태와 마감일을 관리합니다.',
   },
   stocks: {
     eyebrow: 'Stock Intelligence',
@@ -74,6 +80,8 @@ export function getStockTabIcon(tabId: StockTabId): ReactNode {
       return <BellOutlined />;
   }
 }
+
+export const TASK_VIEW_ICON = <CheckSquareOutlined />;
 
 export function getInitialView(): ViewId {
   if (typeof window === 'undefined') return 'home';

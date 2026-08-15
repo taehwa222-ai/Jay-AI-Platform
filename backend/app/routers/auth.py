@@ -58,7 +58,12 @@ async def signup(
     payload: SignupRequest,
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> SignupResponse:
-    user = auth_service.create_user(payload.email, payload.password, payload.name)
+    user = auth_service.create_user(
+        payload.email,
+        payload.password,
+        payload.name,
+        payload.invite_token,
+    )
     approved = user.approval_status == "approved"
     return SignupResponse(
         user=UserPublic(**user.public()),

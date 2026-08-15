@@ -5,6 +5,7 @@ import {
   FileAddOutlined,
   FileMarkdownOutlined,
   FolderOpenOutlined,
+  HistoryOutlined,
   ReloadOutlined,
   SaveOutlined,
   SearchOutlined,
@@ -16,13 +17,16 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   getContentDocuments,
+  getContentVersions,
   getEmoticonProjects,
   getYoutubeProjects,
   saveContentDocument,
+  restoreContentVersion,
 } from '../api';
 import type {
   ContentDocument,
   ContentKind,
+  ContentVersion,
   EmoticonProjectSummary,
   YoutubeProjectSummary,
 } from '../types';
@@ -191,6 +195,8 @@ export function ContentOpsScreen({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [versions, setVersions] = useState<ContentVersion[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [projectQuery, setProjectQuery] = useState('');
   const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
   const [pendingAction, setPendingAction] = useState<PendingContentAction | null>(null);
@@ -442,9 +448,36 @@ export function ContentOpsScreen({
         items.map((item) => (item.filename === saved.filename ? saved : item)),
       );
       discardCurrentDraft();
+      setVersions(await getContentVersions(token, kind, selectedSlug, selectedFilename));
       setMessage(`${saved.filename} 저장 완료`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '문서를 저장하지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleHistory() {
+    if (!selectedSlug || !selectedFilename) return;
+    const nextOpen = !historyOpen;
+    setHistoryOpen(nextOpen);
+    if (nextOpen) {
+      setVersions(await getContentVersions(token, kind, selectedSlug, selectedFilename));
+    }
+  }
+
+  async function restoreVersion(version: ContentVersion) {
+    if (hasUnsavedChanges) {
+      setMessage('현재 변경사항을 먼저 저장하거나 버린 뒤 이전 버전을 복원하세요.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const restored = await restoreContentVersion(token, version);
+      setDocuments((items) => items.map((item) => item.filename === restored.filename ? restored : item));
+      setDraft(restored.content);
+      setVersions(await getContentVersions(token, kind, version.slug, version.filename));
+      setMessage(`${version.filename}의 이전 버전을 복원했습니다.`);
     } finally {
       setSaving(false);
     }
@@ -657,6 +690,7 @@ export function ContentOpsScreen({
                       <h3>{selectedFilename} {hasUnsavedChanges && <span className="dirty-dot" title="저장되지 않은 변경사항" />}</h3>
                     </div>
                     <div className="editor-actions">
+                      <button className="secondary-button" onClick={() => void toggleHistory()} type="button"><HistoryOutlined /> 버전 {versions.length > 0 ? versions.length : ''}</button>
                       <div className="editor-mode-switch" role="tablist" aria-label="편집기 보기 방식">
                         <button aria-selected={editorMode === 'edit'} className={editorMode === 'edit' ? 'active' : ''} onClick={() => setEditorMode('edit')} role="tab" type="button"><EditOutlined /> 편집</button>
                         <button aria-selected={editorMode === 'preview'} className={editorMode === 'preview' ? 'active' : ''} onClick={() => setEditorMode('preview')} role="tab" type="button"><EyeOutlined /> 미리보기</button>
@@ -715,6 +749,18 @@ export function ContentOpsScreen({
                     </span>
                     <span>{lineCount.toLocaleString()} lines · {draft.length.toLocaleString()} chars · Ctrl+S 저장</span>
                   </div>
+                  {historyOpen && (
+                    <aside className="version-history" aria-label="문서 버전 기록">
+                      <div><strong><HistoryOutlined /> 저장 이력</strong><small>저장 직전 내용이 자동 보존됩니다.</small></div>
+                      {versions.map((version) => (
+                        <article key={version.id}>
+                          <span><strong>{new Date(version.created_at).toLocaleString('ko-KR')}</strong><small>{version.content.slice(0, 90).replace(/\s+/g, ' ') || '빈 문서'}</small></span>
+                          <button disabled={saving || hasUnsavedChanges} onClick={() => void restoreVersion(version)} type="button">복원</button>
+                        </article>
+                      ))}
+                      {versions.length === 0 && <div className="empty-state">아직 이전 버전이 없습니다. 문서를 수정해 저장하면 생성됩니다.</div>}
+                    </aside>
+                  )}
                 </>
               ) : (
                 <div className="editor-empty"><FileMarkdownOutlined /><strong>Markdown 문서가 없습니다</strong><span>프로젝트 폴더에 .md 파일을 추가하세요.</span></div>
