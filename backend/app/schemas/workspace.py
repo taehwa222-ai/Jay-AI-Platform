@@ -44,6 +44,14 @@ class TaskPublic(BaseModel):
     created_at: str
     updated_at: str
     completed_at: str | None
+    source_type: str | None = None
+    source_ref: str | None = None
+
+
+class TaskSyncResponse(BaseModel):
+    created_count: int
+    completed_count: int
+    tasks: list[TaskPublic]
 
 
 class ContentVersionPublic(BaseModel):

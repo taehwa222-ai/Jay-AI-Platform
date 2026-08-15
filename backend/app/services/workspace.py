@@ -25,6 +25,22 @@ from app.services.auth import User
 from app.services.backup import backup_database, verify_database
 from app.services.content_ops import ContentOpsService
 from app.services.database import connect_database
+from app.services.disclosures import Disclosure
+
+IMPORTANT_DISCLOSURE_KEYWORDS = (
+    "주요사항보고서",
+    "유상증자",
+    "무상증자",
+    "합병",
+    "분할",
+    "최대주주",
+    "영업정지",
+    "상장폐지",
+    "횡령",
+    "배임",
+    "감사보고서",
+    "잠정실적",
+)
 
 
 class WorkspaceService:
@@ -79,6 +95,15 @@ class WorkspaceService:
                     created_at TEXT NOT NULL,
                     UNIQUE(user_id, briefing_date)
                 );
+                """
+            )
+            ensure_column(connection, "work_tasks", "source_type", "TEXT")
+            ensure_column(connection, "work_tasks", "source_ref", "TEXT")
+            connection.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_work_tasks_source
+                ON work_tasks(user_id, source_type, source_ref)
+                WHERE source_ref IS NOT NULL
                 """
             )
 
@@ -277,6 +302,117 @@ class WorkspaceService:
             )
             if cursor.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Task not found.")
+
+    def sync_content_tasks(
+        self,
+        user: User,
+        content_service: ContentOpsService,
+    ) -> tuple[int, int, list[TaskPublic]]:
+        if not user.can_access_content_ops:
+            return 0, 0, self.list_tasks(user)
+        desired: list[tuple[str, str, str, str]] = []
+        youtube_steps = (
+            ("research", "리서치"),
+            ("ideas", "기획안"),
+            ("qa", "기획 검수"),
+            ("script", "대본"),
+            ("production", "제작"),
+            ("review", "성과 검토"),
+        )
+        for project in content_service.list_youtube_projects():
+            for field, label in youtube_steps:
+                if not getattr(project, f"has_{field}"):
+                    desired.append(
+                        (
+                            f"youtube:{project.slug}:{field}",
+                            f"YouTube {project.slug}: {label} 진행",
+                            f"Content Ops에서 {label} 문서를 작성하거나 검토하세요.",
+                            f"youtube:{project.slug}:%",
+                        )
+                    )
+                    break
+        emoticon_steps = (
+            ("character", "캐릭터 정의"),
+            ("research", "시장조사"),
+            ("qa", "기획 검수"),
+            ("friends", "관계 캐릭터"),
+            ("review", "출시 검토"),
+        )
+        for project in content_service.list_emoticon_projects():
+            for field, label in emoticon_steps:
+                if not getattr(project, f"has_{field}"):
+                    desired.append(
+                        (
+                            f"emoticon:{project.slug}:{field}",
+                            f"이모티콘 {project.slug}: {label} 진행",
+                            f"Content Ops에서 {label} 문서를 작성하거나 검토하세요.",
+                            f"emoticon:{project.slug}:%",
+                        )
+                    )
+                    break
+
+        now = now_iso()
+        created_count = 0
+        completed_count = 0
+        with self.connect() as connection:
+            for source_ref, title, description, project_pattern in desired:
+                cursor = connection.execute(
+                    """
+                    UPDATE work_tasks
+                    SET status = 'done', completed_at = ?, updated_at = ?
+                    WHERE user_id = ? AND source_type = 'content'
+                      AND source_ref LIKE ? AND source_ref != ? AND status != 'done'
+                    """,
+                    (now, now, user.id, project_pattern, source_ref),
+                )
+                completed_count += cursor.rowcount
+                cursor = connection.execute(
+                    """
+                    INSERT OR IGNORE INTO work_tasks (
+                        user_id, title, description, status, priority, due_date,
+                        created_at, updated_at, source_type, source_ref
+                    ) VALUES (?, ?, ?, 'todo', 'normal', NULL, ?, ?, 'content', ?)
+                    """,
+                    (user.id, title, description, now, now, source_ref),
+                )
+                created_count += cursor.rowcount
+        return created_count, completed_count, self.list_tasks(user)
+
+    def record_disclosure_tasks(
+        self,
+        user: User,
+        ticker: str,
+        disclosures: list[Disclosure],
+    ) -> int:
+        normalized_ticker = ticker.strip().upper()
+        important = [
+            disclosure
+            for disclosure in disclosures
+            if any(keyword in disclosure.title for keyword in IMPORTANT_DISCLOSURE_KEYWORDS)
+        ]
+        now = now_iso()
+        created_count = 0
+        with self.connect() as connection:
+            for disclosure in important:
+                cursor = connection.execute(
+                    """
+                    INSERT OR IGNORE INTO work_tasks (
+                        user_id, title, description, status, priority, due_date,
+                        created_at, updated_at, source_type, source_ref
+                    ) VALUES (?, ?, ?, 'todo', 'high', ?, ?, ?, 'disclosure', ?)
+                    """,
+                    (
+                        user.id,
+                        f"{normalized_ticker} 주요 공시 검토",
+                        f"{disclosure.title} · {disclosure.url}",
+                        disclosure.date,
+                        now,
+                        now,
+                        f"dart:{disclosure.receipt_no}",
+                    ),
+                )
+                created_count += cursor.rowcount
+        return created_count
 
     @staticmethod
     def _task_public(row: sqlite3.Row) -> TaskPublic:
@@ -529,3 +665,15 @@ def validate_date(value: str | None) -> str | None:
 
 def now_iso() -> str:
     return datetime.now(UTC).isoformat()
+
+
+def ensure_column(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+    ddl: str,
+) -> None:
+    columns = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    if any(str(column["name"]) == column_name for column in columns):
+        return
+    connection.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}")

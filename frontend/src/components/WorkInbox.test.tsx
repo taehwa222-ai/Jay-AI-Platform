@@ -5,7 +5,7 @@ import { WorkInbox } from './WorkInbox';
 const api = vi.hoisted(() => ({
   createTask: vi.fn(),
   deleteTask: vi.fn(),
-  getTasks: vi.fn(),
+  syncContentTasks: vi.fn(),
   updateTask: vi.fn(),
 }));
 
@@ -14,7 +14,11 @@ vi.mock('../api', () => api);
 describe('WorkInbox', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    api.getTasks.mockResolvedValue([]);
+    api.syncContentTasks.mockResolvedValue({
+      created_count: 0,
+      completed_count: 0,
+      tasks: [],
+    });
     api.createTask.mockResolvedValue({
       id: 1,
       title: '배포 확인',
@@ -25,12 +29,14 @@ describe('WorkInbox', () => {
       created_at: '2026-08-15T00:00:00Z',
       updated_at: '2026-08-15T00:00:00Z',
       completed_at: null,
+      source_type: null,
+      source_ref: null,
     });
   });
 
   it('captures a task and displays it immediately', async () => {
     render(<WorkInbox active token="token" />);
-    await waitFor(() => expect(api.getTasks).toHaveBeenCalledWith('token'));
+    await waitFor(() => expect(api.syncContentTasks).toHaveBeenCalledWith('token'));
     fireEvent.change(screen.getByLabelText('새 업무'), {
       target: { value: '배포 확인' },
     });

@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.main import app
+from app.services.disclosures import Disclosure
 
 
 def owner_headers(client: TestClient) -> dict[str, str]:
@@ -168,3 +169,50 @@ def test_invitation_activates_matching_user_and_is_single_use():
     assert signup.json()["user"]["can_access_content_ops"] is False
     assert invitations.json()[0]["used_at"]
     assert reused.status_code == 400
+
+
+def test_content_task_sync_creates_next_step_without_duplicates():
+    project = get_settings().content_dir / "youtube" / "2026-08-15-automation"
+    project.mkdir(parents=True)
+    (project / "research.md").write_text("research complete", encoding="utf-8")
+
+    with TestClient(app) as client:
+        headers = owner_headers(client)
+        first = client.post("/api/v1/workspace/tasks/sync-content", headers=headers)
+        second = client.post("/api/v1/workspace/tasks/sync-content", headers=headers)
+        tasks = client.get("/api/v1/workspace/tasks", headers=headers)
+
+    assert first.status_code == 200
+    assert first.json()["created_count"] == 1
+    assert first.json()["tasks"][0]["source_type"] == "content"
+    assert "기획안" in first.json()["tasks"][0]["title"]
+    assert second.json()["created_count"] == 0
+    assert len(tasks.json()) == 1
+
+
+def test_important_disclosure_creates_one_high_priority_task():
+    disclosure = Disclosure(
+        title="주요사항보고서(유상증자결정)",
+        date="2026-08-15",
+        receipt_no="20260815000123",
+        url="https://dart.example/report",
+    )
+    with TestClient(app) as client:
+        headers = owner_headers(client)
+        user = app.state.auth_service.list_users()[0]
+        created = app.state.workspace_service.record_disclosure_tasks(
+            user,
+            "005930",
+            [disclosure],
+        )
+        duplicate = app.state.workspace_service.record_disclosure_tasks(
+            user,
+            "005930",
+            [disclosure],
+        )
+        tasks = client.get("/api/v1/workspace/tasks", headers=headers)
+
+    assert created == 1
+    assert duplicate == 0
+    assert tasks.json()[0]["priority"] == "high"
+    assert tasks.json()[0]["source_ref"] == "dart:20260815000123"

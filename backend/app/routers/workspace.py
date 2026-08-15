@@ -15,6 +15,7 @@ from app.schemas.workspace import (
     StockBriefingPublic,
     TaskCreateRequest,
     TaskPublic,
+    TaskSyncResponse,
     TaskUpdateRequest,
 )
 from app.services.auth import User
@@ -59,6 +60,24 @@ async def create_task(
     service: Annotated[WorkspaceService, Depends(get_workspace_service)],
 ) -> TaskPublic:
     return service.create_task(user, payload)
+
+
+@router.post("/tasks/sync-content", response_model=TaskSyncResponse)
+async def sync_content_tasks(
+    user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[WorkspaceService, Depends(get_workspace_service)],
+    content_service: Annotated[ContentOpsService, Depends(get_content_service)],
+) -> TaskSyncResponse:
+    created, completed, tasks = await asyncio.to_thread(
+        service.sync_content_tasks,
+        user,
+        content_service,
+    )
+    return TaskSyncResponse(
+        created_count=created,
+        completed_count=completed,
+        tasks=tasks,
+    )
 
 
 @router.patch("/tasks/{task_id}", response_model=TaskPublic)

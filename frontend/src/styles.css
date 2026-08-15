@@ -4562,6 +4562,7 @@ label {
 
 /* Productivity workspace */
 .task-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0; }
+.task-intro-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .task-summary-grid article { align-items: center; background: var(--surface, #fff); border: 1px solid var(--border, #e7e9ee); border-radius: 16px; display: flex; gap: 14px; padding: 18px; }
 .task-summary-grid article > span { display: flex; flex-direction: column; }
 .task-summary-grid article > svg { color: #6558d3; font-size: 24px; }

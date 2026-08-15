@@ -1402,6 +1402,7 @@ export default function App() {
             onOpenContentOps={() => requestNavigate('contentOps')}
             onOpenOperations={() => requestNavigate('operations')}
             onOpenStocks={() => requestNavigate('stocks')}
+            onOpenTasks={() => requestNavigate('tasks')}
             pendingUserCount={pendingUserCount}
             stockAnalysisRecords={analysisRecords}
             token={token}

@@ -76,6 +76,8 @@ export type WorkTask = {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  source_type: 'content' | 'disclosure' | null;
+  source_ref: string | null;
 };
 
 export type ContentVersion = {

@@ -465,6 +465,16 @@ export function getTasks(token: string): Promise<WorkTask[]> {
   return request<WorkTask[]>('/api/v1/workspace/tasks', undefined, token);
 }
 
+export function syncContentTasks(
+  token: string,
+): Promise<{ created_count: number; completed_count: number; tasks: WorkTask[] }> {
+  return request(
+    '/api/v1/workspace/tasks/sync-content',
+    { method: 'POST' },
+    token,
+  );
+}
+
 export function createTask(
   token: string,
   payload: Pick<WorkTask, 'title' | 'description' | 'priority' | 'due_date'>,

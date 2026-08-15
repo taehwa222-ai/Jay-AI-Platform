@@ -10,7 +10,12 @@ import {
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { getEmoticonProjects, getOperations, getYoutubeProjects } from '../api';
+import {
+  getEmoticonProjects,
+  getOperations,
+  getYoutubeProjects,
+  syncContentTasks,
+} from '../api';
 import type {
   EmoticonProjectSummary,
   OperationsOverview,
@@ -18,6 +23,7 @@ import type {
   StockHolding,
   StockWatchlistItem,
   UserAccount,
+  WorkTask,
   YoutubeProjectSummary,
 } from '../types';
 import { formatWon } from '../utils';
@@ -33,6 +39,7 @@ type HomeDashboardProps = {
   onOpenContentOps: () => void;
   onOpenOperations: () => void;
   onOpenStocks: () => void;
+  onOpenTasks: () => void;
   pendingUserCount: number;
   stockAnalysisRecords: StockAnalysisRecord[];
   token: string;
@@ -59,6 +66,7 @@ export function HomeDashboard({
   onOpenContentOps,
   onOpenOperations,
   onOpenStocks,
+  onOpenTasks,
   pendingUserCount,
   stockAnalysisRecords,
   token,
@@ -69,20 +77,23 @@ export function HomeDashboard({
   const [operations, setOperations] = useState<OperationsOverview | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [workTasks, setWorkTasks] = useState<WorkTask[]>([]);
 
   const loadHome = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     setMessage(null);
     try {
-      const [youtube, emoticon, operationsOverview] = await Promise.all([
+      const [youtube, emoticon, operationsOverview, taskSync] = await Promise.all([
         canAccessContentOps ? getYoutubeProjects(token) : Promise.resolve([]),
         canAccessContentOps ? getEmoticonProjects(token) : Promise.resolve([]),
         canManageUsers ? getOperations(token) : Promise.resolve(null),
+        syncContentTasks(token),
       ]);
       setYoutubeProjects(youtube);
       setEmoticonProjects(emoticon);
       setOperations(operationsOverview);
+      setWorkTasks(taskSync.tasks);
     } catch (requestError) {
       setMessage(requestError instanceof Error ? requestError.message : '홈 요약을 불러오지 못했습니다.');
     } finally {
@@ -102,8 +113,23 @@ export function HomeDashboard({
   const portfolioValue = holdings.reduce((total, holding) => total + holding.market_value, 0);
   const contentInProgress = youtubeProjects.filter((project) => !project.has_production).length
     + emoticonProjects.filter((project) => !project.has_review).length;
+  const openWorkTasks = workTasks.filter((task) => task.status !== 'done');
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueWorkTasks = openWorkTasks.filter(
+    (task) => task.due_date !== null && task.due_date < today,
+  );
 
   const tasks: HomeTask[] = [
+    ...(openWorkTasks.length > 0 ? [{
+      id: 'work-inbox',
+      title: overdueWorkTasks.length > 0
+        ? `기한이 지난 업무 ${overdueWorkTasks.length}건`
+        : `업무 인박스 ${openWorkTasks.length}건`,
+      description: openWorkTasks.slice(0, 2).map((task) => task.title).join(' · '),
+      label: overdueWorkTasks.length > 0 ? '마감 주의' : '업무 인박스',
+      tone: overdueWorkTasks.length > 0 ? 'attention' as const : 'steady' as const,
+      onOpen: onOpenTasks,
+    }] : []),
     ...(canManageUsers && pendingUserCount > 0 ? [{
       id: 'pending-users',
       title: `가입 승인 ${pendingUserCount}건`,

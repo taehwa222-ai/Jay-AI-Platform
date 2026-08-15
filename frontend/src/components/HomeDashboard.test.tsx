@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
   getEmoticonProjects: vi.fn(),
   getOperations: vi.fn(),
   getYoutubeProjects: vi.fn(),
+  syncContentTasks: vi.fn(),
 }));
 
 vi.mock('../api', () => api);
@@ -45,6 +46,7 @@ function props() {
     onOpenContentOps: vi.fn(),
     onOpenOperations: vi.fn(),
     onOpenStocks: vi.fn(),
+    onOpenTasks: vi.fn(),
     pendingUserCount: 1,
     stockAnalysisRecords: [],
     token: 'owner-token',
@@ -56,6 +58,7 @@ beforeEach(() => {
   api.getYoutubeProjects.mockReset();
   api.getEmoticonProjects.mockReset();
   api.getOperations.mockReset();
+  api.syncContentTasks.mockReset();
   api.getYoutubeProjects.mockResolvedValue([{
     slug: '2026-08-15-trend',
     updated_at: '2026-08-15T10:00:00Z',
@@ -63,6 +66,7 @@ beforeEach(() => {
   }]);
   api.getEmoticonProjects.mockResolvedValue([]);
   api.getOperations.mockResolvedValue(operations);
+  api.syncContentTasks.mockResolvedValue({ created_count: 0, completed_count: 0, tasks: [] });
 });
 
 it('collects stock, content, access and operations work into one home', async () => {

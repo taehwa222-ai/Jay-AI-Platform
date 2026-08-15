@@ -15,6 +15,7 @@ const api = vi.hoisted(() => ({
   getEmoticonProjects: vi.fn().mockResolvedValue([]),
   getOperations: vi.fn().mockResolvedValue(null),
   getYoutubeProjects: vi.fn().mockResolvedValue([]),
+  syncContentTasks: vi.fn().mockResolvedValue({ created_count: 0, completed_count: 0, tasks: [] }),
   updateAdminUser: vi.fn(),
 }));
 

@@ -5,9 +5,10 @@ import {
   InboxOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { createTask, deleteTask, getTasks, updateTask } from '../api';
+import { createTask, deleteTask, syncContentTasks, updateTask } from '../api';
 import type { WorkTask } from '../types';
 
 export function WorkInbox({ active, token }: { active: boolean; token: string }) {
@@ -19,12 +20,17 @@ export function WorkInbox({ active, token }: { active: boolean; token: string })
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (announce = false) => {
     if (!token) return;
     setLoading(true);
     try {
-      setTasks(await getTasks(token));
-      setMessage(null);
+      const result = await syncContentTasks(token);
+      setTasks(result.tasks);
+      setMessage(
+        announce || result.created_count > 0 || result.completed_count > 0
+          ? `자동 수집 완료 · 새 업무 ${result.created_count}건 · 단계 완료 ${result.completed_count}건`
+          : null,
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '업무 목록을 불러오지 못했습니다.');
     } finally {
@@ -84,9 +90,10 @@ export function WorkInbox({ active, token }: { active: boolean; token: string })
           <h2>해야 할 일을 놓치지 않는 개인 업무함</h2>
           <p>떠오른 업무를 즉시 수집하고, 진행 중과 완료 상태만 가볍게 관리하세요.</p>
         </div>
-        <button className="secondary-button" disabled={loading} onClick={() => void load()} type="button">
-          <ReloadOutlined spin={loading} /> 새로고침
-        </button>
+        <div className="task-intro-actions">
+          <button className="secondary-button" disabled={loading} onClick={() => void load()} type="button"><ReloadOutlined spin={loading} /> 새로고침</button>
+          <button className="primary-button" disabled={loading} onClick={() => void load(true)} type="button"><SyncOutlined spin={loading} /> Content Ops 자동 수집</button>
+        </div>
       </div>
 
       <div className="task-summary-grid">
@@ -123,7 +130,7 @@ export function WorkInbox({ active, token }: { active: boolean; token: string })
             >
               {task.status === 'done' ? <CheckCircleOutlined /> : <span />}
             </button>
-            <div><strong>{task.title}</strong><small>{task.due_date ? `마감 ${task.due_date}` : '마감일 없음'} · 우선순위 {task.priority}</small></div>
+            <div><strong>{task.title}</strong><small>{task.source_type === 'disclosure' ? '공시 자동 생성 · ' : task.source_type === 'content' ? '콘텐츠 자동 생성 · ' : ''}{task.due_date ? `마감 ${task.due_date}` : '마감일 없음'} · 우선순위 {task.priority}</small></div>
             {task.status !== 'done' && (
               <button className="task-progress" onClick={() => void changeStatus(task, task.status === 'doing' ? 'todo' : 'doing')} type="button">
                 {task.status === 'doing' ? '대기로' : '진행 시작'}
