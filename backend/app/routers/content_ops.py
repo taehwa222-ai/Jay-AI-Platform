@@ -1,9 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from app.routers.auth import require_admin
 from app.schemas.content_ops import (
+    ContentDocument,
+    ContentDocumentUpdate,
     EmoticonProjectDetail,
     EmoticonProjectSummary,
     YoutubeProjectDetail,
@@ -17,6 +19,40 @@ router = APIRouter(prefix="/api/v1/content-ops", tags=["content-ops"])
 
 def get_content_service(request: Request) -> ContentOpsService:
     return request.app.state.content_service
+
+
+@router.get("/documents/{kind}/{slug}", response_model=list[ContentDocument])
+async def list_documents(
+    kind: str,
+    slug: str,
+    _: Annotated[User, Depends(require_admin)],
+    content_service: Annotated[ContentOpsService, Depends(get_content_service)],
+) -> list[ContentDocument]:
+    documents = content_service.list_documents(kind, slug)
+    if documents is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return documents
+
+
+@router.put("/documents/{kind}/{slug}/{filename}", response_model=ContentDocument)
+async def save_document(
+    kind: str,
+    slug: str,
+    filename: str,
+    payload: ContentDocumentUpdate,
+    _: Annotated[User, Depends(require_admin)],
+    content_service: Annotated[ContentOpsService, Depends(get_content_service)],
+) -> ContentDocument:
+    try:
+        document = content_service.save_document(kind, slug, filename, payload.content)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    if document is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return document
 
 
 @router.get("/youtube", response_model=list[YoutubeProjectSummary])

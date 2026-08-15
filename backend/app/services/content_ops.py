@@ -4,6 +4,7 @@ from pathlib import Path
 
 from app.config import Settings
 from app.schemas.content_ops import (
+    ContentDocument,
     EmoticonProjectDetail,
     EmoticonProjectSummary,
     EmoticonSetDetail,
@@ -39,6 +40,7 @@ REVIEW_METRIC_FIELDS = {
     "트래픽 소스 1위": "top_traffic_source",
 }
 EMPTY_METRIC_VALUES = {"", "미연동"}
+SAFE_MARKDOWN_FILENAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.md$")
 
 
 class ContentOpsService:
@@ -128,6 +130,60 @@ class ContentOpsService:
             friends=contents["friends"],
             review=contents["review"],
             sets=self._emoticon_set_details(project_dir),
+        )
+
+    def list_documents(self, kind: str, slug: str) -> list[ContentDocument] | None:
+        project_dir = self._project_dir(kind, slug)
+        if project_dir is None:
+            return None
+        return [
+            ContentDocument(
+                filename=path.name,
+                content=path.read_text(encoding="utf-8"),
+                updated_at=datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).isoformat(),
+            )
+            for path in sorted(project_dir.glob("*.md"), key=lambda item: item.name)
+            if self._is_safe_file(path)
+        ]
+
+    def save_document(
+        self,
+        kind: str,
+        slug: str,
+        filename: str,
+        content: str,
+    ) -> ContentDocument | None:
+        project_dir = self._project_dir(kind, slug)
+        if project_dir is None:
+            return None
+        if not SAFE_MARKDOWN_FILENAME.fullmatch(filename):
+            raise ValueError("Only a safe Markdown filename is allowed.")
+
+        target = project_dir / filename
+        if target.exists() and (not target.is_file() or target.is_symlink()):
+            raise ValueError("The document target is not a regular file.")
+        temporary = project_dir / f".{filename}.tmp"
+        temporary.write_text(content, encoding="utf-8", newline="\n")
+        temporary.replace(target)
+        return ContentDocument(
+            filename=target.name,
+            content=content,
+            updated_at=datetime.fromtimestamp(target.stat().st_mtime, tz=UTC).isoformat(),
+        )
+
+    def _project_dir(self, kind: str, slug: str) -> Path | None:
+        if kind not in {"youtube", "emoticon"}:
+            return None
+        parent = self.content_dir / kind
+        if not parent.is_dir():
+            return None
+        return next(
+            (
+                candidate
+                for candidate in parent.iterdir()
+                if candidate.name == slug and candidate.is_dir() and not candidate.is_symlink()
+            ),
+            None,
         )
 
     def _emoticon_summary(self, project_dir: Path) -> EmoticonProjectSummary:

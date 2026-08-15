@@ -126,20 +126,11 @@ def test_review_metrics_are_none_when_review_is_missing_or_unfilled():
     assert detail.json()["review_metrics"] is None
 
 
-def test_member_cannot_list_youtube_projects():
+def test_youtube_projects_require_owner_authentication():
     with TestClient(app) as client:
-        create_admin(client)
-        member_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "member@example.com", "password": "password123", "name": "Member"},
-        )
-        member_token = member_signup.json()["access_token"]
-        response = client.get(
-            "/api/v1/content-ops/youtube",
-            headers={"Authorization": f"Bearer {member_token}"},
-        )
+        response = client.get("/api/v1/content-ops/youtube")
 
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 def test_missing_and_traversal_youtube_projects_return_404():
@@ -215,20 +206,42 @@ def test_list_and_get_emoticon_project_with_suffix_fallback():
     assert details_by_set["monday-24"]["submission_copy"] == "# Monday copy"
 
 
-def test_member_cannot_list_emoticon_projects():
+def test_emoticon_projects_require_owner_authentication():
     with TestClient(app) as client:
-        create_admin(client)
-        member_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "member@example.com", "password": "password123", "name": "Member"},
+        response = client.get("/api/v1/content-ops/emoticon")
+
+    assert response.status_code == 401
+
+
+def test_owner_can_list_edit_and_create_markdown_documents():
+    project_dir = get_settings().content_dir / "youtube" / "2026-08-15-editor"
+    project_dir.mkdir(parents=True)
+    (project_dir / "ideas.md").write_text("# Initial ideas", encoding="utf-8")
+
+    with TestClient(app) as client:
+        token = create_admin(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        listed = client.get(
+            "/api/v1/content-ops/documents/youtube/2026-08-15-editor",
+            headers=headers,
         )
-        member_token = member_signup.json()["access_token"]
-        response = client.get(
-            "/api/v1/content-ops/emoticon",
-            headers={"Authorization": f"Bearer {member_token}"},
+        saved = client.put(
+            "/api/v1/content-ops/documents/youtube/2026-08-15-editor/script.md",
+            headers=headers,
+            json={"content": "# Final script\nReady."},
+        )
+        invalid = client.put(
+            "/api/v1/content-ops/documents/youtube/2026-08-15-editor/bad.txt",
+            headers=headers,
+            json={"content": "no"},
         )
 
-    assert response.status_code == 403
+    assert listed.status_code == 200
+    assert listed.json()[0]["filename"] == "ideas.md"
+    assert saved.status_code == 200
+    assert saved.json()["content"] == "# Final script\nReady."
+    assert (project_dir / "script.md").read_text(encoding="utf-8") == "# Final script\nReady."
+    assert invalid.status_code == 422
 
 
 def test_missing_and_traversal_emoticon_projects_return_404():

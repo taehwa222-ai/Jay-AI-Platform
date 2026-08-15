@@ -46,7 +46,12 @@ export function StockWatchlistPanel({
         <h3>관심종목</h3>
       </div>
       <div className="pane-body">
-        <form className="watchlist-form" onSubmit={onCreate}>
+        <details className="stock-form-disclosure">
+          <summary>
+            <span><PlusOutlined /> 관심종목 추가</span>
+            <small>분석 전에 추적할 종목과 조건 메모 입력</small>
+          </summary>
+          <form className="watchlist-form" onSubmit={onCreate}>
           <label>
             <span>종목코드</span>
             <input
@@ -85,7 +90,8 @@ export function StockWatchlistPanel({
             <BarChartOutlined />
             관심종목 전체 스캔
           </button>
-        </form>
+          </form>
+        </details>
 
         <div className="watchlist-list">
           {watchlist.map((item) => (

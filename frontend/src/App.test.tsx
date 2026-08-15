@@ -1,96 +1,110 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import App from './App';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, expect, it, vi } from 'vitest';
+import App, { buildAnalysisPayload, buildHoldingPayload } from './App';
 
-const { member, confirmPayment } = vi.hoisted(() => ({
-  member: {
-    id: 1,
-    email: 'member@example.com',
-    name: 'Member',
-    role: 'member' as const,
-    plan: 'free' as const,
-    is_active: true,
-    created_at: '2026-01-01T00:00:00Z',
-    last_login_at: null,
-  },
-  confirmPayment: vi.fn().mockResolvedValue({
-    id: 1,
-    order_id: 'order-1',
-    amount: 9900,
-    status: 'approved',
-    created_at: '2026-01-01T00:00:00Z',
-    approved_at: '2026-01-01T00:00:00Z',
-  }),
-}));
-
-vi.mock('./api', () => ({
-  getHealth: vi.fn().mockResolvedValue({ ok: true, app: 'Jay AI Platform', env: 'test', time: '' }),
-  getOverview: vi.fn().mockResolvedValue({
-    name: 'Jay AI Platform',
-    status: 'ready',
-    message: 'ready message',
-    modules: [],
-  }),
-  getModules: vi.fn().mockResolvedValue([]),
-  getManual: vi.fn().mockResolvedValue([]),
-  getMonetizationIdeas: vi.fn().mockResolvedValue([]),
-  getRoadmap: vi.fn().mockResolvedValue([]),
-  getMe: vi.fn().mockResolvedValue(member),
+const api = vi.hoisted(() => ({
+  getHealth: vi.fn().mockResolvedValue({ ok: true, app: 'Jay AI', env: 'test', time: '' }),
+  getMe: vi.fn(),
   getStockHoldings: vi.fn().mockResolvedValue([]),
   getStockWatchlist: vi.fn().mockResolvedValue([]),
   getStockAnalysisRecords: vi.fn().mockResolvedValue([]),
   getStockReports: vi.fn().mockResolvedValue([]),
-  getStockReportMarket: vi.fn().mockResolvedValue([]),
-  getMyProRequest: vi.fn().mockResolvedValue(null),
-  confirmPayment,
 }));
 
-describe('App shell', () => {
-  beforeEach(() => {
-    localStorage.clear();
-    window.history.replaceState(null, '', '/');
-    confirmPayment.mockClear();
-  });
+vi.mock('./api', async (loadOriginal) => {
+  const original = await loadOriginal<typeof import('./api')>();
+  return { ...original, ...api };
+});
 
-  it('renders navigation links for every top-level view', async () => {
-    render(<App />);
-    const nav = within(screen.getByRole('navigation', { name: 'Primary' }));
+const owner = {
+  id: 1,
+  email: 'owner@example.com',
+  name: 'Owner',
+  role: 'admin',
+  is_active: true,
+  created_at: '2026-01-01T00:00:00Z',
+  last_login_at: null,
+};
 
-    expect(nav.getByRole('link', { name: /대시보드/ })).toBeInTheDocument();
-    expect(nav.getByRole('link', { name: /로그인/ })).toBeInTheDocument();
-    expect(nav.getByRole('link', { name: /관리자/ })).toBeInTheDocument();
-    expect(nav.getByRole('link', { name: /사용 매뉴얼/ })).toBeInTheDocument();
-    expect(nav.getByRole('link', { name: /국내주식/ })).toBeInTheDocument();
-    expect(nav.getByRole('link', { name: /콘텐츠 운영/ })).toBeInTheDocument();
-    expect(nav.getByRole('link', { name: /수익화/ })).toBeInTheDocument();
-  });
+beforeEach(() => {
+  localStorage.clear();
+  window.history.replaceState(null, '', '/');
+  api.getMe.mockReset();
+  api.getMe.mockResolvedValue(owner);
+});
 
-  it('shows the server status once the health check resolves', async () => {
-    render(<App />);
+it('sends an unauthenticated visitor to the owner login', async () => {
+  render(<App />);
 
-    await waitFor(() => expect(screen.getByText('server online')).toBeInTheDocument());
-  });
+  await waitFor(() => expect(window.location.hash).toBe('#auth'));
+  expect(screen.getByRole('heading', { name: '대표 전용 로그인', level: 1 })).toBeInTheDocument();
+  expect(screen.queryByText(/결제|요금제|Pro 업그레이드/)).not.toBeInTheDocument();
+});
 
-  it('confirms a payment on return from Toss and shows the result', async () => {
-    localStorage.setItem('jay-ai-platform-token', 'test-token');
-    window.history.replaceState(
-      null,
-      '',
-      '/?paymentKey=pk_test_1&orderId=order-1&amount=9900#auth',
-    );
+it('shows only the two business modules after owner session restore', async () => {
+  localStorage.setItem('jay-ai-platform-token', 'owner-token');
+  render(<App />);
+  const nav = within(screen.getByRole('navigation', { name: 'Primary' }));
 
-    render(<App />);
+  await waitFor(() => expect(nav.getByRole('link', { name: /주식 분석 Lab/ })).toBeInTheDocument());
+  expect(nav.getByRole('link', { name: /Content Ops/ })).toBeInTheDocument();
+  expect(nav.getByRole('link', { name: /대표 계정/ })).toBeInTheDocument();
+  expect(nav.queryByRole('link', { name: /관리자|수익화|대시보드/ })).not.toBeInTheDocument();
+});
 
-    await waitFor(() =>
-      expect(confirmPayment).toHaveBeenCalledWith('test-token', {
-        order_id: 'order-1',
-        payment_key: 'pk_test_1',
-        amount: 9900,
-      }),
-    );
-    await waitFor(() =>
-      expect(screen.getByText('결제가 완료되어 Pro로 업그레이드되었습니다.')).toBeInTheDocument(),
-    );
-    expect(window.location.search).toBe('');
-  });
+it('restores the last stock tab and opens quick navigation with Ctrl+K', async () => {
+  const user = userEvent.setup();
+  localStorage.setItem('jay-ai-platform-token', 'owner-token');
+  localStorage.setItem('jay-ai-stock-tab', JSON.stringify('analysis'));
+  window.history.replaceState(null, '', '/#stocks');
+  render(<App />);
+
+  const analysisTab = await screen.findByRole('tab', { name: /AI 분석/ });
+  expect(analysisTab).toHaveAttribute('aria-selected', 'true');
+
+  await user.keyboard('{Control>}k{/Control}');
+  expect(screen.getByRole('dialog', { name: '빠른 이동' })).toBeInTheDocument();
+  expect(screen.getByLabelText('명령 검색')).toHaveFocus();
+});
+
+it('shows compact stock operations and keeps the add form collapsed', async () => {
+  localStorage.setItem('jay-ai-platform-token', 'owner-token');
+  window.history.replaceState(null, '', '/#stocks');
+  render(<App />);
+
+  expect(await screen.findByLabelText('주식 데이터 동기화 상태')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /전체 동기화/ })).toBeInTheDocument();
+  expect(screen.getByText('분석 미완료')).toBeInTheDocument();
+
+  const addHolding = screen.getByText('보유종목 추가').closest('details');
+  expect(addHolding).not.toHaveAttribute('open');
+});
+
+it('builds numeric stock payloads from form drafts', () => {
+  expect(
+    buildHoldingPayload({
+      ticker: '005930',
+      name: '삼성전자',
+      quantity: '10',
+      average_price: '70000',
+      current_price: '75000',
+      investment_thesis: 'memory cycle',
+      risk_memo: 'fx',
+    }).quantity,
+  ).toBe(10);
+  expect(
+    buildAnalysisPayload({
+      ticker: '005930',
+      name: '삼성전자',
+      current_price: '75000',
+      previous_close: '74000',
+      volume: '2000000',
+      previous_volume: '1000000',
+      rsi: '55',
+      macd: '10',
+      macd_signal: '8',
+      memo: '',
+    }).volume,
+  ).toBe(2_000_000);
 });

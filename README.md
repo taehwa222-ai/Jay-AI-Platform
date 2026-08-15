@@ -1,106 +1,31 @@
 # Jay AI Platform
 
-FastAPI, React, Docker Compose, and VPS deployment foundation for building an
-AI revenue platform.
+Jay AI Platform은 대표 1인이 주식 리서치와 콘텐츠 제작을 운영하는 사내용 Business OS입니다.
+FastAPI, React/Vite, SQLite, Docker Compose로 구성되며 B2C 회원 관리·요금제·결제 기능은 포함하지
+않습니다.
 
-The previous sample feature set has been removed. The project is now a clean
-base that you can extend with your own modules.
+## 핵심 화면
 
-## Current Foundation
+- **주식 분석 Lab**: 보유종목, 관심종목, Yahoo Finance 시세, OpenDART 공시, AI 분석 기록,
+  내부 리포트를 한 워크스페이스에서 관리합니다.
+- **Content Ops**: `content/youtube/`, `content/emoticon/` 프로젝트와 Markdown 문서를 조회·편집·
+  저장하고 기획안·대본 템플릿을 복사합니다.
 
-- FastAPI backend with `/api/v1/health`
-- Platform overview, module, manual, roadmap, and monetization routes
-- Vite React operation dashboard
-- Docker Compose deployment shape
-- Ubuntu VPS bootstrap and deploy scripts
-- Local no-Docker development scripts
+최초 가입한 계정 하나만 대표 계정으로 생성됩니다. 이후 추가 가입은 거부되며 모든 내부 API는
+이 대표 계정의 인증 토큰을 요구합니다.
 
-## Product Direction
+## 데이터와 외부 연동
 
-- Build member signup, login, and role-based admin pages first.
-- Provide an in-app manual for local development, GitHub flow, and VPS deployment.
-- Add Korea stock analysis and portfolio management as a later module.
-- Explore revenue models such as subscriptions, paid reports, B2B automation, and education content.
+- SQLite 파일: `DATA_DIR/jay_ai_platform.db`
+- 모든 앱 DB 연결은 WAL 모드, foreign key, busy timeout을 적용합니다.
+- Yahoo Finance 응답은 기본 5분, OpenDART 공시는 기본 30분 동안 TTL 캐시됩니다.
+- OpenAI 키가 설정된 분석 요청은 기본 하루 100회로 제한됩니다. 키가 없으면 로컬 규칙 기반
+  분석은 계속 동작하고 외부 AI 사용량에는 포함되지 않습니다.
+- 분석 완료 알림과 중요 공시 알림을 Telegram으로 보낼 수 있습니다.
+- 기존 DB에 남아 있는 과거 결제·플랜 테이블/컬럼은 데이터 손실 방지를 위해 자동 삭제하지
+  않지만 애플리케이션에서는 읽거나 갱신하지 않습니다.
 
-## Screen Structure
-
-- `Dashboard`: service status, platform overview, module map, and roadmap.
-- `Login`: signup, login, logout, and account status.
-- `Admin`: member list, role control, and account activation.
-- `Manual`: local development, GitHub flow, and VPS deployment steps.
-- `Korea Stocks`: tabbed portfolio, watchlist, stock analysis, and candidate scanning.
-- `Revenue`: subscription, report, B2B automation, and education ideas.
-
-## Member Access
-
-- The first signed-up user automatically becomes `admin`.
-- Later signed-up users become `member`.
-- Admin users can open the member list from the dedicated admin screen.
-- Admin users can promote/demote members and enable/disable accounts.
-- Admin users can switch members between `free` and `pro` plans.
-- Admin users can review member analysis usage counts and latest analysis activity.
-- Free members are limited by `FREE_MONTHLY_ANALYSIS_LIMIT`; pro members and admins are unlimited.
-- The app prevents disabling your own account or removing the last active admin.
-- User data is stored in SQLite at `DATA_DIR/jay_ai_platform.db`.
-- In Docker/VPS deployment, `./data` is mounted into the backend container so user data survives rebuilds.
-
-## Payments
-
-- Free members can upgrade to `pro` two ways: request manual admin approval, or pay by card
-  through Toss Payments and get upgraded immediately.
-- Card payments use the Toss Payments SDK (`@tosspayments/tosspayments-sdk`) test/sandbox keys by
-  default — set `TOSS_CLIENT_KEY` and `TOSS_SECRET_KEY` from the
-  [Toss Payments developer center](https://developers.tosspayments.com/my/api-keys) to enable it.
-  Leaving them empty disables the payment button's server-side confirmation (orders still get
-  created, but Toss will reject the confirm call).
-- The order amount is fixed server-side by `PRO_UPGRADE_PRICE_KRW` — the frontend must send a
-  matching amount or the order is rejected, so the price can only be changed by an operator with
-  access to the server environment, not by a client request.
-- Every attempt is recorded in the `payments` table (`pending` / `approved` / `failed`) for an
-  audit trail; a failed Toss confirmation never upgrades the plan.
-
-## Disclosures (OpenDART)
-
-- Logged-in users can look up a Korean company's disclosures for the last year by ticker from the
-  `Disclosures` tab in Korea Stock Lab — title, date, and a link to the original filing on DART.
-- Requires a free `OPENDART_API_KEY` from the
-  [OpenDART developer portal](https://opendart.fss.or.kr) — no business registration needed.
-  Leaving it empty returns a clear "not configured" error instead of a silent empty list.
-  Ticker-to-company lookup uses OpenDART's full company code list, cached locally and refreshed
-  weekly.
-- This is list-only (title/date/link) — there's no AI summarization of filing contents yet.
-
-## Korea Stock Lab
-
-- Logged-in users can save Korean stock holdings with ticker, quantity, average price, current price, thesis, and risk memo.
-- Logged-in users can save a separate watchlist for stocks they want to monitor before buying.
-- The portfolio screen calculates cost basis, market value, profit/loss, and profit/loss percentage.
-- The portfolio tab visualizes holding allocation and per-stock return rates without extra chart dependencies.
-- The stock analyzer scores a candidate using price change, volume multiplier, RSI, and MACD inputs.
-- Each stock analysis is saved as a history record so users can revisit prior scores, signals, risks, and notes.
-- Users can load a Korean stock market snapshot by ticker; the server tries `.KS` and `.KQ` Yahoo Finance symbols.
-- The snapshot fills current price, previous close, volume, previous volume, RSI, MACD, and MACD signal.
-- Users can refresh all saved holding prices at once from the portfolio tab.
-- Users can scan multiple tickers at once and review ranked candidates by score.
-- Users can scan their saved watchlist with one click.
-- The stock screen is split into `Holdings`, `Watchlist`, `AI Analysis`, and `Candidate Scan` tabs so each workflow stays focused.
-- If `OPENAI_API_KEY` is configured on the server, the analyzer also adds an AI-generated Korean summary.
-- If the OpenAI key is empty, the same endpoint still returns a rule-based local summary.
-- Analysis results are informational only and include a non-advisory disclaimer.
-
-## Project Shape
-
-```text
-backend/app/main.py          FastAPI app wiring
-backend/app/routers          HTTP routes
-backend/app/services         Future business logic
-backend/app/schemas          Future request/response contracts
-frontend/src                 React dashboard
-scripts                      Local and VPS operation scripts
-docs                         Beginner deployment notes
-```
-
-## Backend
+## 로컬 실행
 
 ```powershell
 python -m venv .venv
@@ -109,25 +34,7 @@ pip install -r backend\requirements-dev.txt
 uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
-Health check:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/v1/health
-```
-
-Platform overview:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/api/v1/platform/overview
-```
-
-Smoke test:
-
-```powershell
-python scripts\smoke-platform.py
-```
-
-## Frontend
+다른 터미널에서 프론트엔드를 실행합니다.
 
 ```powershell
 cd frontend
@@ -135,155 +42,79 @@ npm install
 npm run dev
 ```
 
-Open:
-
-```text
-http://localhost:5173
-```
-
-## Local Development Without Docker
-
-Install backend and frontend dependencies once:
+브라우저 주소는 `http://127.0.0.1:5173`입니다. 로컬 자동화 스크립트를 사용할 수도 있습니다.
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\setup-local-dev.ps1
-```
-
-Start both backend and frontend directly on Windows:
-
-```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\start-local-dev.ps1
 ```
 
-Open:
+## 환경 변수
 
-```text
-http://127.0.0.1:5173
-```
-
-Check or stop the local dev servers:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\status-local-dev.ps1
-powershell.exe -ExecutionPolicy Bypass -File scripts\stop-local-dev.ps1
-```
-
-## Environment
-
-Copy `.env.example` to `.env` when you need to override local settings.
+`.env.example`을 `.env`로 복사하고 실제 비밀값은 Git에 올리지 않습니다.
 
 ```text
 APP_NAME=Jay AI Platform
 APP_ENV=development
-API_HOST=127.0.0.1
-API_PORT=8000
-CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 DATA_DIR=backend/data
+CONTENT_DIR=content
 AUTH_SECRET_KEY=change-this-local-secret
-ACCESS_TOKEN_MINUTES=720
 OPENAI_API_KEY=
+OPENDART_API_KEY=
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 MARKET_DATA_TIMEOUT_SECONDS=10
-FREE_MONTHLY_ANALYSIS_LIMIT=20
-TOSS_CLIENT_KEY=
-TOSS_SECRET_KEY=
-PRO_UPGRADE_PRICE_KRW=9900
-OPENDART_API_KEY=
+MARKET_CACHE_TTL_SECONDS=300
+DISCLOSURE_CACHE_TTL_SECONDS=1800
+AI_DAILY_LIMIT=100
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
 ```
 
-Keep real service keys out of GitHub, screenshots, chat messages, and commit
-history. `.env` is ignored by Git.
+Telegram 연결 확인은 로그인 후 `POST /api/v1/notifications/telegram/test`, 중요 공시 발송은
+`POST /api/v1/notifications/telegram/disclosures/{ticker}`를 사용합니다.
 
-## Docker Deployment
+## DB 백업
 
-For server deployment, copy the production env template and start Docker Compose:
+백업 스크립트는 SQLite online backup API로 일관된 복사본을 만들며 같은 날짜의 백업이 이미
+있으면 다시 생성하지 않습니다.
 
 ```powershell
-Copy-Item .env.production.example .env
-docker compose up -d --build
+python scripts\backup_db.py --data-dir backend/data
 ```
 
-The frontend listens on port `80` and proxies `/api`, `/docs`, and
-`/openapi.json` to the FastAPI backend container.
+운영 환경에서는 cron 또는 Windows 작업 스케줄러로 하루 한 번 호출합니다. 상세 예시는
+[`docs/SERVER_OPERATIONS.md`](docs/SERVER_OPERATIONS.md)에 있습니다. 백업 파일은
+`DATA_DIR/backups/jay_ai_platform-YYYYMMDD.db`에 저장됩니다.
 
-## One Command VPS Deployment
-
-After SSH access from your PC to the VPS is configured, this command verifies,
-pushes, deploys, and checks the public health endpoint:
+## 검증
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
+python -m pytest
+ruff check backend scripts/backup_db.py
+cd frontend
+npm run verify
 ```
 
-If your SSH key is a local file, pass it explicitly:
+백엔드가 실행 중일 때 `python scripts/smoke-platform.py`로 기본 API 스모크 테스트를 수행할 수
+있습니다.
 
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
-  -ServerHost YOUR_SERVER_IP `
-  -IdentityFile C:\path\to\your-key.pem
-```
+## 배포
 
-If there are local changes, pass a commit message:
+Docker/VPS에서는 `./data`가 `/app/data`로, `./content`가 쓰기 가능한 `/app/content`로
+마운트되어 DB·백업·Markdown 수정 내용이 컨테이너 재빌드 후에도 보존됩니다. 운영 명령과 백업 스케줄은
+[`docs/SERVER_OPERATIONS.md`](docs/SERVER_OPERATIONS.md), 전체 배포 절차는
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md)를 확인하세요. `main` push와 배포 스크립트 실행은 실제
+서버 배포로 이어질 수 있으므로 반드시 사전 확인 후 수행합니다.
 
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
-  -ServerHost YOUR_SERVER_IP `
-  -CommitMessage "Your change"
-```
-
-## GitHub Push Auto Deploy
-
-The repository includes `.github/workflows/deploy-vps.yml`. To enable automatic
-deployment after every push to `main`, add these GitHub Actions values:
+## 프로젝트 구조
 
 ```text
-Repository variable:
-AUTO_DEPLOY_ENABLED=true
-
-Repository secrets:
-VPS_HOST=YOUR_SERVER_IP
-VPS_USER=ubuntu
-VPS_DEPLOY_PATH=/home/ubuntu/Jay-AI-Platform
-VPS_SSH_KEY=your private deploy key
+backend/app/main.py       FastAPI 앱과 미들웨어
+backend/app/routers/      인증, 주식, 공시, Content Ops, 알림 API
+backend/app/services/     SQLite 스키마, 캐시, AI 가드레일, Telegram
+frontend/src/             React 내부 운영 UI
+content/                  유튜브·이모티콘 Markdown 작업물
+scripts/backup_db.py      일일 SQLite 백업
+docs/                     배포·운영 가이드
 ```
-
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the Ubuntu VPS flow.
-For a step-by-step first server deployment, see
-[docs/VPS_DEPLOYMENT_STEP_BY_STEP.md](docs/VPS_DEPLOYMENT_STEP_BY_STEP.md).
-
-## Local Docker Operations
-
-Start or redeploy:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\start-server.ps1
-```
-
-Check status:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\status-server.ps1
-```
-
-Stop:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\stop-server.ps1
-```
-
-Configure production `.env`:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\configure-production.ps1
-```
-
-On an Ubuntu VPS:
-
-```bash
-bash scripts/bootstrap-ubuntu.sh
-bash scripts/configure-ubuntu-env.sh
-bash scripts/deploy-ubuntu.sh
-```
-
-See [docs/SERVER_OPERATIONS.md](docs/SERVER_OPERATIONS.md) for daily operations.

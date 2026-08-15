@@ -28,14 +28,6 @@ export type ManualSection = {
   checks: string[];
 };
 
-export type MonetizationIdea = {
-  id: string;
-  title: string;
-  model: string;
-  risk: string;
-  next_step: string;
-};
-
 export type RoadmapPhase = {
   id: string;
   title: string;
@@ -47,8 +39,7 @@ export type UserAccount = {
   id: number;
   email: string;
   name: string;
-  role: 'admin' | 'member' | string;
-  plan: 'free' | 'pro' | string;
+  role: 'admin' | string;
   is_active: boolean;
   created_at: string;
   last_login_at: string | null;
@@ -69,62 +60,6 @@ export type AuthResponse = {
   access_token: string;
   token_type: string;
   user: UserAccount;
-};
-
-export type AdminUserUpdatePayload = {
-  role?: 'admin' | 'member';
-  plan?: 'free' | 'pro';
-  is_active?: boolean;
-};
-
-export type AdminUserUsage = UserAccount & {
-  analysis_count: number;
-  latest_analysis_at: string | null;
-};
-
-export type AdminContentStats = {
-  total_reports: number;
-  private_reports: number;
-  published_reports: number;
-  free_reports: number;
-  pro_reports: number;
-  report_creators: number;
-  latest_report_at: string | null;
-  latest_published_at: string | null;
-};
-
-export type ProUpgradeRequest = {
-  id: number;
-  user_id: number;
-  email: string;
-  name: string;
-  current_plan: string;
-  status: 'pending' | 'approved' | 'rejected';
-  message: string;
-  admin_note: string;
-  created_at: string;
-  updated_at: string;
-};
-
-export type PaymentOrder = {
-  order_id: string;
-  amount: number;
-  client_key: string;
-};
-
-export type PaymentConfirmPayload = {
-  order_id: string;
-  payment_key: string;
-  amount: number;
-};
-
-export type Payment = {
-  id: number;
-  order_id: string;
-  amount: number;
-  status: 'pending' | 'approved' | 'failed';
-  created_at: string;
-  approved_at: string | null;
 };
 
 export type Disclosure = {
@@ -235,19 +170,7 @@ export type StockReport = {
   rating: 'candidate' | 'watch' | 'caution';
   rating_label: string;
   report_type: string;
-  access_level: 'private' | 'free' | 'pro';
-  is_published: boolean;
   created_at: string;
-};
-
-export type StockReportMarketItem = StockReport & {
-  can_view: boolean;
-  locked_reason: string;
-};
-
-export type StockReportPublishPayload = {
-  access_level: 'private' | 'free' | 'pro';
-  is_published: boolean;
 };
 
 export type StockMarketSnapshot = {
@@ -371,4 +294,38 @@ export type EmoticonProjectDetail = {
   friends: string | null;
   review: string | null;
   sets: EmoticonSetDetail[];
+};
+
+export type ContentKind = 'youtube' | 'emoticon';
+
+export type ContentDocument = {
+  filename: string;
+  content: string;
+  updated_at: string;
+};
+
+export type NotificationEvent = {
+  id: number;
+  event_type: string;
+  title: string;
+  status: 'sent' | 'failed' | 'skipped';
+  item_count: number;
+  error_message: string | null;
+  attempt_count: number;
+  created_at: string;
+  last_attempt_at: string;
+};
+
+export type NotificationCenterStatus = {
+  configured: boolean;
+  chat_target: string;
+  ai_daily_count: number;
+  ai_daily_limit: number;
+  events: NotificationEvent[];
+};
+
+export type TelegramNotificationResult = {
+  configured: boolean;
+  sent: boolean;
+  item_count: number;
 };

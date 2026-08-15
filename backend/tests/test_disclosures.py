@@ -102,9 +102,12 @@ def test_disclosures_map_successful_response(monkeypatch):
         },
     )
     with TestClient(app) as client:
-        response = client.get("/api/v1/disclosures/005930", headers=auth_headers(client))
+        headers = auth_headers(client)
+        response = client.get("/api/v1/disclosures/005930", headers=headers)
+        cached = client.get("/api/v1/disclosures/005930", headers=headers)
 
     assert response.status_code == 200
+    assert cached.json() == response.json()
     assert response.json() == [
         {
             "title": "사업보고서",
@@ -117,6 +120,7 @@ def test_disclosures_map_successful_response(monkeypatch):
     assert calls[0][1] == {"crtfc_key": "test-key"}
     assert calls[1][1]["corp_code"] == "00126380"
     assert calls[1][1]["page_count"] == 10
+    assert len(calls) == 2
     assert re.fullmatch(r"\d{8}", calls[1][1]["bgn_de"])
     assert re.fullmatch(r"\d{8}", calls[1][1]["end_de"])
 

@@ -1,19 +1,13 @@
 import type {
-  AdminContentStats,
-  AdminUserUpdatePayload,
-  AdminUserUsage,
   AuthResponse,
+  ContentDocument,
+  ContentKind,
   Disclosure,
   HealthStatus,
   LoginPayload,
   ManualSection,
-  MonetizationIdea,
-  Payment,
-  PaymentConfirmPayload,
-  PaymentOrder,
   PlatformModule,
   PlatformOverview,
-  ProUpgradeRequest,
   RoadmapPhase,
   SignupPayload,
   StockAnalysisRecord,
@@ -24,8 +18,6 @@ import type {
   StockHoldingPriceRefreshResult,
   StockMarketSnapshot,
   StockReport,
-  StockReportMarketItem,
-  StockReportPublishPayload,
   StockScanPayload,
   StockScanResult,
   StockWatchlistItem,
@@ -35,6 +27,8 @@ import type {
   EmoticonProjectSummary,
   YoutubeProjectDetail,
   YoutubeProjectSummary,
+  NotificationCenterStatus,
+  TelegramNotificationResult,
 } from './types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
@@ -80,11 +74,6 @@ export async function getManual(): Promise<ManualSection[]> {
   return response.sections;
 }
 
-export async function getMonetizationIdeas(): Promise<MonetizationIdea[]> {
-  const response = await request<{ ideas: MonetizationIdea[] }>('/api/v1/platform/monetization');
-  return response.ideas;
-}
-
 export async function getRoadmap(): Promise<RoadmapPhase[]> {
   const response = await request<{ phases: RoadmapPhase[] }>('/api/v1/platform/roadmap');
   return response.phases;
@@ -106,18 +95,6 @@ export function login(payload: LoginPayload): Promise<AuthResponse> {
 
 export function getMe(token: string): Promise<UserAccount> {
   return request<UserAccount>('/api/v1/auth/me', undefined, token);
-}
-
-export function getAdminUsers(token: string): Promise<UserAccount[]> {
-  return request<UserAccount[]>('/api/v1/admin/users', undefined, token);
-}
-
-export function getAdminUserUsage(token: string): Promise<AdminUserUsage[]> {
-  return request<AdminUserUsage[]>('/api/v1/admin/user-usage', undefined, token);
-}
-
-export function getAdminContentStats(token: string): Promise<AdminContentStats> {
-  return request<AdminContentStats>('/api/v1/admin/content-stats', undefined, token);
 }
 
 export function getYoutubeProjects(token: string): Promise<YoutubeProjectSummary[]> {
@@ -150,52 +127,28 @@ export function getEmoticonProjectDetail(
   );
 }
 
-export function getMyProRequest(token: string): Promise<ProUpgradeRequest | null> {
-  return request<ProUpgradeRequest | null>('/api/v1/auth/pro-request', undefined, token);
-}
-
-export function createProRequest(token: string, message: string): Promise<ProUpgradeRequest> {
-  return request<ProUpgradeRequest>(
-    '/api/v1/auth/pro-request',
-    {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-    },
+export function getContentDocuments(
+  token: string,
+  kind: ContentKind,
+  slug: string,
+): Promise<ContentDocument[]> {
+  return request<ContentDocument[]>(
+    `/api/v1/content-ops/documents/${kind}/${encodeURIComponent(slug)}`,
+    undefined,
     token,
   );
 }
 
-export function getAdminProRequests(token: string): Promise<ProUpgradeRequest[]> {
-  return request<ProUpgradeRequest[]>('/api/v1/admin/pro-requests', undefined, token);
-}
-
-export function updateAdminProRequest(
+export function saveContentDocument(
   token: string,
-  requestId: number,
-  status: 'approved' | 'rejected',
-  adminNote: string,
-): Promise<ProUpgradeRequest> {
-  return request<ProUpgradeRequest>(
-    `/api/v1/admin/pro-requests/${requestId}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify({ status, admin_note: adminNote }),
-    },
-    token,
-  );
-}
-
-export function updateAdminUser(
-  token: string,
-  userId: number,
-  payload: AdminUserUpdatePayload,
-): Promise<UserAccount> {
-  return request<UserAccount>(
-    `/api/v1/admin/users/${userId}`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    },
+  kind: ContentKind,
+  slug: string,
+  filename: string,
+  content: string,
+): Promise<ContentDocument> {
+  return request<ContentDocument>(
+    `/api/v1/content-ops/documents/${kind}/${encodeURIComponent(slug)}/${encodeURIComponent(filename)}`,
+    { method: 'PUT', body: JSON.stringify({ content }) },
     token,
   );
 }
@@ -324,10 +277,6 @@ export function getStockReports(token: string): Promise<StockReport[]> {
   return request<StockReport[]>('/api/v1/stocks/reports', undefined, token);
 }
 
-export function getStockReportMarket(token: string): Promise<StockReportMarketItem[]> {
-  return request<StockReportMarketItem[]>('/api/v1/stocks/reports/market', undefined, token);
-}
-
 export function createStockReportFromAnalysis(
   token: string,
   recordId: number,
@@ -366,21 +315,6 @@ export async function downloadStockReport(token: string, reportId: number): Prom
   return response.blob();
 }
 
-export function updateStockReportPublish(
-  token: string,
-  reportId: number,
-  payload: StockReportPublishPayload,
-): Promise<StockReport> {
-  return request<StockReport>(
-    `/api/v1/stocks/reports/${reportId}/publish`,
-    {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
-}
-
 export function scanStocks(token: string, payload: StockScanPayload): Promise<StockScanResult> {
   return request<StockScanResult>(
     '/api/v1/stocks/scan',
@@ -392,36 +326,44 @@ export function scanStocks(token: string, payload: StockScanPayload): Promise<St
   );
 }
 
-export function createPaymentOrder(token: string, amount: number): Promise<PaymentOrder> {
-  return request<PaymentOrder>(
-    '/api/v1/payments/orders',
-    {
-      method: 'POST',
-      body: JSON.stringify({ amount }),
-    },
-    token,
-  );
-}
-
-export function confirmPayment(token: string, payload: PaymentConfirmPayload): Promise<Payment> {
-  return request<Payment>(
-    '/api/v1/payments/confirm',
-    {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    },
-    token,
-  );
-}
-
-export function getMyPayments(token: string): Promise<Payment[]> {
-  return request<Payment[]>('/api/v1/payments/me', undefined, token);
-}
-
 export function getDisclosures(token: string, ticker: string): Promise<Disclosure[]> {
   return request<Disclosure[]>(
     `/api/v1/disclosures/${encodeURIComponent(ticker)}`,
     undefined,
+    token,
+  );
+}
+
+export function getNotificationStatus(token: string): Promise<NotificationCenterStatus> {
+  return request<NotificationCenterStatus>('/api/v1/notifications/status', undefined, token);
+}
+
+export function sendTelegramTest(token: string): Promise<TelegramNotificationResult> {
+  return request<TelegramNotificationResult>(
+    '/api/v1/notifications/telegram/test',
+    { method: 'POST' },
+    token,
+  );
+}
+
+export function sendDisclosureNotification(
+  token: string,
+  ticker: string,
+): Promise<TelegramNotificationResult> {
+  return request<TelegramNotificationResult>(
+    `/api/v1/notifications/telegram/disclosures/${encodeURIComponent(ticker)}`,
+    { method: 'POST' },
+    token,
+  );
+}
+
+export function retryNotification(
+  token: string,
+  eventId: number,
+): Promise<TelegramNotificationResult> {
+  return request<TelegramNotificationResult>(
+    `/api/v1/notifications/events/${eventId}/retry`,
+    { method: 'POST' },
     token,
   );
 }

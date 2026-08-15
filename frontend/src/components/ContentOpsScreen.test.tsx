@@ -1,225 +1,209 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { ContentOpsScreen } from './ContentOpsScreen';
-import type { EmoticonProjectSummary, YoutubeProjectSummary } from '../types';
 
-const projects: YoutubeProjectSummary[] = [
-  {
-    slug: '2026-01-01-trend',
-    date: '2026-01-01',
-    has_research: true,
-    has_ideas: true,
-    has_qa: false,
-    has_script: false,
-    has_production: false,
-    has_review: false,
-    updated_at: '2026-01-01T00:00:00Z',
-    view_count: null,
-  },
-];
+const api = vi.hoisted(() => ({
+  getYoutubeProjects: vi.fn(),
+  getEmoticonProjects: vi.fn(),
+  getContentDocuments: vi.fn(),
+  saveContentDocument: vi.fn(),
+}));
 
-const emoticonProjects: EmoticonProjectSummary[] = [
-  {
-    slug: 'gyeotgom',
-    has_character: true,
-    has_research: true,
-    has_qa: true,
-    has_friends: false,
-    has_review: false,
-    sets: [
+vi.mock('../api', () => api);
+
+beforeEach(() => {
+  localStorage.clear();
+  vi.clearAllMocks();
+  api.getYoutubeProjects.mockResolvedValue([
+    {
+      slug: '2026-08-15-internal-os',
+      date: '2026-08-15',
+      has_research: true,
+      has_ideas: true,
+      has_qa: false,
+      has_script: true,
+      has_production: false,
+      has_review: false,
+      updated_at: '2026-08-15T00:00:00Z',
+      view_count: null,
+    },
+  ]);
+  api.getEmoticonProjects.mockResolvedValue([]);
+  api.getContentDocuments.mockResolvedValue([
+    { filename: 'ideas.md', content: '# Ideas', updated_at: '2026-08-15T00:00:00Z' },
+    { filename: 'script.md', content: '# Script', updated_at: '2026-08-15T00:00:00Z' },
+  ]);
+  api.saveContentDocument.mockImplementation(
+    async (_token: string, _kind: string, _slug: string, filename: string, content: string) => ({
+      filename,
+      content,
+      updated_at: '2026-08-15T01:00:00Z',
+    }),
+  );
+});
+
+it('loads a project once, edits Markdown, and saves it through the API', async () => {
+  const user = userEvent.setup();
+  render(<ContentOpsScreen active token="owner-token" />);
+
+  const project = await screen.findByRole('button', {
+    name: '프로젝트 2026-08-15-internal-os 열기',
+  });
+  await user.click(project);
+  const editor = await screen.findByLabelText('Markdown 편집기');
+  expect(editor).toHaveValue('# Ideas');
+  await user.clear(editor);
+  await user.type(editor, '# Updated ideas');
+  await user.click(screen.getByRole('button', { name: /저장$/ }));
+
+  await waitFor(() =>
+    expect(api.saveContentDocument).toHaveBeenCalledWith(
+      'owner-token',
+      'youtube',
+      '2026-08-15-internal-os',
+      'ideas.md',
+      '# Updated ideas',
+    ),
+  );
+  expect(api.getContentDocuments).toHaveBeenCalledTimes(1);
+});
+
+it('inserts planning and script templates directly into the selected document', async () => {
+  const user = userEvent.setup();
+  render(<ContentOpsScreen active token="owner-token" />);
+
+  expect(screen.getByRole('button', { name: /기획안 삽입/ })).toBeDisabled();
+  await user.click(
+    await screen.findByRole('button', { name: '프로젝트 2026-08-15-internal-os 열기' }),
+  );
+  await user.click(screen.getByRole('button', { name: /기획안 삽입/ }));
+  await user.click(screen.getByRole('button', { name: /대본 삽입/ }));
+
+  const editor = screen.getByLabelText('Markdown 편집기');
+  expect((editor as HTMLTextAreaElement).value).toContain('## 한 줄 콘셉트');
+  expect((editor as HTMLTextAreaElement).value).toContain('## 오프닝 훅');
+  expect(api.saveContentDocument).not.toHaveBeenCalled();
+});
+
+it('shows project progress and navigates Markdown headings from the outline', async () => {
+  const user = userEvent.setup();
+  render(<ContentOpsScreen active token="owner-token" />);
+
+  expect(await screen.findByLabelText('진행률 50%')).toBeInTheDocument();
+  await user.click(
+    screen.getByRole('button', { name: '프로젝트 2026-08-15-internal-os 열기' }),
+  );
+  const outline = await screen.findByLabelText('문서 목차');
+  await user.click(within(outline).getByRole('button', { name: /Ideas/ }));
+
+  const editor = screen.getByLabelText('Markdown 편집기');
+  expect(editor).toHaveFocus();
+  expect(editor).toHaveProperty('selectionStart', 0);
+});
+
+it('automatically resumes the most recently opened document', async () => {
+  localStorage.setItem(
+    'jay-ai-content-recent-documents',
+    JSON.stringify([
       {
-        set_key: 'basic-24',
-        has_set_doc: true,
-        has_submission_checklist: true,
-        has_submission_copy: true,
+        key: 'youtube:2026-08-15-internal-os:script.md',
+        kind: 'youtube',
+        slug: '2026-08-15-internal-os',
+        filename: 'script.md',
+        openedAt: '2026-08-15T01:00:00Z',
       },
-    ],
-    updated_at: '2026-08-09T00:00:00Z',
-  },
-];
+    ]),
+  );
+  render(<ContentOpsScreen active token="owner-token" />);
 
-function baseProps() {
-  return {
-    active: true,
-    isAdmin: true,
-    activeTab: 'youtube' as const,
-    onTabChange: vi.fn(),
-    youtubeProjects: projects,
-    youtubeProjectsLoading: false,
-    youtubeProjectsMessage: null,
-    onRefreshProjects: vi.fn(),
-    selectedSlug: null,
-    onSelectProject: vi.fn(),
-    projectDetail: null,
-    detailLoading: false,
-    detailMessage: null,
-    emoticonProjects,
-    emoticonProjectsLoading: false,
-    emoticonProjectsMessage: null,
-    onRefreshEmoticonProjects: vi.fn(),
-    selectedEmoticonSlug: null,
-    onSelectEmoticonProject: vi.fn(),
-    emoticonProjectDetail: null,
-    emoticonDetailLoading: false,
-    emoticonDetailMessage: null,
-  };
-}
+  expect(await screen.findByLabelText('Markdown 편집기')).toHaveValue('# Script');
+  expect(screen.getByText(/script\.md 마지막 작업을 재개했습니다/)).toBeInTheDocument();
+  expect(api.getContentDocuments).toHaveBeenCalledWith(
+    'owner-token',
+    'youtube',
+    '2026-08-15-internal-os',
+  );
+});
 
-describe('ContentOpsScreen', () => {
-  it('shows a locked message for non-admins instead of the tabs', () => {
-    render(<ContentOpsScreen {...baseProps()} isAdmin={false} />);
+it('protects an unsaved draft before switching documents', async () => {
+  const user = userEvent.setup();
+  render(<ContentOpsScreen active token="owner-token" />);
 
-    expect(
-      screen.getByText('관리자 계정으로 로그인하면 콘텐츠 운영 현황을 볼 수 있습니다.'),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  await user.click(
+    await screen.findByRole('button', { name: '프로젝트 2026-08-15-internal-os 열기' }),
+  );
+  const editor = await screen.findByLabelText('Markdown 편집기');
+  await user.clear(editor);
+  await user.type(editor, '# Unsaved draft');
+  await user.click(screen.getByRole('tab', { name: /script\.md/ }));
+
+  const dialog = screen.getByRole('dialog', { name: '저장하지 않은 변경사항이 있습니다' });
+  expect(dialog).toBeInTheDocument();
+  expect(editor).toHaveValue('# Unsaved draft');
+
+  await user.click(screen.getByRole('button', { name: '변경사항 버리기' }));
+  expect(await screen.findByLabelText('Markdown 편집기')).toHaveValue('# Script');
+});
+
+it('persists favorites, recent documents, and a recoverable browser draft', async () => {
+  const user = userEvent.setup();
+  const firstRender = render(<ContentOpsScreen active token="owner-token" />);
+
+  await user.click(
+    await screen.findByRole('button', { name: '프로젝트 2026-08-15-internal-os 열기' }),
+  );
+  await user.click(
+    screen.getByRole('button', { name: '2026-08-15-internal-os 즐겨찾기 추가' }),
+  );
+  const editor = await screen.findByLabelText('Markdown 편집기');
+  await user.clear(editor);
+  await user.type(editor, '# Browser draft');
+
+  await waitFor(
+    () => {
+      expect(localStorage.getItem('jay-ai-content-favorites')).toContain(
+        'youtube:2026-08-15-internal-os',
+      );
+      expect(localStorage.getItem('jay-ai-content-recent-documents')).toContain('ideas.md');
+      expect(localStorage.getItem('jay-ai-content-local-drafts')).toContain('# Browser draft');
+    },
+    { timeout: 2000 },
+  );
+
+  firstRender.unmount();
+  render(<ContentOpsScreen active token="owner-token" />);
+  const favoriteButton = await screen.findByRole('button', {
+    name: '2026-08-15-internal-os 즐겨찾기 해제',
   });
+  const projectRow = favoriteButton.closest('.content-project-row');
+  expect(projectRow).not.toBeNull();
+  await user.click(
+    within(projectRow as HTMLElement).getByRole('button', {
+      name: '프로젝트 2026-08-15-internal-os 열기',
+    }),
+  );
+  expect(await screen.findByLabelText('Markdown 편집기')).toHaveValue('# Browser draft');
+  expect(screen.getByText(/마지막 작업을 재개했습니다/)).toBeInTheDocument();
+});
 
-  it('lists youtube projects and reports their pipeline stage progress', () => {
-    render(<ContentOpsScreen {...baseProps()} />);
+it('does not restore a local draft after the user explicitly discards it', async () => {
+  const user = userEvent.setup();
+  render(<ContentOpsScreen active token="owner-token" />);
+  await user.click(
+    await screen.findByRole('button', { name: '프로젝트 2026-08-15-internal-os 열기' }),
+  );
+  const editor = await screen.findByLabelText('Markdown 편집기');
+  await user.clear(editor);
+  await user.type(editor, '# Discard this');
+  await waitFor(
+    () => expect(localStorage.getItem('jay-ai-content-local-drafts')).toContain('# Discard this'),
+    { timeout: 2000 },
+  );
 
-    expect(screen.getByText('2026-01-01-trend')).toBeInTheDocument();
-    expect(screen.getByText('왼쪽에서 프로젝트를 선택하면 단계별 내용을 볼 수 있습니다.')).toBeInTheDocument();
-  });
+  await user.click(within(screen.getByLabelText('최근 문서')).getByRole('button', { name: /ideas\.md/ }));
+  await user.click(screen.getByRole('button', { name: '변경사항 버리기' }));
 
-  it('calls onSelectProject when a project card is clicked', async () => {
-    const user = userEvent.setup();
-    const props = baseProps();
-    render(<ContentOpsScreen {...props} />);
-
-    await user.click(screen.getByText('2026-01-01-trend'));
-
-    expect(props.onSelectProject).toHaveBeenCalledWith('2026-01-01-trend');
-  });
-
-  it('calls onTabChange when switching to the character tab', async () => {
-    const user = userEvent.setup();
-    const props = baseProps();
-    render(<ContentOpsScreen {...props} />);
-
-    await user.click(screen.getByRole('tab', { name: /캐릭터·이모티콘/ }));
-
-    expect(props.onTabChange).toHaveBeenCalledWith('character');
-  });
-
-  it('renders the selected project detail sections', () => {
-    render(
-      <ContentOpsScreen
-        {...baseProps()}
-        selectedSlug="2026-01-01-trend"
-        projectDetail={{
-          slug: '2026-01-01-trend',
-          date: '2026-01-01',
-          research: '조사 결과',
-          ideas: null,
-          qa: null,
-          script: null,
-          production: null,
-          review: null,
-          review_metrics: null,
-        }}
-      />,
-    );
-
-    expect(screen.getByText('시장조사')).toBeInTheDocument();
-    expect(screen.getByText('조사 결과')).toBeInTheDocument();
-  });
-
-  it('shows a view count badge on the project card when review metrics exist', () => {
-    render(
-      <ContentOpsScreen
-        {...baseProps()}
-        youtubeProjects={[{ ...projects[0], view_count: '12,345' }]}
-      />,
-    );
-
-    expect(screen.getByText('조회수 12,345')).toBeInTheDocument();
-  });
-
-  it('renders the review metrics table alongside the review section', () => {
-    render(
-      <ContentOpsScreen
-        {...baseProps()}
-        selectedSlug="2026-01-01-trend"
-        projectDetail={{
-          slug: '2026-01-01-trend',
-          date: '2026-01-01',
-          research: null,
-          ideas: null,
-          qa: null,
-          script: null,
-          production: null,
-          review: '# review.md',
-          review_metrics: {
-            view_count: '12,345',
-            ctr: '4.2%',
-            avg_watch_time: null,
-            subscriber_delta: null,
-            engagement: null,
-            top_traffic_source: null,
-          },
-        }}
-      />,
-    );
-
-    expect(screen.getByText('조회수')).toBeInTheDocument();
-    expect(screen.getByText('12,345')).toBeInTheDocument();
-    expect(screen.getByText('CTR')).toBeInTheDocument();
-    expect(screen.getByText('4.2%')).toBeInTheDocument();
-    expect(screen.queryByText('평균 시청 지속시간')).not.toBeInTheDocument();
-  });
-
-  it('lists emoticon characters and reports their set count', () => {
-    render(<ContentOpsScreen {...baseProps()} activeTab="character" />);
-
-    expect(screen.getByText('gyeotgom')).toBeInTheDocument();
-    expect(screen.getByText('세트 1개')).toBeInTheDocument();
-    expect(
-      screen.getByText('왼쪽에서 캐릭터를 선택하면 단계별 내용을 볼 수 있습니다.'),
-    ).toBeInTheDocument();
-  });
-
-  it('calls onSelectEmoticonProject when a character card is clicked', async () => {
-    const user = userEvent.setup();
-    const props = baseProps();
-    render(<ContentOpsScreen {...props} activeTab="character" />);
-
-    await user.click(screen.getByText('gyeotgom'));
-
-    expect(props.onSelectEmoticonProject).toHaveBeenCalledWith('gyeotgom');
-  });
-
-  it('renders the selected emoticon project detail and set sections', () => {
-    render(
-      <ContentOpsScreen
-        {...baseProps()}
-        activeTab="character"
-        selectedEmoticonSlug="gyeotgom"
-        emoticonProjectDetail={{
-          slug: 'gyeotgom',
-          character: '# 곁곰',
-          research: null,
-          qa: null,
-          friends: null,
-          review: null,
-          sets: [
-            {
-              set_key: 'basic-24',
-              set_doc: '# set-basic-24',
-              submission_checklist: '체크리스트 내용',
-              submission_copy: '제출 문구 내용',
-            },
-          ],
-        }}
-      />,
-    );
-
-    expect(screen.getByText('캐릭터 컨셉')).toBeInTheDocument();
-    expect(screen.getByText('# 곁곰')).toBeInTheDocument();
-    expect(screen.getByText('세트: basic-24')).toBeInTheDocument();
-    expect(screen.getByText('# set-basic-24')).toBeInTheDocument();
-    expect(screen.getByText('제출 문구 내용')).toBeInTheDocument();
-    expect(screen.getByText('체크리스트 내용')).toBeInTheDocument();
-  });
+  expect(await screen.findByLabelText('Markdown 편집기')).toHaveValue('# Ideas');
+  expect(localStorage.getItem('jay-ai-content-local-drafts')).not.toContain('# Discard this');
 });

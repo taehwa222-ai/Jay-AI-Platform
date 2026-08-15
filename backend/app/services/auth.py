@@ -8,12 +8,12 @@ import secrets
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from fastapi import HTTPException, status
 
 from app.config import Settings
+from app.services.database import connect_database
 
 
 @dataclass(frozen=True)
@@ -22,7 +22,6 @@ class User:
     email: str
     name: str
     role: str
-    plan: str
     password_hash: str
     is_active: bool
     created_at: str
@@ -34,7 +33,6 @@ class User:
             "email": self.email,
             "name": self.name,
             "role": self.role,
-            "plan": self.plan,
             "is_active": self.is_active,
             "created_at": self.created_at,
             "last_login_at": self.last_login_at,
@@ -42,21 +40,21 @@ class User:
 
 
 class AuthService:
+    """Authentication for a single owner-operated internal system."""
+
     def __init__(self, settings: Settings):
         self.settings = settings
         self.db_path = settings.database_path
 
     def init_db(self) -> None:
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.connect() as conn:
-            conn.execute(
+        with self.connect() as connection:
+            connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     email TEXT NOT NULL UNIQUE,
                     name TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'member',
-                    plan TEXT NOT NULL DEFAULT 'free',
+                    role TEXT NOT NULL DEFAULT 'admin',
                     password_hash TEXT NOT NULL,
                     is_active INTEGER NOT NULL DEFAULT 1,
                     created_at TEXT NOT NULL,
@@ -64,65 +62,40 @@ class AuthService:
                 )
                 """
             )
-            ensure_column(conn, "users", "plan", "TEXT NOT NULL DEFAULT 'free'")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS pro_upgrade_requests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER NOT NULL,
-                    status TEXT NOT NULL DEFAULT 'pending',
-                    message TEXT NOT NULL DEFAULT '',
-                    admin_note TEXT NOT NULL DEFAULT '',
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_pro_upgrade_requests_status
-                ON pro_upgrade_requests(status, created_at DESC)
-                """
-            )
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
 
     def connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return connect_database(self.db_path)
 
     def create_user(self, email: str, password: str, name: str) -> User:
         normalized_email = normalize_email(email)
         now = now_iso()
 
-        with self.connect() as conn:
-            role = "admin" if self.user_count(conn) == 0 else "member"
+        with self.connect() as connection:
+            if self.user_count(connection) > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The owner account is already initialized.",
+                )
             try:
-                cursor = conn.execute(
+                cursor = connection.execute(
                     """
-                    INSERT INTO users (email, name, role, plan, password_hash, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO users (email, name, role, password_hash, created_at)
+                    VALUES (?, ?, 'admin', ?, ?)
                     """,
-                    (
-                        normalized_email,
-                        name.strip(),
-                        role,
-                        "pro" if role == "admin" else "free",
-                        hash_password(password),
-                        now,
-                    ),
+                    (normalized_email, name.strip(), hash_password(password), now),
                 )
             except sqlite3.IntegrityError as exc:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
-                    detail="Email is already registered.",
+                    detail="The owner account is already initialized.",
                 ) from exc
 
-            user = self.get_user_by_id(cursor.lastrowid, conn)
+            user = self.get_user_by_id(cursor.lastrowid, connection)
             if user is None:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="User creation failed.",
+                    detail="Owner account creation failed.",
                 )
             return user
 
@@ -133,21 +106,21 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password.",
             )
-        if not user.is_active:
+        if not user.is_active or user.role != "admin" or user.id != self.owner_id():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="User is disabled.",
+                detail="Only the active owner account can access this system.",
             )
 
-        with self.connect() as conn:
-            conn.execute(
+        with self.connect() as connection:
+            connection.execute(
                 "UPDATE users SET last_login_at = ? WHERE id = ?",
                 (now_iso(), user.id),
             )
 
         refreshed = self.get_user_by_id(user.id)
         if refreshed is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found.")
+            raise invalid_token()
         return refreshed
 
     def create_token(self, user: User) -> str:
@@ -155,7 +128,7 @@ class AuthService:
         payload = {
             "sub": str(user.id),
             "email": user.email,
-            "role": user.role,
+            "role": "admin",
             "exp": int(expires_at.timestamp()),
         }
         payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -175,344 +148,76 @@ class AuthService:
 
         try:
             payload = json.loads(base64url_decode(payload_part))
-        except (ValueError, json.JSONDecodeError) as exc:
+            expires_at = int(payload.get("exp", 0))
+            user_id = int(payload.get("sub", 0))
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise invalid_token() from exc
 
-        if int(payload.get("exp", 0)) < int(datetime.now(UTC).timestamp()):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token expired.",
-            )
+        if expires_at < int(datetime.now(UTC).timestamp()):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired.")
 
-        user = self.get_user_by_id(int(payload.get("sub", 0)))
-        if user is None or not user.is_active:
+        user = self.get_user_by_id(user_id)
+        if (
+            user is None
+            or not user.is_active
+            or user.role != "admin"
+            or user.id != self.owner_id()
+        ):
             raise invalid_token()
         return user
 
-    def list_users(self) -> list[User]:
-        with self.connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT
-                    id, email, name, role, plan, password_hash,
-                    is_active, created_at, last_login_at
-                FROM users
-                ORDER BY created_at DESC, id DESC
-                """
-            ).fetchall()
-        return [row_to_user(row) for row in rows]
-
-    def list_user_usage(self) -> list[dict[str, Any]]:
-        with self.connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT
-                    users.id,
-                    users.email,
-                    users.name,
-                    users.role,
-                    users.plan,
-                    users.is_active,
-                    users.created_at,
-                    users.last_login_at,
-                    COUNT(stock_analysis_records.id) AS analysis_count,
-                    MAX(stock_analysis_records.created_at) AS latest_analysis_at
-                FROM users
-                LEFT JOIN stock_analysis_records
-                    ON stock_analysis_records.user_id = users.id
-                GROUP BY
-                    users.id,
-                    users.email,
-                    users.name,
-                    users.role,
-                    users.plan,
-                    users.is_active,
-                    users.created_at,
-                    users.last_login_at
-                ORDER BY analysis_count DESC, latest_analysis_at DESC, users.created_at DESC
-                """
-            ).fetchall()
-        return [
-            {
-                "id": int(row["id"]),
-                "email": str(row["email"]),
-                "name": str(row["name"]),
-                "role": str(row["role"]),
-                "plan": str(row["plan"]),
-                "is_active": bool(row["is_active"]),
-                "analysis_count": int(row["analysis_count"]),
-                "latest_analysis_at": (
-                    str(row["latest_analysis_at"])
-                    if row["latest_analysis_at"] is not None
-                    else None
-                ),
-                "created_at": str(row["created_at"]),
-                "last_login_at": (
-                    str(row["last_login_at"]) if row["last_login_at"] is not None else None
-                ),
-            }
-            for row in rows
-        ]
-
-    def content_stats(self) -> dict[str, Any]:
-        with self.connect() as conn:
-            row = conn.execute(
-                """
-                SELECT
-                    COUNT(*) AS total_reports,
-                    SUM(CASE WHEN is_published = 0 THEN 1 ELSE 0 END) AS private_reports,
-                    SUM(CASE WHEN is_published = 1 THEN 1 ELSE 0 END) AS published_reports,
-                    SUM(CASE WHEN is_published = 1 AND access_level = 'free' THEN 1 ELSE 0 END)
-                        AS free_reports,
-                    SUM(CASE WHEN is_published = 1 AND access_level = 'pro' THEN 1 ELSE 0 END)
-                        AS pro_reports,
-                    COUNT(DISTINCT user_id) AS report_creators,
-                    MAX(created_at) AS latest_report_at,
-                    MAX(CASE WHEN is_published = 1 THEN created_at ELSE NULL END)
-                        AS latest_published_at
-                FROM stock_reports
-                """
-            ).fetchone()
-
-        return {
-            "total_reports": int(row["total_reports"] or 0),
-            "private_reports": int(row["private_reports"] or 0),
-            "published_reports": int(row["published_reports"] or 0),
-            "free_reports": int(row["free_reports"] or 0),
-            "pro_reports": int(row["pro_reports"] or 0),
-            "report_creators": int(row["report_creators"] or 0),
-            "latest_report_at": row["latest_report_at"],
-            "latest_published_at": row["latest_published_at"],
-        }
-
-    def create_pro_upgrade_request(self, user: User, message: str) -> dict[str, Any]:
-        if user.plan == "pro":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This account is already on the pro plan.",
-            )
-
-        now = now_iso()
-        with self.connect() as conn:
-            pending = conn.execute(
+    def owner_id(self) -> int | None:
+        """Return the single effective owner without rewriting legacy account rows."""
+        with self.connect() as connection:
+            row = connection.execute(
                 """
                 SELECT id
-                FROM pro_upgrade_requests
-                WHERE user_id = ? AND status = 'pending'
-                """,
-                (user.id,),
-            ).fetchone()
-            if pending is not None:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="A pending pro upgrade request already exists.",
-                )
-
-            cursor = conn.execute(
-                """
-                INSERT INTO pro_upgrade_requests (
-                    user_id, status, message, admin_note, created_at, updated_at
-                )
-                VALUES (?, 'pending', ?, '', ?, ?)
-                """,
-                (user.id, message.strip(), now, now),
-            )
-            return self.get_pro_upgrade_request(cursor.lastrowid, conn)
-
-    def latest_pro_upgrade_request_for_user(self, user: User) -> dict[str, Any] | None:
-        with self.connect() as conn:
-            row = conn.execute(
-                """
-                SELECT pro_upgrade_requests.*, users.email, users.name, users.plan AS current_plan
-                FROM pro_upgrade_requests
-                JOIN users ON users.id = pro_upgrade_requests.user_id
-                WHERE pro_upgrade_requests.user_id = ?
-                ORDER BY pro_upgrade_requests.created_at DESC, pro_upgrade_requests.id DESC
+                FROM users
+                WHERE role = 'admin'
+                ORDER BY id ASC
                 LIMIT 1
-                """,
-                (user.id,),
+                """
             ).fetchone()
-        return row_to_pro_request(row) if row is not None else None
-
-    def list_pro_upgrade_requests(self) -> list[dict[str, Any]]:
-        with self.connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT pro_upgrade_requests.*, users.email, users.name, users.plan AS current_plan
-                FROM pro_upgrade_requests
-                JOIN users ON users.id = pro_upgrade_requests.user_id
-                ORDER BY
-                    CASE pro_upgrade_requests.status
-                        WHEN 'pending' THEN 0
-                        WHEN 'approved' THEN 1
-                        ELSE 2
-                    END,
-                    pro_upgrade_requests.created_at DESC,
-                    pro_upgrade_requests.id DESC
-                LIMIT 100
-                """
-            ).fetchall()
-        return [row_to_pro_request(row) for row in rows]
-
-    def update_pro_upgrade_request(
-        self,
-        request_id: int,
-        decision: str,
-        admin_note: str,
-    ) -> dict[str, Any]:
-        now = now_iso()
-        with self.connect() as conn:
-            current = self.get_pro_upgrade_request(request_id, conn)
-            if current["status"] != "pending":
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Only pending requests can be updated.",
-                )
-
-            conn.execute(
-                """
-                UPDATE pro_upgrade_requests
-                SET status = ?,
-                    admin_note = ?,
-                    updated_at = ?
-                WHERE id = ?
-                """,
-                (decision, admin_note.strip(), now, request_id),
-            )
-            if decision == "approved":
-                conn.execute(
-                    "UPDATE users SET plan = 'pro' WHERE id = ?",
-                    (current["user_id"],),
-                )
-            return self.get_pro_upgrade_request(request_id, conn)
-
-    def update_user(
-        self,
-        user_id: int,
-        actor: User,
-        role: str | None = None,
-        plan: str | None = None,
-        is_active: bool | None = None,
-    ) -> User:
-        if role is None and plan is None and is_active is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No update fields provided.",
-            )
-
-        with self.connect() as conn:
-            target = self.get_user_by_id(user_id, conn)
-            if target is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found.",
-                )
-
-            if target.id == actor.id:
-                if role is not None and role != target.role:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="You cannot change your own role.",
-                    )
-                if is_active is False:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="You cannot disable your own account.",
-                    )
-
-            removing_active_admin = target.role == "admin" and (
-                (role is not None and role != "admin") or is_active is False
-            )
-            if removing_active_admin and self.active_admin_count(conn) <= 1:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="At least one active admin is required.",
-                )
-
-            next_role = role if role is not None else target.role
-            next_plan = plan if plan is not None else target.plan
-            next_active = int(is_active) if is_active is not None else int(target.is_active)
-            conn.execute(
-                """
-                UPDATE users
-                SET role = ?, plan = ?, is_active = ?
-                WHERE id = ?
-                """,
-                (next_role, next_plan, next_active, target.id),
-            )
-
-            updated = self.get_user_by_id(target.id, conn)
-            if updated is None:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="User update failed.",
-                )
-            return updated
+        return int(row["id"]) if row is not None else None
 
     def get_user_by_email(self, email: str) -> User | None:
-        with self.connect() as conn:
-            row = conn.execute(
+        with self.connect() as connection:
+            row = connection.execute(
                 """
-                SELECT
-                    id, email, name, role, plan, password_hash,
-                    is_active, created_at, last_login_at
+                SELECT id, email, name, role, password_hash, is_active, created_at, last_login_at
                 FROM users
                 WHERE email = ?
                 """,
                 (email,),
             ).fetchone()
-        return row_to_user(row) if row else None
+        return row_to_user(row) if row is not None else None
 
-    def get_user_by_id(self, user_id: int, conn: sqlite3.Connection | None = None) -> User | None:
-        active_conn = conn or self.connect()
-        close_conn = conn is None
+    def get_user_by_id(
+        self,
+        user_id: int | None,
+        connection: sqlite3.Connection | None = None,
+    ) -> User | None:
+        if user_id is None:
+            return None
+        active_connection = connection or self.connect()
+        should_close = connection is None
         try:
-            row = active_conn.execute(
+            row = active_connection.execute(
                 """
-                SELECT
-                    id, email, name, role, plan, password_hash,
-                    is_active, created_at, last_login_at
+                SELECT id, email, name, role, password_hash, is_active, created_at, last_login_at
                 FROM users
                 WHERE id = ?
                 """,
                 (user_id,),
             ).fetchone()
-            return row_to_user(row) if row else None
+            return row_to_user(row) if row is not None else None
         finally:
-            if close_conn:
-                active_conn.close()
-
-    def get_pro_upgrade_request(
-        self,
-        request_id: int,
-        conn: sqlite3.Connection,
-    ) -> dict[str, Any]:
-        row = conn.execute(
-            """
-            SELECT pro_upgrade_requests.*, users.email, users.name, users.plan AS current_plan
-            FROM pro_upgrade_requests
-            JOIN users ON users.id = pro_upgrade_requests.user_id
-            WHERE pro_upgrade_requests.id = ?
-            """,
-            (request_id,),
-        ).fetchone()
-        if row is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Pro upgrade request not found.",
-            )
-        return row_to_pro_request(row)
+            if should_close:
+                active_connection.close()
 
     @staticmethod
-    def user_count(conn: sqlite3.Connection) -> int:
-        row = conn.execute("SELECT COUNT(*) AS count FROM users").fetchone()
-        return int(row["count"])
-
-    @staticmethod
-    def active_admin_count(conn: sqlite3.Connection) -> int:
-        row = conn.execute(
-            "SELECT COUNT(*) AS count FROM users WHERE role = 'admin' AND is_active = 1"
-        ).fetchone()
+    def user_count(connection: sqlite3.Connection) -> int:
+        row = connection.execute("SELECT COUNT(*) AS count FROM users").fetchone()
         return int(row["count"])
 
 
@@ -526,30 +231,28 @@ def now_iso() -> str:
 
 def hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 210_000)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt.encode(), 210_000)
     return f"pbkdf2_sha256$210000${salt}${digest.hex()}"
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
     try:
         algorithm, iterations, salt, expected_hash = stored_hash.split("$", 3)
-    except ValueError:
+        if algorithm != "pbkdf2_sha256":
+            return False
+        digest = hashlib.pbkdf2_hmac(
+            "sha256",
+            password.encode(),
+            salt.encode(),
+            int(iterations),
+        )
+    except (TypeError, ValueError):
         return False
-
-    if algorithm != "pbkdf2_sha256":
-        return False
-
-    digest = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt.encode("utf-8"),
-        int(iterations),
-    )
     return hmac.compare_digest(digest.hex(), expected_hash)
 
 
 def sign_value(value: str, secret_key: str) -> str:
-    signature = hmac.new(secret_key.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).digest()
+    signature = hmac.new(secret_key.encode(), value.encode(), hashlib.sha256).digest()
     return base64url_encode(signature)
 
 
@@ -558,8 +261,7 @@ def base64url_encode(value: bytes) -> str:
 
 
 def base64url_decode(value: str) -> bytes:
-    padding = "=" * (-len(value) % 4)
-    return base64.urlsafe_b64decode(value + padding)
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
 def row_to_user(row: sqlite3.Row) -> User:
@@ -568,7 +270,6 @@ def row_to_user(row: sqlite3.Row) -> User:
         email=str(row["email"]),
         name=str(row["name"]),
         role=str(row["role"]),
-        plan=str(row["plan"]),
         password_hash=str(row["password_hash"]),
         is_active=bool(row["is_active"]),
         created_at=str(row["created_at"]),
@@ -576,34 +277,5 @@ def row_to_user(row: sqlite3.Row) -> User:
     )
 
 
-def row_to_pro_request(row: sqlite3.Row) -> dict[str, Any]:
-    return {
-        "id": int(row["id"]),
-        "user_id": int(row["user_id"]),
-        "email": str(row["email"]),
-        "name": str(row["name"]),
-        "current_plan": str(row["current_plan"]),
-        "status": str(row["status"]),
-        "message": str(row["message"]),
-        "admin_note": str(row["admin_note"]),
-        "created_at": str(row["created_at"]),
-        "updated_at": str(row["updated_at"]),
-    }
-
-
 def invalid_token() -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid token.",
-    )
-
-
-def ensure_data_directory(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
-
-
-def ensure_column(conn: sqlite3.Connection, table_name: str, column_name: str, ddl: str) -> None:
-    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
-    if any(str(row["name"]) == column_name for row in rows):
-        return
-    conn.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {ddl}")
+    return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token.")

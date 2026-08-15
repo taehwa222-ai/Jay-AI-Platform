@@ -12,6 +12,8 @@ import httpx
 from fastapi import HTTPException, status
 
 from app.config import Settings
+from app.services.cache import AsyncTTLCache
+from app.services.database import connect_database
 
 
 @dataclass(frozen=True)
@@ -31,6 +33,9 @@ class DisclosureService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.db_path = settings.database_path
+        self.disclosure_cache = AsyncTTLCache[list[Disclosure]](
+            settings.disclosure_cache_ttl_seconds
+        )
 
     def init_db(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -53,9 +58,7 @@ class DisclosureService:
             )
 
     def connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return connect_database(self.db_path)
 
     async def ensure_corp_code_cache(self) -> None:
         self.init_db()
@@ -98,6 +101,15 @@ class DisclosureService:
         return str(row["corp_code"]) if row is not None else None
 
     async def get_recent_disclosures(self, ticker: str) -> list[Disclosure]:
+        normalized_ticker = ticker.strip().upper()
+        self._api_key()
+        disclosures = await self.disclosure_cache.get_or_create(
+            normalized_ticker,
+            lambda: self._load_recent_disclosures(normalized_ticker),
+        )
+        return list(disclosures)
+
+    async def _load_recent_disclosures(self, ticker: str) -> list[Disclosure]:
         api_key = self._api_key()
         await self.ensure_corp_code_cache()
         corp_code = self.resolve_corp_code(ticker)

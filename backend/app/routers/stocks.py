@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 
 from app.routers.auth import get_current_user
 from app.schemas.stocks import (
@@ -12,9 +12,7 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
-    StockReportMarketItem,
     StockReportPublic,
-    StockReportPublishRequest,
     StockScanRequest,
     StockScanResponse,
     StockWatchlistCreateRequest,
@@ -138,8 +136,12 @@ async def analyze_stock(
     payload: StockAnalysisRequest,
     user: Annotated[User, Depends(get_current_user)],
     stock_service: Annotated[StockService, Depends(get_stock_service)],
+    request: Request,
+    background_tasks: BackgroundTasks,
 ) -> StockAnalysisResponse:
-    return await stock_service.analyze(payload, user)
+    result = await stock_service.analyze(payload, user)
+    background_tasks.add_task(request.app.state.telegram_service.notify_analysis_complete, result)
+    return result
 
 
 @router.get("/analysis-records", response_model=list[StockAnalysisRecordPublic])
@@ -167,14 +169,6 @@ async def reports(
     return stock_service.list_reports(user)
 
 
-@router.get("/reports/market", response_model=list[StockReportMarketItem])
-async def market_reports(
-    user: Annotated[User, Depends(get_current_user)],
-    stock_service: Annotated[StockService, Depends(get_stock_service)],
-) -> list[StockReportMarketItem]:
-    return stock_service.list_market_reports(user)
-
-
 @router.post(
     "/reports/from-analysis/{record_id}",
     response_model=StockReportPublic,
@@ -186,16 +180,6 @@ async def create_report_from_analysis(
     stock_service: Annotated[StockService, Depends(get_stock_service)],
 ) -> StockReportPublic:
     return stock_service.create_report_from_analysis(record_id, user)
-
-
-@router.patch("/reports/{report_id}/publish", response_model=StockReportPublic)
-async def update_report_publish(
-    report_id: int,
-    payload: StockReportPublishRequest,
-    user: Annotated[User, Depends(get_current_user)],
-    stock_service: Annotated[StockService, Depends(get_stock_service)],
-) -> StockReportPublic:
-    return stock_service.update_report_publish(report_id, user, payload)
 
 
 @router.delete("/reports/{report_id}", status_code=status.HTTP_204_NO_CONTENT)

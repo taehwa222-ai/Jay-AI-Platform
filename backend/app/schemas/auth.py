@@ -1,5 +1,3 @@
-from typing import Literal
-
 from pydantic import BaseModel, Field
 
 EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
@@ -10,7 +8,6 @@ class UserPublic(BaseModel):
     email: str
     name: str
     role: str
-    plan: str
     is_active: bool
     created_at: str
     last_login_at: str | None = None
@@ -31,55 +28,3 @@ class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserPublic
-
-
-class AdminUserUpdateRequest(BaseModel):
-    role: Literal["admin", "member"] | None = None
-    plan: Literal["free", "pro"] | None = None
-    is_active: bool | None = None
-
-
-class AdminUserUsagePublic(BaseModel):
-    id: int
-    email: str
-    name: str
-    role: str
-    plan: str
-    is_active: bool
-    analysis_count: int
-    latest_analysis_at: str | None = None
-    created_at: str
-    last_login_at: str | None = None
-
-
-class AdminContentStatsPublic(BaseModel):
-    total_reports: int
-    private_reports: int
-    published_reports: int
-    free_reports: int
-    pro_reports: int
-    report_creators: int
-    latest_report_at: str | None = None
-    latest_published_at: str | None = None
-
-
-class ProUpgradeRequestCreate(BaseModel):
-    message: str = Field(default="", max_length=500)
-
-
-class ProUpgradeRequestUpdate(BaseModel):
-    status: Literal["approved", "rejected"]
-    admin_note: str = Field(default="", max_length=500)
-
-
-class ProUpgradeRequestPublic(BaseModel):
-    id: int
-    user_id: int
-    email: str
-    name: str
-    current_plan: str
-    status: Literal["pending", "approved", "rejected"]
-    message: str
-    admin_note: str
-    created_at: str
-    updated_at: str

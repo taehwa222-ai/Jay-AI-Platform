@@ -15,6 +15,11 @@ def isolated_data_dir(monkeypatch):
     settings = get_settings()
     monkeypatch.setattr(settings, "data_dir", data_dir)
     monkeypatch.setattr(settings, "auth_secret_key", "test-secret-key")
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "opendart_api_key", "")
+    monkeypatch.setattr(settings, "ai_daily_limit", 100)
+    monkeypatch.setattr(settings, "telegram_bot_token", "")
+    monkeypatch.setattr(settings, "telegram_chat_id", "")
     yield
     shutil.rmtree(data_dir, ignore_errors=True)
 

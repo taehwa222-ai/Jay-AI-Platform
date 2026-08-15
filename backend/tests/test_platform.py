@@ -21,7 +21,7 @@ def test_platform_overview_endpoint():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ready"
-    assert "member-auth" in body["modules"]
+    assert body["modules"] == ["stock-lab", "content-ops"]
 
 
 def test_platform_modules_endpoint():
@@ -30,8 +30,7 @@ def test_platform_modules_endpoint():
 
     assert response.status_code == 200
     modules = response.json()["modules"]
-    assert modules[0]["id"] == "member-auth"
-    assert modules[1]["id"] == "admin-console"
+    assert [module["id"] for module in modules] == ["stock-lab", "content-ops"]
 
 
 def test_platform_manual_endpoint():
@@ -40,18 +39,7 @@ def test_platform_manual_endpoint():
 
     assert response.status_code == 200
     sections = response.json()["sections"]
-    assert sections[0]["id"] == "local-setup"
-    assert sections[-1]["id"] == "auto-deploy"
-
-
-def test_platform_monetization_endpoint():
-    with TestClient(app) as client:
-        response = client.get("/api/v1/platform/monetization")
-
-    assert response.status_code == 200
-    ideas = response.json()["ideas"]
-    assert ideas[0]["id"] == "subscription"
-    assert ideas[-1]["id"] == "education"
+    assert [section["id"] for section in sections] == ["local-run", "daily-backup"]
 
 
 def test_platform_roadmap_endpoint():
@@ -60,5 +48,4 @@ def test_platform_roadmap_endpoint():
 
     assert response.status_code == 200
     phases = response.json()["phases"]
-    assert phases[0]["id"] == "foundation"
-    assert phases[1]["id"] == "access"
+    assert phases[0]["id"] == "internal-os"

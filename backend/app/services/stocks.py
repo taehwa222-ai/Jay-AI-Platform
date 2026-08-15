@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import sqlite3
 from dataclasses import dataclass
@@ -20,9 +21,7 @@ from app.schemas.stocks import (
     StockHoldingPublic,
     StockHoldingUpdateRequest,
     StockMarketSnapshot,
-    StockReportMarketItem,
     StockReportPublic,
-    StockReportPublishRequest,
     StockScanCandidate,
     StockScanFailure,
     StockScanRequest,
@@ -32,11 +31,10 @@ from app.schemas.stocks import (
     StockWatchlistUpdateRequest,
 )
 from app.services.auth import User
+from app.services.cache import AsyncTTLCache
+from app.services.database import connect_database
 
-DISCLAIMER = (
-    "이 결과는 투자 판단을 돕기 위한 정보 정리이며, 수익을 보장하거나 매수/매도 지시를 "
-    "제공하지 않습니다."
-)
+DISCLAIMER = "대표 개인 검토용 분석입니다. 최종 판단 전 원본 데이터와 리스크를 확인하세요."
 
 
 @dataclass(frozen=True)
@@ -160,8 +158,6 @@ class StockReport:
     rating: str
     rating_label: str
     report_type: str
-    access_level: str
-    is_published: bool
     created_at: str
 
     def public(self) -> StockReportPublic:
@@ -176,8 +172,6 @@ class StockReport:
             rating=self.rating,
             rating_label=self.rating_label,
             report_type=self.report_type,
-            access_level=self.access_level,
-            is_published=self.is_published,
             created_at=self.created_at,
         )
 
@@ -186,6 +180,9 @@ class StockService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self.db_path = settings.database_path
+        self.market_cache = AsyncTTLCache[StockMarketSnapshot](
+            settings.market_cache_ttl_seconds
+        )
 
     def init_db(self) -> None:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -275,15 +272,11 @@ class StockService:
                     score INTEGER NOT NULL,
                     rating TEXT NOT NULL,
                     rating_label TEXT NOT NULL,
-                    report_type TEXT NOT NULL DEFAULT 'paid_report_draft',
-                    access_level TEXT NOT NULL DEFAULT 'private',
-                    is_published INTEGER NOT NULL DEFAULT 0,
+                    report_type TEXT NOT NULL DEFAULT 'internal_analysis',
                     created_at TEXT NOT NULL
                 )
                 """
             )
-            ensure_column(conn, "stock_reports", "access_level", "TEXT NOT NULL DEFAULT 'private'")
-            ensure_column(conn, "stock_reports", "is_published", "INTEGER NOT NULL DEFAULT 0")
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_stock_reports_user
@@ -292,9 +285,7 @@ class StockService:
             )
 
     def connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        return connect_database(self.db_path)
 
     def list_holdings(self, user: User) -> list[StockHoldingPublic]:
         with self.connect() as conn:
@@ -399,20 +390,28 @@ class StockService:
         updated: list[StockHoldingPublic] = []
         failed: list[StockHoldingPriceRefreshFailure] = []
 
-        for row in rows:
-            holding = row_to_holding(row)
+        async def load_snapshot(holding: StockHolding):
             try:
-                snapshot = await self.market_snapshot(holding.ticker)
+                return holding, await self.market_snapshot(holding.ticker), None
             except HTTPException as exc:
+                return holding, None, exc
+
+        holdings = [row_to_holding(row) for row in rows]
+        snapshot_results = await asyncio.gather(
+            *(load_snapshot(holding) for holding in holdings)
+        )
+        for holding, snapshot, snapshot_error in snapshot_results:
+            if snapshot_error is not None:
                 failed.append(
                     StockHoldingPriceRefreshFailure(
                         id=holding.id,
                         ticker=holding.ticker,
                         name=holding.name,
-                        reason=str(exc.detail),
+                        reason=str(snapshot_error.detail),
                     )
                 )
                 continue
+            assert snapshot is not None
 
             with self.connect() as conn:
                 conn.execute(
@@ -574,20 +573,6 @@ class StockService:
             ).fetchall()
         return [row_to_report(row).public() for row in rows]
 
-    def list_market_reports(self, user: User) -> list[StockReportMarketItem]:
-        with self.connect() as conn:
-            rows = conn.execute(
-                """
-                SELECT *
-                FROM stock_reports
-                WHERE is_published = 1
-                    AND access_level IN ('free', 'pro')
-                ORDER BY created_at DESC, id DESC
-                LIMIT 100
-                """
-            ).fetchall()
-        return [market_item_for_report(row_to_report(row), user) for row in rows]
-
     def create_report_from_analysis(
         self,
         record_id: int,
@@ -602,9 +587,9 @@ class StockService:
                 """
                 INSERT INTO stock_reports (
                     user_id, analysis_record_id, ticker, name, title, body, score,
-                    rating, rating_label, report_type, access_level, is_published, created_at
+                    rating, rating_label, report_type, created_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     user.id,
@@ -616,36 +601,11 @@ class StockService:
                     record.score,
                     record.rating,
                     record.rating_label,
-                    "paid_report_draft",
-                    "private",
-                    0,
+                    "internal_analysis",
                     now,
                 ),
             )
             report = self.get_report(cursor.lastrowid, user.id, conn)
-        return report.public()
-
-    def update_report_publish(
-        self,
-        report_id: int,
-        user: User,
-        payload: StockReportPublishRequest,
-    ) -> StockReportPublic:
-        access_level = payload.access_level
-        is_published = payload.is_published and access_level != "private"
-
-        with self.connect() as conn:
-            self.get_report(report_id, user.id, conn)
-            conn.execute(
-                """
-                UPDATE stock_reports
-                SET access_level = ?,
-                    is_published = ?
-                WHERE id = ? AND user_id = ?
-                """,
-                (access_level, int(is_published), report_id, user.id),
-            )
-            report = self.get_report(report_id, user.id, conn)
         return report.public()
 
     def delete_report(self, report_id: int, user: User) -> None:
@@ -667,9 +627,6 @@ class StockService:
         payload: StockAnalysisRequest,
         user: User | None = None,
     ) -> StockAnalysisResponse:
-        if user is not None:
-            self.ensure_analysis_allowed(user)
-
         metrics = build_local_analysis(payload)
         ai_summary, ai_powered = await self.build_ai_summary(payload, metrics)
         result = StockAnalysisResponse(
@@ -691,35 +648,6 @@ class StockService:
         if user is not None:
             self.save_analysis_record(user, payload, result)
         return result
-
-    def ensure_analysis_allowed(self, user: User) -> None:
-        if user.role == "admin" or user.plan == "pro":
-            return
-
-        used_count = self.monthly_analysis_count(user)
-        if used_count < self.settings.free_monthly_analysis_limit:
-            return
-
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Free plan monthly analysis limit reached. "
-                "Ask an admin to upgrade this account to pro."
-            ),
-        )
-
-    def monthly_analysis_count(self, user: User) -> int:
-        month_start = datetime.now(UTC).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        with self.connect() as conn:
-            row = conn.execute(
-                """
-                SELECT COUNT(*) AS count
-                FROM stock_analysis_records
-                WHERE user_id = ? AND created_at >= ?
-                """,
-                (user.id, month_start.isoformat()),
-            ).fetchone()
-        return int(row["count"])
 
     def save_analysis_record(
         self,
@@ -760,6 +688,12 @@ class StockService:
 
     async def market_snapshot(self, ticker: str) -> StockMarketSnapshot:
         normalized_ticker = normalize_ticker(ticker)
+        return await self.market_cache.get_or_create(
+            normalized_ticker,
+            lambda: self._load_market_snapshot(normalized_ticker),
+        )
+
+    async def _load_market_snapshot(self, normalized_ticker: str) -> StockMarketSnapshot:
         errors: list[str] = []
 
         for provider_symbol in yahoo_provider_symbols(normalized_ticker):
@@ -783,12 +717,20 @@ class StockService:
         candidates: list[StockScanCandidate] = []
         failed: list[StockScanFailure] = []
 
-        for ticker in payload.tickers:
+        async def load_snapshot(ticker: str):
             try:
-                snapshot = await self.market_snapshot(ticker)
+                return ticker, await self.market_snapshot(ticker), None
             except HTTPException as exc:
-                failed.append(StockScanFailure(ticker=ticker, reason=str(exc.detail)))
+                return ticker, None, exc
+
+        snapshot_results = await asyncio.gather(
+            *(load_snapshot(ticker) for ticker in payload.tickers)
+        )
+        for ticker, snapshot, snapshot_error in snapshot_results:
+            if snapshot_error is not None:
+                failed.append(StockScanFailure(ticker=ticker, reason=str(snapshot_error.detail)))
                 continue
+            assert snapshot is not None
 
             name = payload.name_map.get(snapshot.ticker, snapshot.ticker)
             analysis_payload = StockAnalysisRequest(
@@ -1252,20 +1194,8 @@ def row_to_report(row: sqlite3.Row) -> StockReport:
         rating=str(row["rating"]),
         rating_label=str(row["rating_label"]),
         report_type=str(row["report_type"]),
-        access_level=str(row["access_level"]),
-        is_published=bool(row["is_published"]),
         created_at=str(row["created_at"]),
     )
-
-
-def market_item_for_report(report: StockReport, user: User) -> StockReportMarketItem:
-    can_view = report.access_level == "free" or user.plan == "pro" or user.role == "admin"
-    locked_reason = "" if can_view else "Pro plan is required to view this report."
-    public = report.public()
-    data = public.model_dump()
-    if not can_view:
-        data["body"] = ""
-    return StockReportMarketItem(**data, can_view=can_view, locked_reason=locked_reason)
 
 
 def build_report_body(record: StockAnalysisRecord) -> str:
@@ -1290,8 +1220,8 @@ def build_report_body(record: StockAnalysisRecord) -> str:
             f"## Analyst Memo\n{record.memo or 'No memo was saved for this analysis.'}",
             (
                 "## Usage Note\n"
-                "This is a draft for a paid or member-only report. Review market news, "
-                "disclosures, liquidity, and your own investment rules before publishing."
+                "대표 내부 검토용 초안입니다. 원문 공시, 유동성, 밸류에이션과 "
+                "하방 시나리오를 확인한 뒤 의사결정 기록으로 사용하세요."
             ),
             f"## Disclaimer\n{record.disclaimer}",
         ]
@@ -1307,12 +1237,6 @@ def bullet_list(items: list[str]) -> str:
 def safe_filename(value: str) -> str:
     cleaned = "".join(char if char.isalnum() or char in ("-", "_") else "-" for char in value)
     return cleaned.strip("-_") or "stock"
-
-
-def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
-    columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
-    if column not in columns:
-        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def json_list(value: str) -> list[str]:

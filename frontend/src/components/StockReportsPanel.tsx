@@ -1,13 +1,11 @@
-import { DeleteOutlined, DollarOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
-import { formatDateTime } from '../utils';
+import { DeleteOutlined, FileTextOutlined, ReloadOutlined, SaveOutlined } from '@ant-design/icons';
 import type { StockReport } from '../types';
+import { formatDateTime } from '../utils';
 
 export function StockReportsPanel({
   reportMessage,
   stockReports,
   onRefresh,
-  updatingReportPublishId,
-  onUpdatePublish,
   downloadingReportId,
   onDownload,
   deletingReportId,
@@ -16,12 +14,6 @@ export function StockReportsPanel({
   reportMessage: string | null;
   stockReports: StockReport[];
   onRefresh: () => void;
-  updatingReportPublishId: number | null;
-  onUpdatePublish: (
-    report: StockReport,
-    accessLevel: StockReport['access_level'],
-    isPublished: boolean,
-  ) => void;
   downloadingReportId: number | null;
   onDownload: (report: StockReport) => void;
   deletingReportId: number | null;
@@ -30,11 +22,10 @@ export function StockReportsPanel({
   return (
     <article className="tool-pane stock-pane report-pane">
       <div className="pane-title">
-        <DollarOutlined />
-        <h3>Report drafts</h3>
+        <FileTextOutlined />
+        <h3>내부 분석 리포트</h3>
         <button className="secondary-button" onClick={onRefresh} type="button">
-          <ReloadOutlined />
-          Refresh
+          <ReloadOutlined /> 새로고침
         </button>
       </div>
       <div className="pane-body">
@@ -46,62 +37,24 @@ export function StockReportsPanel({
                 <div>
                   <strong>{report.title}</strong>
                   <small>
-                    {formatDateTime(report.created_at)} · Score {report.score} · {report.rating_label}
+                    {formatDateTime(report.created_at)} · {report.score}점 · {report.rating_label}
                   </small>
-                  <span className={`publish-chip ${report.is_published ? 'published' : 'private'}`}>
-                    {report.is_published ? `${report.access_level.toUpperCase()} published` : 'PRIVATE'}
-                  </span>
+                  <span className="publish-chip private">OWNER ONLY</span>
                 </div>
                 <div className="report-actions">
-                  <select
-                    aria-label="Report access level"
-                    disabled={updatingReportPublishId === report.id}
-                    onChange={(event) =>
-                      onUpdatePublish(
-                        report,
-                        event.target.value as StockReport['access_level'],
-                        event.target.value !== 'private',
-                      )
-                    }
-                    value={report.access_level}
-                  >
-                    <option value="private">Private</option>
-                    <option value="free">Free members</option>
-                    <option value="pro">Pro members</option>
-                  </select>
-                  {report.is_published ? (
-                    <button
-                      className="secondary-button compact-button"
-                      disabled={updatingReportPublishId === report.id}
-                      onClick={() => onUpdatePublish(report, 'private', false)}
-                      type="button"
-                    >
-                      Hide
-                    </button>
-                  ) : (
-                    <button
-                      className="secondary-button compact-button"
-                      disabled={updatingReportPublishId === report.id}
-                      onClick={() => onUpdatePublish(report, 'pro', true)}
-                      type="button"
-                    >
-                      Publish Pro
-                    </button>
-                  )}
                   <button
                     className="secondary-button compact-button"
                     disabled={downloadingReportId === report.id}
                     onClick={() => onDownload(report)}
                     type="button"
                   >
-                    <SaveOutlined />
-                    Download .md
+                    <SaveOutlined /> Markdown 저장
                   </button>
                   <button
                     className="icon-danger-button"
                     disabled={deletingReportId === report.id}
                     onClick={() => onDelete(report.id)}
-                    title="Delete report"
+                    title="리포트 삭제"
                     type="button"
                   >
                     <DeleteOutlined />
@@ -113,7 +66,7 @@ export function StockReportsPanel({
           ))}
           {stockReports.length === 0 && (
             <div className="empty-state">
-              Create a report from a saved analysis record to build paid content drafts.
+              저장된 분석 기록에서 내부 검토용 리포트를 만들 수 있습니다.
             </div>
           )}
         </div>

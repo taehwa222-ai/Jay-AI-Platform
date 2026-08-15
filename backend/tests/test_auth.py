@@ -1,32 +1,36 @@
+import sqlite3
+
 from fastapi.testclient import TestClient
 
+from app.config import get_settings
 from app.main import app
+from app.services.auth import hash_password
 
 
-def test_signup_first_user_becomes_admin():
+def owner_payload(email: str = "owner@example.com") -> dict[str, str]:
+    return {"email": email, "password": "password123", "name": "Owner"}
+
+
+def test_first_signup_bootstraps_the_only_owner_account():
     with TestClient(app) as client:
-        response = client.post(
+        first = client.post("/api/v1/auth/signup", json=owner_payload())
+        second = client.post(
             "/api/v1/auth/signup",
-            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
+            json=owner_payload("another@example.com"),
         )
 
-    assert response.status_code == 201
-    body = response.json()
-    assert body["access_token"]
-    assert body["user"]["email"] == "admin@example.com"
-    assert body["user"]["role"] == "admin"
+    assert first.status_code == 201
+    assert first.json()["user"]["role"] == "admin"
+    assert "plan" not in first.json()["user"]
+    assert second.status_code == 409
+    assert "already initialized" in second.json()["detail"]
 
 
-def test_login_and_me():
+def test_owner_can_login_and_restore_session():
     with TestClient(app) as client:
-        signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "owner@example.com", "password": "password123", "name": "Owner"},
-        )
+        signup = client.post("/api/v1/auth/signup", json=owner_payload())
         token = signup.json()["access_token"]
-
         me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
-
         login = client.post(
             "/api/v1/auth/login",
             json={"email": "owner@example.com", "password": "password123"},
@@ -38,257 +42,51 @@ def test_login_and_me():
     assert login.json()["user"]["role"] == "admin"
 
 
-def test_admin_can_list_users_and_member_cannot():
+def test_inactive_or_legacy_non_owner_account_cannot_login():
     with TestClient(app) as client:
-        admin_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
-        )
-        member_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "member@example.com", "password": "password123", "name": "Member"},
-        )
-
-        admin_token = admin_signup.json()["access_token"]
-        member_token = member_signup.json()["access_token"]
-
-        admin_response = client.get(
-            "/api/v1/admin/users",
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        member_response = client.get(
-            "/api/v1/admin/users",
-            headers={"Authorization": f"Bearer {member_token}"},
-        )
-
-    assert admin_response.status_code == 200
-    assert len(admin_response.json()) == 2
-    assert member_response.status_code == 403
-
-
-def test_admin_can_view_user_usage_and_member_cannot():
-    with TestClient(app) as client:
-        admin_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
-        )
-        member_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "member@example.com", "password": "password123", "name": "Member"},
-        )
-        admin_token = admin_signup.json()["access_token"]
-        member_token = member_signup.json()["access_token"]
-
-        analysis = client.post(
-            "/api/v1/stocks/analyze",
-            headers={"Authorization": f"Bearer {member_token}"},
-            json={
-                "ticker": "005930",
-                "name": "삼성전자",
-                "current_price": 76000,
-                "previous_close": 74000,
-                "volume": 2_000_000,
-                "previous_volume": 1_000_000,
-                "rsi": 55,
-                "macd": 10,
-                "macd_signal": 8,
-            },
-        )
-        admin_response = client.get(
-            "/api/v1/admin/user-usage",
-            headers={"Authorization": f"Bearer {admin_token}"},
-        )
-        member_response = client.get(
-            "/api/v1/admin/user-usage",
-            headers={"Authorization": f"Bearer {member_token}"},
-        )
-
-    assert analysis.status_code == 200
-    assert admin_response.status_code == 200
-    member_usage = next(
-        item for item in admin_response.json() if item["email"] == "member@example.com"
-    )
-    assert member_usage["analysis_count"] == 1
-    assert member_usage["latest_analysis_at"]
-    assert member_response.status_code == 403
-
-
-def test_admin_can_view_content_stats_and_member_cannot():
-    with TestClient(app) as client:
-        admin_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
-        )
-        member_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "member@example.com", "password": "password123", "name": "Member"},
-        )
-        admin_token = admin_signup.json()["access_token"]
-        member_token = member_signup.json()["access_token"]
-        admin_headers = {"Authorization": f"Bearer {admin_token}"}
-        member_headers = {"Authorization": f"Bearer {member_token}"}
-        payload = {
-            "ticker": "005930",
-            "name": "Samsung Electronics",
-            "current_price": 76000,
-            "previous_close": 74000,
-            "volume": 2_500_000,
-            "previous_volume": 1_000_000,
-            "rsi": 54,
-            "macd": 150,
-            "macd_signal": 100,
-        }
-        client.post("/api/v1/stocks/analyze", headers=admin_headers, json=payload)
-        record_id = client.get("/api/v1/stocks/analysis-records", headers=admin_headers).json()[0][
-            "id"
-        ]
-        report = client.post(
-            f"/api/v1/stocks/reports/from-analysis/{record_id}",
-            headers=admin_headers,
-        )
-        client.patch(
-            f"/api/v1/stocks/reports/{report.json()['id']}/publish",
-            headers=admin_headers,
-            json={"access_level": "pro", "is_published": True},
-        )
-
-        admin_response = client.get("/api/v1/admin/content-stats", headers=admin_headers)
-        member_response = client.get("/api/v1/admin/content-stats", headers=member_headers)
-
-    assert admin_response.status_code == 200
-    assert admin_response.json()["total_reports"] == 1
-    assert admin_response.json()["published_reports"] == 1
-    assert admin_response.json()["pro_reports"] == 1
-    assert admin_response.json()["report_creators"] == 1
-    assert member_response.status_code == 403
-
-
-def test_member_can_request_pro_and_admin_can_approve():
-    with TestClient(app) as client:
-        admin_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
-        )
-        member_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "member@example.com", "password": "password123", "name": "Member"},
-        )
-        admin_token = admin_signup.json()["access_token"]
-        member_token = member_signup.json()["access_token"]
-        admin_headers = {"Authorization": f"Bearer {admin_token}"}
-        member_headers = {"Authorization": f"Bearer {member_token}"}
-
-        created = client.post(
-            "/api/v1/auth/pro-request",
-            headers=member_headers,
-            json={"message": "I want pro reports."},
-        )
-        duplicate = client.post(
-            "/api/v1/auth/pro-request",
-            headers=member_headers,
-            json={"message": "Second request"},
-        )
-        latest = client.get("/api/v1/auth/pro-request", headers=member_headers)
-        admin_list = client.get("/api/v1/admin/pro-requests", headers=admin_headers)
-        approved = client.patch(
-            f"/api/v1/admin/pro-requests/{created.json()['id']}",
-            headers=admin_headers,
-            json={"status": "approved", "admin_note": "Manual payment confirmed."},
-        )
-        login = client.post(
+        client.post("/api/v1/auth/signup", json=owner_payload())
+        with sqlite3.connect(get_settings().database_path) as connection:
+            connection.execute("UPDATE users SET is_active = 0")
+        response = client.post(
             "/api/v1/auth/login",
-            json={"email": "member@example.com", "password": "password123"},
+            json={"email": "owner@example.com", "password": "password123"},
         )
 
-    assert created.status_code == 201
-    assert created.json()["status"] == "pending"
-    assert duplicate.status_code == 409
-    assert latest.status_code == 200
-    assert latest.json()["message"] == "I want pro reports."
-    assert admin_list.status_code == 200
-    assert admin_list.json()[0]["email"] == "member@example.com"
-    assert approved.status_code == 200
-    assert approved.json()["status"] == "approved"
-    assert login.json()["user"]["plan"] == "pro"
+    assert response.status_code == 403
 
 
-def test_duplicate_email_is_rejected():
+def test_additional_legacy_admin_is_not_treated_as_an_owner():
     with TestClient(app) as client:
-        first = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "same@example.com", "password": "password123", "name": "First"},
-        )
-        second = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "same@example.com", "password": "password123", "name": "Second"},
-        )
-
-    assert first.status_code == 201
-    assert second.status_code == 409
-
-
-def test_admin_can_update_member_role_and_active_state():
-    with TestClient(app) as client:
-        admin_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
-        )
-        member_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "member@example.com", "password": "password123", "name": "Member"},
-        )
-
-        admin_token = admin_signup.json()["access_token"]
-        member_id = member_signup.json()["user"]["id"]
-
-        promoted = client.patch(
-            f"/api/v1/admin/users/{member_id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"role": "admin"},
-        )
-        disabled = client.patch(
-            f"/api/v1/admin/users/{member_id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"is_active": False},
-        )
-        plan_updated = client.patch(
-            f"/api/v1/admin/users/{member_id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"plan": "pro"},
-        )
-        login = client.post(
+        client.post("/api/v1/auth/signup", json=owner_payload())
+        with sqlite3.connect(get_settings().database_path) as connection:
+            connection.execute(
+                """
+                INSERT INTO users (email, name, role, password_hash, is_active, created_at)
+                VALUES (?, ?, 'admin', ?, 1, ?)
+                """,
+                (
+                    "legacy-admin@example.com",
+                    "Legacy Admin",
+                    hash_password("password123"),
+                    "2026-01-02T00:00:00Z",
+                ),
+            )
+        response = client.post(
             "/api/v1/auth/login",
-            json={"email": "member@example.com", "password": "password123"},
+            json={"email": "legacy-admin@example.com", "password": "password123"},
         )
 
-    assert promoted.status_code == 200
-    assert promoted.json()["role"] == "admin"
-    assert plan_updated.status_code == 200
-    assert plan_updated.json()["plan"] == "pro"
-    assert disabled.status_code == 200
-    assert disabled.json()["is_active"] is False
-    assert login.status_code == 403
+    assert response.status_code == 403
 
 
-def test_admin_cannot_disable_self_or_remove_last_admin():
+def test_removed_b2c_admin_and_upgrade_routes_are_not_registered():
     with TestClient(app) as client:
-        admin_signup = client.post(
-            "/api/v1/auth/signup",
-            json={"email": "admin@example.com", "password": "password123", "name": "Admin"},
-        )
-        admin_token = admin_signup.json()["access_token"]
-        admin_id = admin_signup.json()["user"]["id"]
+        signup = client.post("/api/v1/auth/signup", json=owner_payload())
+        headers = {"Authorization": f"Bearer {signup.json()['access_token']}"}
+        admin = client.get("/api/v1/admin/users", headers=headers)
+        upgrade = client.get("/api/v1/auth/pro-request", headers=headers)
+        payment = client.get("/api/v1/payments/me", headers=headers)
 
-        disable_self = client.patch(
-            f"/api/v1/admin/users/{admin_id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"is_active": False},
-        )
-        demote_self = client.patch(
-            f"/api/v1/admin/users/{admin_id}",
-            headers={"Authorization": f"Bearer {admin_token}"},
-            json={"role": "member"},
-        )
-
-    assert disable_self.status_code == 400
-    assert demote_self.status_code == 400
+    assert admin.status_code == 404
+    assert upgrade.status_code == 404
+    assert payment.status_code == 404

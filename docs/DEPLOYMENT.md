@@ -38,6 +38,10 @@ The script writes `.env` and asks for:
 CORS_ORIGINS=http://YOUR_SERVER_IP
 ```
 
+외부 연동을 사용할 때는 `.env.production.example`을 기준으로 `OPENAI_API_KEY`,
+`OPENDART_API_KEY`, `AI_DAILY_LIMIT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`를 추가합니다.
+실제 키는 저장소에 커밋하지 않습니다.
+
 ## 4. Start The App
 
 ```bash
@@ -56,6 +60,10 @@ Check status:
 docker compose ps
 docker compose logs -f backend
 ```
+
+Compose는 `./data`를 `/app/data`에, Content Ops 저장용 `./content`를 쓰기 가능한
+`/app/content`에 마운트합니다. 두 호스트 디렉터리를 재배포 중 삭제하지 말고, DB 일일 백업은
+`SERVER_OPERATIONS.md`의 cron 예시를 적용하세요.
 
 ## 5. Test
 

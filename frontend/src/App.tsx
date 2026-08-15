@@ -1,25 +1,22 @@
 ﻿import {
-  AppstoreOutlined,
   BarChartOutlined,
-  BookOutlined,
-  CrownOutlined,
+  ClockCircleOutlined,
   DeploymentUnitOutlined,
-  DollarOutlined,
   FileSearchOutlined,
   LineChartOutlined,
-  LockOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
+  SearchOutlined,
+  StarOutlined,
+  SyncOutlined,
   TeamOutlined,
+  ThunderboltOutlined,
+  UserOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { ANONYMOUS, loadTossPayments } from '@tosspayments/tosspayments-sdk';
-import type { ReactNode } from 'react';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
   analyzeStock,
-  confirmPayment,
-  createPaymentOrder,
-  createProRequest,
   createStockHolding,
   createStockReportFromAnalysis,
   createStockWatchlistItem,
@@ -28,72 +25,51 @@ import {
   deleteStockReport,
   deleteStockWatchlistItem,
   downloadStockReport,
-  getAdminContentStats,
   getDisclosures,
-  getAdminProRequests,
-  getAdminUserUsage,
-  getAdminUsers,
-  getMyProRequest,
   getStockAnalysisRecords,
   getHealth,
-  getManual,
-  getEmoticonProjectDetail,
-  getEmoticonProjects,
   getMe,
-  getModules,
-  getMonetizationIdeas,
-  getOverview,
-  getRoadmap,
   getStockHoldings,
   getStockMarketSnapshot,
-  getStockReportMarket,
   getStockReports,
   getStockWatchlist,
-  getYoutubeProjectDetail,
-  getYoutubeProjects,
   login,
   refreshStockHoldingPrices,
   scanStocks,
   signup,
-  updateAdminUser,
-  updateAdminProRequest,
   updateStockHolding,
-  updateStockReportPublish,
 } from './api';
-import { AdminScreen } from './components/AdminScreen';
 import { AuthScreen } from './components/AuthScreen';
 import type { AuthMode } from './components/AuthScreen';
+import { CommandPalette } from './components/CommandPalette';
+import type { CommandItem } from './components/CommandPalette';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { ContentOpsScreen } from './components/ContentOpsScreen';
-import type { ContentOpsTabId } from './components/ContentOpsScreen';
-import { ManualScreen } from './components/ManualScreen';
-import { RevenueScreen } from './components/RevenueScreen';
-import { RoadmapSection } from './components/RoadmapSection';
-import { SectionTitle, StatusTile } from './components/shared';
+import { NotificationCenterPanel } from './components/NotificationCenterPanel';
 import { StockAnalysisPanel } from './components/StockAnalysisPanel';
 import type { AnalysisForm } from './components/StockAnalysisPanel';
 import { StockHoldingsPanel } from './components/StockHoldingsPanel';
 import type { HoldingForm, PortfolioBreakdownItem } from './components/StockHoldingsPanel';
-import { StockMarketPanel } from './components/StockMarketPanel';
 import { StockReportsPanel } from './components/StockReportsPanel';
 import { StockDisclosurePanel } from './components/StockDisclosurePanel';
 import { StockScanPanel } from './components/StockScanPanel';
 import { StockWatchlistPanel } from './components/StockWatchlistPanel';
 import type { WatchlistForm } from './components/StockWatchlistPanel';
-import { parseTickerList, safeFileName, toNumber } from './utils';
+import { usePersistentState } from './hooks/usePersistentState';
+import {
+  getInitialView,
+  getStockTabIcon,
+  isStockTabId,
+  rememberView,
+  STOCK_TABS,
+  VIEW_META,
+} from './navigation';
+import type { StockTabId, ViewId } from './navigation';
+import { formatPercent, formatWon, parseTickerList, safeFileName, toNumber } from './utils';
 import type {
-  AdminContentStats,
-  AdminUserUsage,
   AuthResponse,
   Disclosure,
-  EmoticonProjectDetail,
-  EmoticonProjectSummary,
   HealthStatus,
-  ManualSection,
-  MonetizationIdea,
-  PlatformModule,
-  PlatformOverview,
-  ProUpgradeRequest,
-  RoadmapPhase,
   StockAnalysisRecord,
   StockAnalysisPayload,
   StockAnalysisResult,
@@ -101,33 +77,12 @@ import type {
   StockHoldingPayload,
   StockMarketSnapshot,
   StockReport,
-  StockReportMarketItem,
   StockScanResult,
   StockWatchlistItem,
   UserAccount,
-  YoutubeProjectDetail,
-  YoutubeProjectSummary,
 } from './types';
 
 const TOKEN_STORAGE_KEY = 'jay-ai-platform-token';
-
-// Must match the backend's PRO_UPGRADE_PRICE_KRW (backend/app/config.py) — the server
-// rejects any order whose amount doesn't match its own configured price.
-const PRO_UPGRADE_PRICE_KRW = 9900;
-
-const VIEW_IDS = ['dashboard', 'auth', 'admin', 'manual', 'stocks', 'contentOps', 'revenue'] as const;
-
-type ViewId = (typeof VIEW_IDS)[number];
-
-const VIEW_META: Record<ViewId, { eyebrow: string; title: string }> = {
-  dashboard: { eyebrow: 'Overview', title: 'AI 플랫폼 대시보드' },
-  auth: { eyebrow: 'Access', title: '로그인·회원가입' },
-  admin: { eyebrow: 'Admin', title: '관리자 페이지' },
-  manual: { eyebrow: 'Manual', title: '사용 매뉴얼' },
-  stocks: { eyebrow: 'Korea Stock Lab', title: '국내 주식 분석' },
-  contentOps: { eyebrow: 'Content Ops', title: '콘텐츠 운영' },
-  revenue: { eyebrow: 'Revenue Lab', title: '수익화 아이디어' },
-};
 
 const emptyHoldingForm: HoldingForm = {
   ticker: '',
@@ -158,92 +113,23 @@ const defaultAnalysisForm: AnalysisForm = {
   memo: '',
 };
 
-const stockWorkflows = [
-  {
-    title: '조건 기반 추천 후보',
-    body: '거래량 200% 이상, RSI, MACD, 가격 변화율을 점수화해 관심 후보를 분리합니다.',
-  },
-  {
-    title: '내 보유 종목 관리',
-    body: '보유 수량, 평단가, 현재가, 투자 근거, 리스크 메모를 계정별로 저장합니다.',
-  },
-  {
-    title: 'AI 요약 확장',
-    body: '서버에 OpenAI 키가 있으면 같은 분석 데이터를 기반으로 한국어 요약을 추가합니다.',
-  },
-  {
-    title: '규제 안전장치',
-    body: '수익 보장이나 매수/매도 지시가 아니라 검토용 체크리스트와 리스크를 제공합니다.',
-  },
-];
-
-const STOCK_TABS = [
-  {
-    id: 'holdings',
-    title: '보유종목',
-    description: '내가 실제로 보유한 주식과 손익을 관리합니다.',
-  },
-  {
-    id: 'watchlist',
-    title: '관심종목',
-    description: '아직 매수 전인 종목을 따로 저장하고 추적합니다.',
-  },
-  {
-    id: 'analysis',
-    title: 'AI 분석',
-    description: '한 종목의 시세, 거래량, RSI, MACD를 분석합니다.',
-  },
-  {
-    id: 'scan',
-    title: '후보 스캔',
-    description: '여러 종목을 한 번에 비교해 후보를 정렬합니다.',
-  },
-  {
-    id: 'reports',
-    title: 'Reports',
-    description: 'Saved analysis records become paid report drafts.',
-  },
-  {
-    id: 'market',
-    title: 'Market',
-    description: 'Published stock reports for members.',
-  },
-  {
-    id: 'disclosures',
-    title: '공시',
-    description: 'OpenDART에서 최근 1년 공시 목록을 조회합니다.',
-  },
-] as const;
-
-type StockTabId = (typeof STOCK_TABS)[number]['id'];
+type DeleteTarget = {
+  kind: 'holding' | 'watchlist' | 'analysis' | 'report';
+  id: number;
+  label: string;
+};
 
 export default function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [overview, setOverview] = useState<PlatformOverview | null>(null);
-  const [modules, setModules] = useState<PlatformModule[]>([]);
-  const [manual, setManual] = useState<ManualSection[]>([]);
-  const [ideas, setIdeas] = useState<MonetizationIdea[]>([]);
-  const [roadmap, setRoadmap] = useState<RoadmapPhase[]>([]);
   const [token, setToken] = useState<string>(() => localStorage.getItem(TOKEN_STORAGE_KEY) ?? '');
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
-  const [adminUsers, setAdminUsers] = useState<UserAccount[]>([]);
-  const [adminUsage, setAdminUsage] = useState<AdminUserUsage[]>([]);
-  const [adminContentStats, setAdminContentStats] = useState<AdminContentStats | null>(null);
-  const [adminProRequests, setAdminProRequests] = useState<ProUpgradeRequest[]>([]);
-  const [myProRequest, setMyProRequest] = useState<ProUpgradeRequest | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(() => Boolean(localStorage.getItem(TOKEN_STORAGE_KEY)));
   const [authMode, setAuthMode] = useState<AuthMode>('signup');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
-  const [adminMessage, setAdminMessage] = useState<string | null>(null);
-  const [adminUpdatingId, setAdminUpdatingId] = useState<number | null>(null);
-  const [proRequestMessage, setProRequestMessage] = useState<string | null>(null);
-  const [proRequestLoading, setProRequestLoading] = useState(false);
-  const [paymentLoading, setPaymentLoading] = useState(false);
-  const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
-  const [adminProRequestUpdatingId, setAdminProRequestUpdatingId] = useState<number | null>(null);
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [holdingForm, setHoldingForm] = useState<HoldingForm>(emptyHoldingForm);
   const [holdingMessage, setHoldingMessage] = useState<string | null>(null);
@@ -262,7 +148,6 @@ export default function App() {
   const [analysisRecordQuery, setAnalysisRecordQuery] = useState('');
   const [analysisRecordRatingFilter, setAnalysisRecordRatingFilter] = useState('all');
   const [stockReports, setStockReports] = useState<StockReport[]>([]);
-  const [marketReports, setMarketReports] = useState<StockReportMarketItem[]>([]);
   const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [deletingAnalysisRecordId, setDeletingAnalysisRecordId] = useState<number | null>(null);
@@ -271,8 +156,6 @@ export default function App() {
   const [creatingReportRecordId, setCreatingReportRecordId] = useState<number | null>(null);
   const [deletingReportId, setDeletingReportId] = useState<number | null>(null);
   const [downloadingReportId, setDownloadingReportId] = useState<number | null>(null);
-  const [updatingReportPublishId, setUpdatingReportPublishId] = useState<number | null>(null);
-  const [marketMessage, setMarketMessage] = useState<string | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketSnapshot, setMarketSnapshot] = useState<StockMarketSnapshot | null>(null);
   const [prefillAnalysisLoadingKey, setPrefillAnalysisLoadingKey] = useState<string | null>(null);
@@ -285,27 +168,28 @@ export default function App() {
   const [disclosures, setDisclosures] = useState<Disclosure[]>([]);
   const [disclosureLoading, setDisclosureLoading] = useState(false);
   const [disclosureMessage, setDisclosureMessage] = useState<string | null>(null);
-  const [activeStockTab, setActiveStockTab] = useState<StockTabId>('holdings');
-  const [activeContentOpsTab, setActiveContentOpsTab] = useState<ContentOpsTabId>('youtube');
-  const [youtubeProjects, setYoutubeProjects] = useState<YoutubeProjectSummary[]>([]);
-  const [youtubeProjectsMessage, setYoutubeProjectsMessage] = useState<string | null>(null);
-  const [youtubeProjectsLoading, setYoutubeProjectsLoading] = useState(false);
-  const [selectedYoutubeSlug, setSelectedYoutubeSlug] = useState<string | null>(null);
-  const [youtubeProjectDetail, setYoutubeProjectDetail] = useState<YoutubeProjectDetail | null>(null);
-  const [youtubeDetailLoading, setYoutubeDetailLoading] = useState(false);
-  const [youtubeDetailMessage, setYoutubeDetailMessage] = useState<string | null>(null);
-  const [emoticonProjects, setEmoticonProjects] = useState<EmoticonProjectSummary[]>([]);
-  const [emoticonProjectsMessage, setEmoticonProjectsMessage] = useState<string | null>(null);
-  const [emoticonProjectsLoading, setEmoticonProjectsLoading] = useState(false);
-  const [selectedEmoticonSlug, setSelectedEmoticonSlug] = useState<string | null>(null);
-  const [emoticonProjectDetail, setEmoticonProjectDetail] = useState<EmoticonProjectDetail | null>(
-    null,
+  const [activeStockTab, setActiveStockTab] = usePersistentState<StockTabId>(
+    'jay-ai-stock-tab',
+    'holdings',
+    isStockTabId,
   );
-  const [emoticonDetailLoading, setEmoticonDetailLoading] = useState(false);
-  const [emoticonDetailMessage, setEmoticonDetailMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeView, setActiveView] = useState<ViewId>(() => getInitialView());
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleteConfirmLoading, setDeleteConfirmLoading] = useState(false);
+  const [contentOpsDirty, setContentOpsDirty] = useState(false);
+  const [contentDiscardSignal, setContentDiscardSignal] = useState(0);
+  const [pendingView, setPendingView] = useState<ViewId | null>(null);
+  const [stockSyncing, setStockSyncing] = useState(false);
+  const [lastStockSyncAt, setLastStockSyncAt] = useState<Date | null>(null);
+  const [stockSyncMessage, setStockSyncMessage] = useState<string | null>(null);
+  const stockTabsRef = useRef<HTMLDivElement>(null);
+
+  const isSignedIn = currentUser !== null;
+  const hasSessionNavigation = isSignedIn || sessionLoading;
+  const activeViewMeta = VIEW_META[activeView];
 
   const portfolioTotals = holdings.reduce(
     (totals, holding) => ({
@@ -317,27 +201,14 @@ export default function App() {
   );
   const portfolioProfitPercent =
     portfolioTotals.cost > 0 ? (portfolioTotals.profit / portfolioTotals.cost) * 100 : 0;
-  const activeMemberCount = adminUsers.filter((user) => user.role === 'member' && user.is_active).length;
-  const activeAdminCount = adminUsers.filter((user) => user.role === 'admin' && user.is_active).length;
-  const inactiveUserCount = adminUsers.filter((user) => !user.is_active).length;
-  const proUserCount = adminUsers.filter((user) => user.plan === 'pro').length;
-  const freeUserCount = adminUsers.filter((user) => user.plan === 'free').length;
-  const totalAnalysisCount = adminUsage.reduce((total, user) => total + user.analysis_count, 0);
-  const activeAnalysisUserCount = adminUsage.filter((user) => user.analysis_count > 0).length;
-  const latestAnalysisAt =
-    adminUsage
-      .map((user) => user.latest_analysis_at)
-      .filter((value): value is string => Boolean(value))
-      .sort()
-      .at(-1) ?? null;
   const stockTabCounts: Record<StockTabId, string> = {
     holdings: `${holdings.length}개`,
     watchlist: `${watchlist.length}개`,
     analysis: analysisRecords.length > 0 ? `${analysisRecords.length}개 기록` : '대기',
     scan: scanResult ? `${scanResult.candidates.length}개 후보` : '대기',
-    reports: `${stockReports.length} drafts`,
-    market: `${marketReports.length} items`,
+    reports: `${stockReports.length}개`,
     disclosures: disclosures.length > 0 ? `${disclosures.length}건` : '대기',
+    notifications: '운영',
   };
   const portfolioBreakdown = holdings
     .map((holding) => ({
@@ -359,6 +230,12 @@ export default function App() {
         second.price_change_percent - first.price_change_percent,
     )
     .slice(0, 3);
+  const latestAnalysis = analysisRecords[0] ?? null;
+  const largestHolding = portfolioBreakdown[0] ?? null;
+  const analyzedTickerSet = new Set(analysisRecords.map((record) => record.ticker));
+  const unreviewedWatchlistCount = watchlist.filter(
+    (item) => !analyzedTickerSet.has(item.ticker),
+  ).length;
   const normalizedAnalysisRecordQuery = analysisRecordQuery.trim().toLowerCase();
   const filteredAnalysisRecords = analysisRecords.filter((record) => {
     const matchesQuery =
@@ -369,76 +246,123 @@ export default function App() {
       analysisRecordRatingFilter === 'all' || record.rating === analysisRecordRatingFilter;
     return matchesQuery && matchesRating;
   });
+  const quickCommands: CommandItem[] = [
+    {
+      id: 'view-stocks',
+      label: '주식 분석 Lab 열기',
+      description: '포트폴리오와 종목 분석 워크스페이스로 이동',
+      group: '화면 이동',
+      icon: <BarChartOutlined />,
+      shortcut: 'G S',
+      keywords: 'stock portfolio 주식',
+      onSelect: () => requestNavigate('stocks'),
+    },
+    {
+      id: 'view-content-ops',
+      label: 'Content Ops 열기',
+      description: 'YouTube와 이모티콘 문서 편집기로 이동',
+      group: '화면 이동',
+      icon: <VideoCameraOutlined />,
+      shortcut: 'G C',
+      keywords: 'content markdown 콘텐츠',
+      onSelect: () => requestNavigate('contentOps'),
+    },
+    {
+      id: 'view-account',
+      label: '대표 계정 열기',
+      description: '현재 세션과 대표 계정 정보 확인',
+      group: '화면 이동',
+      icon: <TeamOutlined />,
+      shortcut: 'G A',
+      onSelect: () => requestNavigate('auth'),
+    },
+    ...STOCK_TABS.map<CommandItem>((tab) => ({
+      id: `stock-${tab.id}`,
+      label: `${tab.title} 열기`,
+      description: tab.description,
+      group: '주식 Lab',
+      icon: getStockTabIcon(tab.id),
+      keywords: `stock ${tab.id}`,
+      onSelect: () => {
+        setActiveStockTab(tab.id);
+        requestNavigate('stocks');
+      },
+    })),
+    {
+      id: 'refresh-stock-workspace',
+      label: '주식 데이터 전체 동기화',
+      description: '보유종목, 관심종목, 분석 기록과 리포트를 백그라운드에서 갱신',
+      group: '주식 Lab',
+      icon: <SyncOutlined />,
+      shortcut: 'R S',
+      keywords: 'refresh sync 동기화 갱신',
+      onSelect: () => void refreshStockWorkspace(),
+    },
+    {
+      id: 'refresh-health',
+      label: '서버 상태 새로고침',
+      description: '백엔드 연결 상태를 다시 확인',
+      group: '시스템',
+      icon: <ReloadOutlined />,
+      shortcut: 'R',
+      onSelect: () => void refreshState(),
+    },
+  ];
 
   useEffect(() => {
     void refreshState();
   }, []);
 
   useEffect(() => {
-    const syncViewFromHash = () => setActiveView(getInitialView());
+    const syncViewFromHash = () => {
+      const nextView = getInitialView();
+      setActiveView(nextView);
+      rememberView(nextView);
+    };
     syncViewFromHash();
     window.addEventListener('hashchange', syncViewFromHash);
     return () => window.removeEventListener('hashchange', syncViewFromHash);
   }, []);
 
   useEffect(() => {
-    if (token) {
+    const activeTabButton = stockTabsRef.current?.querySelector<HTMLElement>(
+      `[data-stock-tab="${activeStockTab}"]`,
+    );
+    activeTabButton?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, [activeStockTab]);
+
+  useEffect(() => {
+    const handleCommandShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandPaletteOpen((open) => !open);
+      }
+    };
+    window.addEventListener('keydown', handleCommandShortcut);
+    return () => window.removeEventListener('keydown', handleCommandShortcut);
+  }, []);
+
+  useEffect(() => {
+    if (token && !currentUser) {
       void restoreSession(token);
+    } else if (!token) {
+      setSessionLoading(false);
     }
   }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    const params = new URLSearchParams(window.location.search);
-    const paymentKey = params.get('paymentKey');
-    const orderId = params.get('orderId');
-    const amount = params.get('amount');
-    if (!paymentKey || !orderId || !amount) return;
-
-    window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-    setPaymentLoading(true);
-    setPaymentMessage(null);
-
-    void (async () => {
-      try {
-        await confirmPayment(token, {
-          order_id: orderId,
-          payment_key: paymentKey,
-          amount: Number(amount),
-        });
-        const user = await getMe(token);
-        setCurrentUser(user);
-        setPaymentMessage('결제가 완료되어 Pro로 업그레이드되었습니다.');
-      } catch (requestError) {
-        setPaymentMessage(
-          requestError instanceof Error ? requestError.message : 'Payment confirmation failed.',
-        );
-      } finally {
-        setPaymentLoading(false);
-      }
-    })();
-  }, [token]);
+    if (token && !currentUser) return;
+    if (activeView !== 'auth' && !isSignedIn) {
+      navigateToView('auth');
+    }
+  }, [activeView, currentUser, isSignedIn, token]);
 
   async function refreshState() {
     setLoading(true);
     setError(null);
 
     try {
-      const [healthResult, overviewResult, modulesResult, manualResult, ideasResult, roadmapResult] =
-        await Promise.all([
-          getHealth(),
-          getOverview(),
-          getModules(),
-          getManual(),
-          getMonetizationIdeas(),
-          getRoadmap(),
-        ]);
-      setHealth(healthResult);
-      setOverview(overviewResult);
-      setModules(modulesResult);
-      setManual(manualResult);
-      setIdeas(ideasResult);
-      setRoadmap(roadmapResult);
+      setHealth(await getHealth());
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Request failed.');
     } finally {
@@ -447,44 +371,22 @@ export default function App() {
   }
 
   async function restoreSession(savedToken: string) {
+    setSessionLoading(true);
     try {
       const user = await getMe(savedToken);
       setCurrentUser(user);
-      await loadStockHoldings(savedToken);
-      await loadStockWatchlist(savedToken);
-      await loadStockAnalysisRecords(savedToken);
-      await loadStockReports(savedToken);
-      await loadStockReportMarket(savedToken);
-      await loadMyProRequest(savedToken);
-      if (user.role === 'admin') {
-        await loadAdminUsers(savedToken);
-        await loadAdminUsage(savedToken);
-        await loadAdminContentStats(savedToken);
-        await loadAdminProRequests(savedToken);
-        await loadYoutubeProjects(savedToken);
-        await loadEmoticonProjects(savedToken);
-      }
+      await refreshStockWorkspace(savedToken, true);
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       setToken('');
       setCurrentUser(null);
-      setAdminUsers([]);
-      setAdminUsage([]);
-      setAdminContentStats(null);
-      setAdminProRequests([]);
-      setMyProRequest(null);
-      setYoutubeProjects([]);
-      setYoutubeProjectDetail(null);
-      setSelectedYoutubeSlug(null);
-      setEmoticonProjects([]);
-      setEmoticonProjectDetail(null);
-      setSelectedEmoticonSlug(null);
       setHoldings([]);
       setWatchlist([]);
       setAnalysisRecords([]);
       setStockReports([]);
-      setMarketReports([]);
       setCurrentPriceDrafts({});
+    } finally {
+      setSessionLoading(false);
     }
   }
 
@@ -500,7 +402,7 @@ export default function App() {
           : await login({ email, password });
       applyAuth(response);
       setPassword('');
-      setAuthMessage(authMode === 'signup' ? '회원가입이 완료되었습니다.' : '로그인되었습니다.');
+      setAuthMessage(authMode === 'signup' ? '대표 계정이 생성되었습니다.' : '로그인되었습니다.');
     } catch (requestError) {
       setAuthMessage(requestError instanceof Error ? requestError.message : 'Authentication failed.');
     } finally {
@@ -512,213 +414,8 @@ export default function App() {
     localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token);
     setToken(response.access_token);
     setCurrentUser(response.user);
-    void loadStockHoldings(response.access_token);
-    void loadStockWatchlist(response.access_token);
-    void loadStockAnalysisRecords(response.access_token);
-    void loadStockReports(response.access_token);
-    void loadStockReportMarket(response.access_token);
-    void loadMyProRequest(response.access_token);
-    if (response.user.role === 'admin') {
-      void loadAdminUsers(response.access_token);
-      void loadAdminUsage(response.access_token);
-      void loadAdminContentStats(response.access_token);
-      void loadAdminProRequests(response.access_token);
-      void loadYoutubeProjects(response.access_token);
-    }
-    navigateToView(response.user.role === 'admin' ? 'admin' : 'stocks');
-  }
-
-  async function loadAdminUsers(activeToken = token) {
-    if (!activeToken) return;
-    const users = await getAdminUsers(activeToken);
-    setAdminUsers(users);
-  }
-
-  async function loadAdminUsage(activeToken = token) {
-    if (!activeToken) return;
-    const usage = await getAdminUserUsage(activeToken);
-    setAdminUsage(usage);
-  }
-
-  async function loadAdminContentStats(activeToken = token) {
-    if (!activeToken) return;
-    const stats = await getAdminContentStats(activeToken);
-    setAdminContentStats(stats);
-  }
-
-  async function loadAdminProRequests(activeToken = token) {
-    if (!activeToken) return;
-    const requests = await getAdminProRequests(activeToken);
-    setAdminProRequests(requests);
-  }
-
-  async function loadYoutubeProjects(activeToken = token) {
-    if (!activeToken) return;
-    setYoutubeProjectsLoading(true);
-    setYoutubeProjectsMessage(null);
-
-    try {
-      const projects = await getYoutubeProjects(activeToken);
-      setYoutubeProjects(projects);
-    } catch (requestError) {
-      setYoutubeProjectsMessage(
-        requestError instanceof Error ? requestError.message : '유튜브 프로젝트를 불러오지 못했습니다.',
-      );
-    } finally {
-      setYoutubeProjectsLoading(false);
-    }
-  }
-
-  async function handleSelectYoutubeProject(slug: string) {
-    if (!token) return;
-    setSelectedYoutubeSlug(slug);
-    setYoutubeProjectDetail(null);
-    setYoutubeDetailLoading(true);
-    setYoutubeDetailMessage(null);
-
-    try {
-      const detail = await getYoutubeProjectDetail(token, slug);
-      setYoutubeProjectDetail(detail);
-    } catch (requestError) {
-      setYoutubeDetailMessage(
-        requestError instanceof Error ? requestError.message : '프로젝트 내용을 불러오지 못했습니다.',
-      );
-    } finally {
-      setYoutubeDetailLoading(false);
-    }
-  }
-
-  async function loadEmoticonProjects(activeToken = token) {
-    if (!activeToken) return;
-    setEmoticonProjectsLoading(true);
-    setEmoticonProjectsMessage(null);
-
-    try {
-      const projects = await getEmoticonProjects(activeToken);
-      setEmoticonProjects(projects);
-    } catch (requestError) {
-      setEmoticonProjectsMessage(
-        requestError instanceof Error
-          ? requestError.message
-          : '이모티콘 프로젝트를 불러오지 못했습니다.',
-      );
-    } finally {
-      setEmoticonProjectsLoading(false);
-    }
-  }
-
-  async function handleSelectEmoticonProject(slug: string) {
-    if (!token) return;
-    setSelectedEmoticonSlug(slug);
-    setEmoticonProjectDetail(null);
-    setEmoticonDetailLoading(true);
-    setEmoticonDetailMessage(null);
-
-    try {
-      const detail = await getEmoticonProjectDetail(token, slug);
-      setEmoticonProjectDetail(detail);
-    } catch (requestError) {
-      setEmoticonDetailMessage(
-        requestError instanceof Error ? requestError.message : '캐릭터 내용을 불러오지 못했습니다.',
-      );
-    } finally {
-      setEmoticonDetailLoading(false);
-    }
-  }
-
-  async function loadMyProRequest(activeToken = token) {
-    if (!activeToken) return;
-    const request = await getMyProRequest(activeToken);
-    setMyProRequest(request);
-  }
-
-  async function handleAdminUserUpdate(
-    userId: number,
-    payload: { role?: 'admin' | 'member'; plan?: 'free' | 'pro'; is_active?: boolean },
-  ) {
-    if (!token) return;
-    setAdminUpdatingId(userId);
-    setAdminMessage(null);
-
-    try {
-      const updated = await updateAdminUser(token, userId, payload);
-      setAdminUsers((users) => users.map((user) => (user.id === updated.id ? updated : user)));
-      setAdminMessage('회원 정보가 업데이트되었습니다.');
-    } catch (requestError) {
-      setAdminMessage(requestError instanceof Error ? requestError.message : 'Update failed.');
-    } finally {
-      setAdminUpdatingId(null);
-    }
-  }
-
-  async function handleCreateProRequest() {
-    if (!token) return;
-    setProRequestLoading(true);
-    setProRequestMessage(null);
-
-    try {
-      const request = await createProRequest(
-        token,
-        'Pro reports and higher analysis limits requested from the account screen.',
-      );
-      setMyProRequest(request);
-      setProRequestMessage('Pro 업그레이드 신청이 접수되었습니다.');
-    } catch (requestError) {
-      setProRequestMessage(requestError instanceof Error ? requestError.message : 'Pro request failed.');
-    } finally {
-      setProRequestLoading(false);
-    }
-  }
-
-  async function handleStartPayment() {
-    if (!token) return;
-    setPaymentLoading(true);
-    setPaymentMessage(null);
-
-    try {
-      const order = await createPaymentOrder(token, PRO_UPGRADE_PRICE_KRW);
-      const tossPayments = await loadTossPayments(order.client_key);
-      const payment = tossPayments.payment({ customerKey: ANONYMOUS });
-      const redirectBase = `${window.location.origin}${window.location.pathname}`;
-
-      await payment.requestPayment({
-        method: 'CARD',
-        amount: { currency: 'KRW', value: order.amount },
-        orderId: order.order_id,
-        orderName: 'Jay AI Platform Pro 업그레이드',
-        successUrl: `${redirectBase}#auth`,
-        failUrl: `${redirectBase}#auth`,
-      });
-      // requestPayment navigates the browser to Toss's payment page on success,
-      // so execution normally doesn't continue past this point.
-    } catch (requestError) {
-      setPaymentMessage(requestError instanceof Error ? requestError.message : 'Payment request failed.');
-      setPaymentLoading(false);
-    }
-  }
-
-  async function handleAdminProRequestUpdate(requestId: number, status: 'approved' | 'rejected') {
-    if (!token) return;
-    setAdminProRequestUpdatingId(requestId);
-    setAdminMessage(null);
-
-    try {
-      const updated = await updateAdminProRequest(
-        token,
-        requestId,
-        status,
-        status === 'approved' ? 'Pro upgrade approved.' : 'Pro upgrade rejected.',
-      );
-      setAdminProRequests((requests) =>
-        requests.map((request) => (request.id === updated.id ? updated : request)),
-      );
-      await loadAdminUsers(token);
-      setAdminMessage(status === 'approved' ? 'Pro 신청을 승인했습니다.' : 'Pro 신청을 거절했습니다.');
-    } catch (requestError) {
-      setAdminMessage(requestError instanceof Error ? requestError.message : 'Request update failed.');
-    } finally {
-      setAdminProRequestUpdatingId(null);
-    }
+    void refreshStockWorkspace(response.access_token);
+    navigateToView('stocks');
   }
 
   async function loadStockHoldings(activeToken = token) {
@@ -748,13 +445,25 @@ export default function App() {
     setStockReports(result);
   }
 
-  async function loadStockReportMarket(activeToken = token) {
-    if (!activeToken) return;
+  async function refreshStockWorkspace(activeToken = token, fatal = false) {
+    if (!activeToken || stockSyncing) return;
+    setStockSyncing(true);
+    setStockSyncMessage(null);
     try {
-      const result = await getStockReportMarket(activeToken);
-      setMarketReports(result);
+      await Promise.all([
+        loadStockHoldings(activeToken),
+        loadStockWatchlist(activeToken),
+        loadStockAnalysisRecords(activeToken),
+        loadStockReports(activeToken),
+      ]);
+      setLastStockSyncAt(new Date());
     } catch (requestError) {
-      setMarketMessage(requestError instanceof Error ? requestError.message : 'Market load failed.');
+      setStockSyncMessage(
+        requestError instanceof Error ? requestError.message : '주식 데이터를 동기화하지 못했습니다.',
+      );
+      if (fatal) throw requestError;
+    } finally {
+      setStockSyncing(false);
     }
   }
 
@@ -1165,30 +874,6 @@ export default function App() {
     }
   }
 
-  async function handleUpdateReportPublish(
-    report: StockReport,
-    accessLevel: StockReport['access_level'],
-    isPublished: boolean,
-  ) {
-    if (!token) return;
-    setUpdatingReportPublishId(report.id);
-    setReportMessage(null);
-
-    try {
-      const updated = await updateStockReportPublish(token, report.id, {
-        access_level: accessLevel,
-        is_published: isPublished,
-      });
-      setStockReports((reports) => reports.map((item) => (item.id === updated.id ? updated : item)));
-      await loadStockReportMarket(token);
-      setReportMessage('Report publish settings saved.');
-    } catch (requestError) {
-      setReportMessage(requestError instanceof Error ? requestError.message : 'Publish update failed.');
-    } finally {
-      setUpdatingReportPublishId(null);
-    }
-  }
-
   async function handleLoadMarketSnapshot() {
     if (!token || !analysisForm.ticker.trim()) return;
     setMarketLoading(true);
@@ -1277,33 +962,69 @@ export default function App() {
     }
   }
 
+  function requestNavigate(view: ViewId) {
+    if (view === activeView) return;
+    if (activeView === 'contentOps' && contentOpsDirty) {
+      setPendingView(view);
+      return;
+    }
+    navigateToView(view);
+  }
+
+  function confirmPendingNavigation() {
+    if (!pendingView) return;
+    const nextView = pendingView;
+    setPendingView(null);
+    setContentDiscardSignal((signal) => signal + 1);
+    setContentOpsDirty(false);
+    navigateToView(nextView);
+  }
+
+  function requestDelete(kind: DeleteTarget['kind'], id: number, label: string) {
+    setDeleteTarget({ kind, id, label });
+  }
+
+  async function confirmDeleteTarget() {
+    if (!deleteTarget) return;
+    setDeleteConfirmLoading(true);
+    try {
+      switch (deleteTarget.kind) {
+        case 'holding':
+          await handleDeleteHolding(deleteTarget.id);
+          break;
+        case 'watchlist':
+          await handleDeleteWatchlistItem(deleteTarget.id);
+          break;
+        case 'analysis':
+          await handleDeleteAnalysisRecord(deleteTarget.id);
+          break;
+        case 'report':
+          await handleDeleteReport(deleteTarget.id);
+          break;
+      }
+      setDeleteTarget(null);
+    } finally {
+      setDeleteConfirmLoading(false);
+    }
+  }
+
   function logout() {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken('');
     setCurrentUser(null);
-    setAdminUsers([]);
-    setAdminUsage([]);
-    setAdminContentStats(null);
-    setAdminProRequests([]);
-    setMyProRequest(null);
+    setSessionLoading(false);
     setHoldings([]);
     setWatchlist([]);
     setAnalysisRecords([]);
     setStockReports([]);
-    setMarketReports([]);
     setAnalysisResult(null);
     setScanResult(null);
-    setYoutubeProjects([]);
-    setYoutubeProjectDetail(null);
-    setSelectedYoutubeSlug(null);
-    setEmoticonProjects([]);
-    setEmoticonProjectDetail(null);
-    setSelectedEmoticonSlug(null);
     setAuthMessage('로그아웃되었습니다.');
     navigateToView('auth');
   }
 
   function navigateToView(view: ViewId) {
+    rememberView(view);
     window.location.hash = view;
     setActiveView(view);
   }
@@ -1312,98 +1033,85 @@ export default function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <DeploymentUnitOutlined />
-          <span>Jay AI Platform</span>
+          <span className="brand-mark"><DeploymentUnitOutlined /></span>
+          <span className="brand-copy">
+            <strong>Jay AI</strong>
+            <small>Internal Business OS</small>
+          </span>
         </div>
+        <span className="nav-section-label">WORKSPACES</span>
         <nav className="nav-list" aria-label="Primary">
-          <a className={activeView === 'dashboard' ? 'active' : ''} href="#dashboard">
-            <AppstoreOutlined />
-            대시보드
-          </a>
-          <a className={activeView === 'auth' ? 'active' : ''} href="#auth">
-            <TeamOutlined />
-            로그인
-          </a>
-          <a className={activeView === 'admin' ? 'active' : ''} href="#admin">
-            <CrownOutlined />
-            관리자
-          </a>
-          <a className={activeView === 'manual' ? 'active' : ''} href="#manual">
-            <BookOutlined />
-            사용 매뉴얼
-          </a>
-          <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks">
-            <BarChartOutlined />
-            국내주식
-          </a>
-          <a className={activeView === 'contentOps' ? 'active' : ''} href="#contentOps">
-            <VideoCameraOutlined />
-            콘텐츠 운영
-          </a>
-          <a className={activeView === 'revenue' ? 'active' : ''} href="#revenue">
-            <DollarOutlined />
-            수익화
+          {hasSessionNavigation && (
+            <>
+              <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks" onClick={(event) => { event.preventDefault(); requestNavigate('stocks'); }}>
+                <span className="nav-icon"><BarChartOutlined /></span>
+                <span className="nav-copy"><strong>주식 분석 Lab</strong><small>투자 리서치</small></span>
+              </a>
+              <a className={activeView === 'contentOps' ? 'active' : ''} href="#contentOps" onClick={(event) => { event.preventDefault(); requestNavigate('contentOps'); }}>
+                <span className="nav-icon"><VideoCameraOutlined /></span>
+                <span className="nav-copy"><strong>Content Ops</strong><small>콘텐츠 생산</small></span>
+              </a>
+            </>
+          )}
+          <a className={activeView === 'auth' ? 'active' : ''} href="#auth" onClick={(event) => { event.preventDefault(); requestNavigate('auth'); }}>
+            <span className="nav-icon"><TeamOutlined /></span>
+            <span className="nav-copy">
+              <strong>{isSignedIn ? '대표 계정' : sessionLoading ? '계정 확인 중' : '대표 로그인'}</strong>
+              <small>{isSignedIn ? '세션 관리' : sessionLoading ? 'Restoring session' : 'Owner access'}</small>
+            </span>
           </a>
         </nav>
-        <div className="sidebar-status">
-          <span className={`status-dot ${health?.ok ? 'online' : ''}`} />
-          <span>{health?.ok ? 'server online' : 'checking server'}</span>
+        <div className="sidebar-footer">
+          {currentUser && (
+            <a className="owner-mini-card" href="#auth" onClick={(event) => { event.preventDefault(); requestNavigate('auth'); }}>
+              <span className="owner-avatar"><UserOutlined /></span>
+              <span><strong>{currentUser.name}</strong><small>{currentUser.email}</small></span>
+            </a>
+          )}
+          <div className="sidebar-status">
+            <span className={`status-dot ${health?.ok ? 'online' : ''}`} />
+            <span>{health?.ok ? 'All systems operational' : 'Checking system status'}</span>
+          </div>
         </div>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
-          <div>
-            <span className="eyebrow">{VIEW_META[activeView].eyebrow}</span>
-            <h1>{VIEW_META[activeView].title}</h1>
+          <div className="topbar-copy">
+            <span className="eyebrow">{activeViewMeta.eyebrow}</span>
+            <h1>{activeViewMeta.title}</h1>
+            <p>{activeViewMeta.description}</p>
           </div>
-          <button
-            className="icon-button"
-            disabled={loading}
-            onClick={() => void refreshState()}
-            title="Refresh"
-            type="button"
-          >
-            <ReloadOutlined />
-          </button>
+          <div className="topbar-actions">
+            {isSignedIn && (
+              <button className="command-trigger" onClick={() => setCommandPaletteOpen(true)} type="button">
+                <SearchOutlined />
+                <span>빠른 이동</span>
+                <kbd>Ctrl K</kbd>
+              </button>
+            )}
+            <span className={`system-pill ${health?.ok ? 'online' : ''}`}>
+              <span className="status-dot" />
+              {health?.ok ? 'Online' : 'Connecting'}
+            </span>
+            <button
+              aria-label="서버 상태 새로고침"
+              className="icon-button"
+              disabled={loading}
+              onClick={() => void refreshState()}
+              title="서버 상태 새로고침"
+              type="button"
+            >
+              <ReloadOutlined className={loading ? 'spin' : ''} />
+            </button>
+          </div>
         </header>
 
         {error && <div className="error-box">{error}</div>}
 
-        <section className={activeView === 'dashboard' ? 'metric-band' : 'screen-hidden'} id="dashboard">
-          <StatusTile label="API" value={health?.ok ? 'Online' : 'Checking'} tone={health?.ok ? 'good' : 'muted'} />
-          <StatusTile label="우선순위" value="로그인/관리자" tone="steady" />
-          <StatusTile label="운영 상태" value="VPS 배포중" />
-        </section>
-
-        <section className={activeView === 'dashboard' ? 'hero-panel' : 'screen-hidden'}>
-          <div>
-            <span className="state-chip">{overview?.status ?? 'loading'}</span>
-            <h2>{overview?.name ?? 'Jay AI Platform'}</h2>
-            <p>{overview?.message ?? 'Loading platform overview.'}</p>
-          </div>
-          <div className="hero-actions">
-            <a href="#manual">
-              <BookOutlined />
-              매뉴얼 보기
-            </a>
-            <a href="#auth">
-              <LockOutlined />
-              로그인
-            </a>
-          </div>
-        </section>
-
         <AuthScreen
           active={activeView === 'auth'}
           currentUser={currentUser}
-          myProRequest={myProRequest}
-          proRequestLoading={proRequestLoading}
-          proRequestMessage={proRequestMessage}
-          onCreateProRequest={() => void handleCreateProRequest()}
-          onStartPayment={() => void handleStartPayment()}
-          paymentLoading={paymentLoading}
-          paymentMessage={paymentMessage}
           onLogout={logout}
           authMode={authMode}
           onAuthModeChange={setAuthMode}
@@ -1418,106 +1126,108 @@ export default function App() {
           onSubmit={(event) => void handleAuthSubmit(event)}
         />
 
-        <AdminScreen
-          active={activeView === 'admin'}
-          isAdmin={currentUser?.role === 'admin'}
-          currentUserId={currentUser?.id}
-          metrics={{
-            activeAdminCount,
-            activeMemberCount,
-            inactiveUserCount,
-            proUserCount,
-            freeUserCount,
-            totalAnalysisCount,
-            activeAnalysisUserCount,
-            latestAnalysisAt,
-          }}
-          adminContentStats={adminContentStats}
-          onRefreshContentStats={() => void loadAdminContentStats()}
-          adminProRequests={adminProRequests}
-          adminProRequestUpdatingId={adminProRequestUpdatingId}
-          onRefreshProRequests={() => void loadAdminProRequests()}
-          onUpdateProRequest={(requestId, status) =>
-            void handleAdminProRequestUpdate(requestId, status)
-          }
-          adminUsers={adminUsers}
-          adminUpdatingId={adminUpdatingId}
-          adminMessage={adminMessage}
-          onRefreshUsers={() => void loadAdminUsers()}
-          onUpdateUser={(userId, payload) => void handleAdminUserUpdate(userId, payload)}
-          adminUsage={adminUsage}
-          onRefreshUsage={() => void loadAdminUsage()}
-        />
-
-        <ContentOpsScreen
-          active={activeView === 'contentOps'}
-          isAdmin={currentUser?.role === 'admin'}
-          activeTab={activeContentOpsTab}
-          onTabChange={setActiveContentOpsTab}
-          youtubeProjects={youtubeProjects}
-          youtubeProjectsLoading={youtubeProjectsLoading}
-          youtubeProjectsMessage={youtubeProjectsMessage}
-          onRefreshProjects={() => void loadYoutubeProjects()}
-          selectedSlug={selectedYoutubeSlug}
-          onSelectProject={(slug) => void handleSelectYoutubeProject(slug)}
-          projectDetail={youtubeProjectDetail}
-          detailLoading={youtubeDetailLoading}
-          detailMessage={youtubeDetailMessage}
-          emoticonProjects={emoticonProjects}
-          emoticonProjectsLoading={emoticonProjectsLoading}
-          emoticonProjectsMessage={emoticonProjectsMessage}
-          onRefreshEmoticonProjects={() => void loadEmoticonProjects()}
-          selectedEmoticonSlug={selectedEmoticonSlug}
-          onSelectEmoticonProject={(slug) => void handleSelectEmoticonProject(slug)}
-          emoticonProjectDetail={emoticonProjectDetail}
-          emoticonDetailLoading={emoticonDetailLoading}
-          emoticonDetailMessage={emoticonDetailMessage}
-        />
-
-        <section className={activeView === 'dashboard' ? 'section-block' : 'screen-hidden'}>
-          <SectionTitle eyebrow="Service Map" icon={<AppstoreOutlined />} title="개발할 모듈 구조" />
-          <div className="module-grid">
-            {modules.map((module) => (
-              <article className="module-card" key={module.id}>
-                <div className="card-head">
-                  <h3>{module.title}</h3>
-                  <span>{module.status}</span>
-                </div>
-                <p>{module.description}</p>
-                <ul>
-                  {module.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <ManualScreen active={activeView === 'manual'} manual={manual} />
+        {isSignedIn && (
+          <ContentOpsScreen
+            active={activeView === 'contentOps'}
+            discardSignal={contentDiscardSignal}
+            onDirtyChange={setContentOpsDirty}
+            token={token}
+          />
+        )}
 
         <section className={activeView === 'stocks' ? 'section-block' : 'screen-hidden'} id="stocks">
-          <SectionTitle
-            eyebrow="Korea Stock Lab"
-            icon={<BarChartOutlined />}
-            title="국내 주식 분석과 내 주식 관리"
-          />
-          <div className="stock-grid">
-            {stockWorkflows.map((item) => (
-              <article className="stock-card" key={item.title}>
-                <h3>{item.title}</h3>
-                <p>{item.body}</p>
-              </article>
-            ))}
+          <div className="workspace-intro stock-intro">
+            <div>
+              <span className="workspace-kicker"><ThunderboltOutlined /> DECISION DESK</span>
+              <h2>오늘의 투자 판단을 한 화면에서</h2>
+              <p>보유 현황을 확인하고, 후보를 분석한 뒤 공시와 리포트까지 이어서 검토하세요.</p>
+            </div>
+            <div className="guardrail-badge">
+              <SafetyCertificateOutlined />
+              <span><strong>AI Guardrail</strong><small>일일 한도 · 로컬 분석 폴백</small></span>
+            </div>
           </div>
 
-          {currentUser ? (
+          {sessionLoading && !currentUser ? (
+            <div className="workspace-loading-card" role="status">
+              <span className="loading-spinner" />
+              <span><strong>대표 워크스페이스를 불러오는 중</strong><small>포트폴리오와 분석 기록을 안전하게 복원하고 있습니다.</small></span>
+            </div>
+          ) : currentUser ? (
             <div className="stock-tab-shell">
-              <div className="stock-tabs" role="tablist" aria-label="국내 주식 작업 메뉴">
+              <div className="stock-operations-bar" aria-label="주식 데이터 동기화 상태">
+                <div className="stock-sync-state">
+                  <span className={stockSyncing ? 'sync-dot active' : 'sync-dot'}>
+                    <SyncOutlined spin={stockSyncing} />
+                  </span>
+                  <span>
+                    <strong>{stockSyncing ? '주식 데이터 동기화 중' : '워크스페이스 최신 상태'}</strong>
+                    <small>
+                      {stockSyncMessage ??
+                        (lastStockSyncAt
+                          ? `마지막 동기화 ${lastStockSyncAt.toLocaleTimeString('ko-KR', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}`
+                          : '로그인 후 자동으로 데이터를 동기화합니다.')}
+                    </small>
+                  </span>
+                </div>
+                <div className="stock-quick-actions">
+                  <button
+                    disabled={stockSyncing}
+                    onClick={() => void refreshStockWorkspace()}
+                    type="button"
+                  >
+                    <SyncOutlined spin={stockSyncing} /> 전체 동기화
+                  </button>
+                  <button onClick={() => setActiveStockTab('scan')} type="button">
+                    <BarChartOutlined /> 후보 스캔
+                  </button>
+                  <button onClick={() => setActiveStockTab('disclosures')} type="button">
+                    <FileSearchOutlined /> 공시 확인
+                  </button>
+                </div>
+              </div>
+              <div className="stock-command-center" aria-label="주식 분석 요약">
+                <button onClick={() => setActiveStockTab('holdings')} type="button">
+                  <span className="summary-icon"><LineChartOutlined /></span>
+                  <span className="summary-copy"><small>보유 평가액</small><strong>{formatWon(portfolioTotals.value)}</strong></span>
+                  <small className={`summary-change ${portfolioTotals.profit >= 0 ? 'positive' : 'negative'}`}>
+                    {portfolioTotals.profit > 0 ? '+' : ''}{formatWon(portfolioTotals.profit)} · {formatPercent(portfolioProfitPercent)}
+                  </small>
+                </button>
+                <button onClick={() => setActiveStockTab('watchlist')} type="button">
+                  <span className="summary-icon amber"><StarOutlined /></span>
+                  <span className="summary-copy"><small>관심종목</small><strong>{watchlist.length}개</strong></span>
+                  <small className="summary-change">관심종목 관리</small>
+                </button>
+                <button onClick={() => setActiveStockTab('analysis')} type="button">
+                  <span className="summary-icon violet"><ThunderboltOutlined /></span>
+                  <span className="summary-copy"><small>최근 AI 분석</small><strong>{latestAnalysis ? `${latestAnalysis.name} · ${latestAnalysis.score}점` : '대기'}</strong></span>
+                  <small className="summary-change">{latestAnalysis?.rating_label ?? '분석 기록 없음'}</small>
+                </button>
+                <button onClick={() => setActiveStockTab('watchlist')} type="button">
+                  <span className="summary-icon rose"><ClockCircleOutlined /></span>
+                  <span className="summary-copy"><small>분석 미완료</small><strong>{unreviewedWatchlistCount}개</strong></span>
+                  <small className="summary-change">
+                    {largestHolding
+                      ? `최대 비중 ${largestHolding.name} · ${formatPercent(largestHolding.allocationPercent)}`
+                      : '관심종목에서 다음 검토 대상을 선택하세요.'}
+                  </small>
+                </button>
+              </div>
+              <div
+                className="stock-tabs"
+                ref={stockTabsRef}
+                role="tablist"
+                aria-label="국내 주식 작업 메뉴"
+              >
                 {STOCK_TABS.map((tab) => (
                   <button
                     aria-selected={activeStockTab === tab.id}
                     className={activeStockTab === tab.id ? 'active' : ''}
+                    data-stock-tab={tab.id}
                     key={tab.id}
                     onClick={() => setActiveStockTab(tab.id)}
                     role="tab"
@@ -1548,7 +1258,14 @@ export default function App() {
                     onCurrentPriceDraftChange={(holdingId, value) =>
                       setCurrentPriceDrafts({ ...currentPriceDrafts, [holdingId]: value })
                     }
-                    onDelete={(holdingId) => void handleDeleteHolding(holdingId)}
+                    onDelete={(holdingId) => {
+                      const holding = holdings.find((item) => item.id === holdingId);
+                      requestDelete(
+                        'holding',
+                        holdingId,
+                        holding ? `${holding.name} (${holding.ticker})` : '이 보유종목',
+                      );
+                    }}
                     onFormChange={setHoldingForm}
                     onQuickAnalyze={(holding) => void handleQuickAnalyzeHolding(holding)}
                     onRefreshPrices={() => void handleRefreshHoldingPrices()}
@@ -1567,7 +1284,14 @@ export default function App() {
                     deletingWatchlistId={deletingWatchlistId}
                     onAnalyze={(item) => void handleAnalyzeWatchlistItem(item)}
                     onCreate={(event) => void handleCreateWatchlistItem(event)}
-                    onDelete={(itemId) => void handleDeleteWatchlistItem(itemId)}
+                    onDelete={(itemId) => {
+                      const item = watchlist.find((candidate) => candidate.id === itemId);
+                      requestDelete(
+                        'watchlist',
+                        itemId,
+                        item ? `${item.name || item.ticker} (${item.ticker})` : '이 관심종목',
+                      );
+                    }}
                     onFormChange={setWatchlistForm}
                     onQuickAnalyze={(item) => void handleQuickAnalyzeWatchlistItem(item)}
                     onScanWatchlist={() => void handleScanWatchlist()}
@@ -1599,7 +1323,14 @@ export default function App() {
                     onCreateWatchlistFromAnalysis={(record) =>
                       void handleCreateWatchlistFromAnalysis(record)
                     }
-                    onDeleteRecord={(recordId) => void handleDeleteAnalysisRecord(recordId)}
+                    onDeleteRecord={(recordId) => {
+                      const record = analysisRecords.find((item) => item.id === recordId);
+                      requestDelete(
+                        'analysis',
+                        recordId,
+                        record ? `${record.name} (${record.ticker})` : '이 분석 기록',
+                      );
+                    }}
                     onFormChange={setAnalysisForm}
                     onLoadMarketSnapshot={() => void handleLoadMarketSnapshot()}
                     onQueryChange={setAnalysisRecordQuery}
@@ -1615,23 +1346,14 @@ export default function App() {
                   <StockReportsPanel
                     deletingReportId={deletingReportId}
                     downloadingReportId={downloadingReportId}
-                    onDelete={(reportId) => void handleDeleteReport(reportId)}
+                    onDelete={(reportId) => {
+                      const report = stockReports.find((item) => item.id === reportId);
+                      requestDelete('report', reportId, report?.title ?? '이 내부 리포트');
+                    }}
                     onDownload={(report) => void handleDownloadReport(report)}
                     onRefresh={() => void loadStockReports()}
-                    onUpdatePublish={(report, accessLevel, isPublished) =>
-                      void handleUpdateReportPublish(report, accessLevel, isPublished)
-                    }
                     reportMessage={reportMessage}
                     stockReports={stockReports}
-                    updatingReportPublishId={updatingReportPublishId}
-                  />
-                )}
-
-                {activeStockTab === 'market' && (
-                  <StockMarketPanel
-                    marketMessage={marketMessage}
-                    marketReports={marketReports}
-                    onRefresh={() => void loadStockReportMarket()}
                   />
                 )}
 
@@ -1658,6 +1380,10 @@ export default function App() {
                     ticker={disclosureTicker}
                   />
                 )}
+
+                {activeStockTab === 'notifications' && (
+                  <NotificationCenterPanel token={token} />
+                )}
               </div>
             </div>
           ) : (
@@ -1668,44 +1394,42 @@ export default function App() {
           )}
         </section>
 
-        <RevenueScreen active={activeView === 'revenue'} ideas={ideas} />
-
-        <RoadmapSection active={activeView === 'dashboard'} roadmap={roadmap} />
       </main>
+
+      <CommandPalette
+        commands={quickCommands}
+        onClose={() => setCommandPaletteOpen(false)}
+        open={commandPaletteOpen}
+      />
+      <ConfirmDialog
+        busy={deleteConfirmLoading}
+        confirmLabel="삭제"
+        danger
+        description={`${deleteTarget?.label ?? '선택한 항목'}을 삭제합니다. 이 작업은 되돌릴 수 없습니다.`}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => void confirmDeleteTarget()}
+        open={deleteTarget !== null}
+        title={`${
+          deleteTarget
+            ? {
+                holding: '보유종목',
+                watchlist: '관심종목',
+                analysis: '분석 기록',
+                report: '내부 리포트',
+              }[deleteTarget.kind]
+            : '항목'
+        } 삭제`}
+      />
+      <ConfirmDialog
+        confirmLabel="변경사항 버리고 이동"
+        description="이동하면 현재 Markdown 수정 내용이 사라집니다. 계속 이동할까요?"
+        onCancel={() => setPendingView(null)}
+        onConfirm={confirmPendingNavigation}
+        open={pendingView !== null}
+        title="저장하지 않은 변경사항이 있습니다"
+      />
     </div>
   );
-}
-
-function getStockTabIcon(tabId: StockTabId): ReactNode {
-  switch (tabId) {
-    case 'holdings':
-      return <LineChartOutlined />;
-    case 'watchlist':
-      return <BookOutlined />;
-    case 'analysis':
-      return <BarChartOutlined />;
-    case 'scan':
-      return <AppstoreOutlined />;
-    case 'reports':
-      return <DollarOutlined />;
-    case 'market':
-      return <LockOutlined />;
-    case 'disclosures':
-      return <FileSearchOutlined />;
-  }
-}
-
-export function getInitialView(): ViewId {
-  if (typeof window === 'undefined') {
-    return 'dashboard';
-  }
-
-  const hashView = window.location.hash.replace('#', '');
-  if (hashView === 'access') {
-    return 'auth';
-  }
-
-  return VIEW_IDS.includes(hashView as ViewId) ? (hashView as ViewId) : 'dashboard';
 }
 
 export function buildHoldingPayload(form: HoldingForm): StockHoldingPayload {

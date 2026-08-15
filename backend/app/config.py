@@ -21,10 +21,19 @@ class Settings(BaseSettings):
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
     market_data_timeout_seconds: float = 10.0
-    free_monthly_analysis_limit: int = 20
-    toss_client_key: str = ""
-    toss_secret_key: str = ""
-    pro_upgrade_price_krw: int = 9900
+    market_cache_ttl_seconds: int = 300
+    disclosure_cache_ttl_seconds: int = 1800
+    ai_daily_limit: int = 100
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    ffmpeg_binary: str = "ffmpeg"
+    gemini_api_key: str = ""
+    gemini_image_model: str = "gemini-3.1-flash-image"
+    google_cloud_access_token: str = ""
+    youtube_client_id: str = ""
+    youtube_client_secret: str = ""
+    youtube_refresh_token: str = ""
+    youtube_category_id: str = "22"
 
     model_config = SettingsConfigDict(
         env_file=(PROJECT_ROOT / ".env", PROJECT_ROOT / ".env.local"),

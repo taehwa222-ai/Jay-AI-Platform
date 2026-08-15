@@ -1,15 +1,27 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.config import get_settings
-from app.routers import admin, auth, content_ops, disclosures, health, payments, platform, stocks
+from app.routers import (
+    auth,
+    content_ops,
+    disclosures,
+    health,
+    notifications,
+    platform,
+    stocks,
+    video_pipeline,
+)
+from app.services.ai_guardrail import AIDailyLimitReached, AIGuardrailService
 from app.services.auth import AuthService
 from app.services.content_ops import ContentOpsService
 from app.services.disclosures import DisclosureService
-from app.services.payments import PaymentService
 from app.services.stocks import StockService
+from app.services.telegram import TelegramService
+from app.services.video_pipeline import VideoPipelineService
 
 settings = get_settings()
 
@@ -23,13 +35,19 @@ async def lifespan(app: FastAPI):
     disclosure_service = DisclosureService(settings)
     disclosure_service.init_db()
     content_service = ContentOpsService(settings)
-    payment_service = PaymentService(settings)
-    payment_service.init_db()
+    ai_guardrail = AIGuardrailService(settings)
+    ai_guardrail.init_db()
+    telegram_service = TelegramService(settings)
+    telegram_service.init_db()
+    video_pipeline_service = VideoPipelineService(settings)
+    video_pipeline_service.init_db()
     app.state.auth_service = auth_service
     app.state.stock_service = stock_service
     app.state.disclosure_service = disclosure_service
     app.state.content_service = content_service
-    app.state.payment_service = payment_service
+    app.state.ai_guardrail = ai_guardrail
+    app.state.telegram_service = telegram_service
+    app.state.video_pipeline_service = video_pipeline_service
     yield
 
 
@@ -47,14 +65,33 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def enforce_ai_daily_limit(request: Request, call_next):
+    is_ai_analysis = request.method == "POST" and request.url.path == "/api/v1/stocks/analyze"
+    if is_ai_analysis and settings.openai_api_key.strip():
+        try:
+            request.app.state.ai_guardrail.reserve()
+        except AIDailyLimitReached:
+            return JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={
+                    "detail": (
+                        f"Daily AI request limit ({settings.ai_daily_limit}) reached. "
+                        "Use local analysis or continue tomorrow."
+                    )
+                },
+            )
+    return await call_next(request)
+
 app.include_router(auth.router)
-app.include_router(admin.router)
 app.include_router(health.router)
 app.include_router(platform.router)
 app.include_router(stocks.router)
 app.include_router(disclosures.router)
 app.include_router(content_ops.router)
-app.include_router(payments.router)
+app.include_router(notifications.router)
+app.include_router(video_pipeline.router)
 
 
 @app.get("/")

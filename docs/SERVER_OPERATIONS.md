@@ -1,142 +1,120 @@
 # Server Operations
 
-Use these commands from the repository root.
+저장소 루트에서 실행합니다. 배포 스크립트는 운영 서버에 직접 영향을 줄 수 있으므로 실행 전에
+대상 서버와 변경 내용을 확인합니다.
 
-## Start Or Redeploy
+## 시작과 상태 확인
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\start-server.ps1
-```
-
-This builds the containers and starts the server.
-
-## Deploy To VPS From Local PC
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
-```
-
-With a local SSH key file:
-
-```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 `
-  -ServerHost YOUR_SERVER_IP `
-  -IdentityFile C:\path\to\your-key.pem
-```
-
-This runs verification, pushes to GitHub, deploys on the VPS over SSH, and then
-checks the public health endpoint.
-
-## Status
-
-```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\status-server.ps1
 ```
 
-Expected URLs:
+주요 주소:
 
 ```text
-http://localhost
-http://localhost/#dashboard
-http://localhost/#auth
-http://localhost/#admin
-http://localhost/#manual
 http://localhost/#stocks
-http://localhost/#revenue
+http://localhost/#contentOps
+http://localhost/#auth
 http://localhost/docs
 http://localhost/api/v1/health
-http://localhost/api/v1/platform/overview
 ```
 
-The frontend uses hash-based screens so non-technical users can work from one
-clear page at a time without adding another routing dependency.
-
-## Member Data
-
-The app stores member accounts in SQLite:
-
-```text
-DATA_DIR/jay_ai_platform.db
-```
-
-In Docker/VPS deployment, `./data` is mounted into the backend container. Keep
-that folder when redeploying so accounts are preserved.
-
-The first registered account becomes `admin`. Admin users can change member
-roles and enable or disable accounts from the admin screen.
-
-## Stock And Portfolio Data
-
-The same SQLite database also stores each user's stock holdings. The frontend
-uses `/api/v1/stocks/holdings` for portfolio management and
-`/api/v1/stocks/watchlist` for pre-buy monitoring lists.
-`/api/v1/stocks/holdings/refresh-prices` refreshes saved holding prices from
-the market data provider and reports failed tickers separately.
-`/api/v1/stocks/analyze` handles condition-based stock analysis. The endpoint
-`/api/v1/stocks/market/{ticker}` loads a market snapshot and calculates RSI and
-MACD so users do not need to enter every indicator manually.
-The frontend can prefill the AI analysis form directly from holdings or
-watchlist rows, using the same market snapshot endpoint when available.
-It can also run quick analysis directly from saved holdings or watchlist rows,
-then save the result into analysis history.
-`/api/v1/stocks/analysis-records` lists saved analysis history, and individual
-records can be deleted when they are no longer useful.
-The frontend ranks saved analysis records so high-scoring candidates can be
-saved to the watchlist or converted into report drafts quickly.
-It also filters saved analysis records by ticker/name and rating so a growing
-history remains usable without changing the API contract.
-`/api/v1/stocks/reports` lists paid-report drafts. Create one from a saved
-analysis record with `POST /api/v1/stocks/reports/from-analysis/{record_id}`,
-then remove old drafts with `DELETE /api/v1/stocks/reports/{report_id}`.
-Use `GET /api/v1/stocks/reports/{report_id}/download` to download a saved
-draft as a Markdown file for editing, sharing, or later PDF conversion.
-Use `PATCH /api/v1/stocks/reports/{report_id}/publish` to set a report to
-`private`, `free`, or `pro` visibility before exposing it to members.
-Members can browse published drafts through `GET /api/v1/stocks/reports/market`;
-`pro` reports hide their body from free members.
-Admins can monitor report inventory and monetization readiness through
-`GET /api/v1/admin/content-stats`.
-Members can request Pro access with `POST /api/v1/auth/pro-request`; admins can
-review and approve requests with `GET /api/v1/admin/pro-requests` and
-`PATCH /api/v1/admin/pro-requests/{request_id}`.
-`/api/v1/stocks/scan` accepts multiple tickers and returns ranked candidates
-with failed lookups separated from successful results.
-The frontend separates this into focused stock tabs for holdings, watchlist,
-single-stock analysis, and multi-stock scanning.
-
-OpenAI summary generation is optional. Set these values in `.env` on the VPS
-when you want AI-generated summaries:
-
-```text
-OPENAI_API_KEY=your_key_here
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
-MARKET_DATA_TIMEOUT_SECONDS=10
-FREE_MONTHLY_ANALYSIS_LIMIT=20
-```
-
-When `OPENAI_API_KEY` is empty, the stock analyzer still returns a local
-rule-based summary.
-
-Admins can switch members between `free` and `pro` plans. Free members are
-limited by `FREE_MONTHLY_ANALYSIS_LIMIT`; pro members and admins are unlimited.
-
-## Stop
+중지는 다음 명령을 사용합니다.
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File scripts\stop-server.ps1
 ```
 
-## Configure Production Environment
+## 대표 계정과 데이터
+
+최초 가입 계정만 대표 계정으로 생성되며 추가 가입은 거부됩니다. SQLite 데이터는
+`DATA_DIR/jay_ai_platform.db`에 저장됩니다. Docker/VPS의 `./data` 마운트 디렉터리를 재배포 중
+삭제하거나 덮어쓰지 마세요.
+
+Content Ops 저장을 위해 Docker의 `./content`는 `/app/content`에 읽기/쓰기로 마운트됩니다.
+운영 서버에서 저장소와 `content/` 디렉터리의 소유권·권한을 임의로 바꾸지 마세요.
+
+앱이 생성하는 모든 SQLite 연결은 WAL 모드를 사용합니다. 확인 명령:
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\configure-production.ps1
+@'
+import sqlite3
+connection = sqlite3.connect("backend/data/jay_ai_platform.db")
+print(connection.execute("PRAGMA journal_mode").fetchone()[0])
+connection.close()
+'@ | python -
 ```
 
-Then restart:
+정상 결과는 `wal`입니다.
+
+## 일일 DB 백업
+
+스크립트는 실행 날짜별 파일을 하나만 만들기 때문에 하루 중 중복 실행되어도 새 백업을 계속
+쌓지 않습니다.
 
 ```powershell
-powershell.exe -ExecutionPolicy Bypass -File scripts\start-server.ps1
+python scripts\backup_db.py --data-dir backend/data
 ```
 
-Secrets are written to `.env`, which is ignored by Git.
+결과 위치:
+
+```text
+DATA_DIR/backups/jay_ai_platform-YYYYMMDD.db
+```
+
+Ubuntu cron 예시(매일 03:20):
+
+```cron
+20 3 * * * cd /opt/jay-ai-platform && /usr/bin/python3 scripts/backup_db.py --data-dir data >> data/backups/backup.log 2>&1
+```
+
+Windows 작업 스케줄러에서는 프로그램을 `.venv\Scripts\python.exe`, 인수를
+`scripts\backup_db.py --data-dir backend/data`, 시작 위치를 저장소 루트로 지정합니다. 스케줄을
+등록한 뒤 한 번 수동 실행하여 백업 파일 생성과 복구 가능성을 확인하세요. 이 저장소의 작업
+과정에서는 운영 서버의 cron/작업 스케줄러를 자동 변경하지 않습니다.
+
+## 외부 API와 비용 가드레일
+
+```text
+OPENAI_API_KEY=
+OPENDART_API_KEY=
+MARKET_CACHE_TTL_SECONDS=300
+DISCLOSURE_CACHE_TTL_SECONDS=1800
+AI_DAILY_LIMIT=100
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+- Yahoo Finance 시세는 기본 5분, OpenDART 공시는 기본 30분 캐시됩니다.
+- OpenAI 키가 설정된 `POST /api/v1/stocks/analyze`는 날짜별 사용량을 SQLite에 원자적으로
+  기록하며 한도 초과 시 HTTP 429를 반환합니다.
+- OpenAI 키가 없으면 규칙 기반 분석만 수행하며 외부 AI 한도를 차감하지 않습니다.
+- Telegram 연결 확인: `POST /api/v1/notifications/telegram/test`
+- 중요 공시 발송: `POST /api/v1/notifications/telegram/disclosures/{ticker}`
+
+## VPS 배포
+
+```powershell
+powershell.exe -ExecutionPolicy Bypass -File scripts\deploy-vps.ps1 -ServerHost YOUR_SERVER_IP
+```
+
+이 명령은 검증, GitHub push, VPS 배포, health check를 연속 수행합니다. `main` push가 자동 배포로
+이어질 수 있으므로 사용자 승인 없이 실행하지 않습니다. 자세한 설정은 `docs/DEPLOYMENT.md`를
+참조하세요.
+
+## 운영 점검
+
+```powershell
+python -m pytest
+ruff check backend scripts/backup_db.py
+cd frontend
+npm run verify
+```
+
+점검 후에는 다음 항목을 함께 확인합니다.
+
+- `.env`와 API 키가 Git diff에 없는지
+- `data/`와 `backend/data/`의 사용자 DB가 삭제·교체되지 않았는지
+- 최신 날짜 백업 파일을 별도 위치에서 열 수 있는지
+- `/api/v1/health`, 주식 조회, 공시 조회, Content Ops 읽기/쓰기가 정상인지

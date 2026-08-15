@@ -158,7 +158,12 @@ export function StockHoldingsPanel({
           </div>
         )}
 
-        <form className="stock-form" onSubmit={onCreate}>
+        <details className="stock-form-disclosure">
+          <summary>
+            <span><PlusOutlined /> 보유종목 추가</span>
+            <small>종목, 수량, 평단가와 투자 근거 입력</small>
+          </summary>
+          <form className="stock-form" onSubmit={onCreate}>
           <label>
             <span>종목코드</span>
             <input
@@ -230,7 +235,8 @@ export function StockHoldingsPanel({
             <PlusOutlined />
             보유 종목 저장
           </button>
-        </form>
+          </form>
+        </details>
 
         <div className="holding-list">
           {holdings.map((holding) => (

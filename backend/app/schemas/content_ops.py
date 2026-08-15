@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReviewMetrics(BaseModel):
@@ -68,3 +68,13 @@ class EmoticonProjectDetail(BaseModel):
     friends: str | None
     review: str | None
     sets: list[EmoticonSetDetail]
+
+
+class ContentDocument(BaseModel):
+    filename: str
+    content: str
+    updated_at: str
+
+
+class ContentDocumentUpdate(BaseModel):
+    content: str = Field(max_length=500_000)
