@@ -3649,6 +3649,43 @@ label {
 
 .team-access-summary .pending strong { color: #75500b; }
 
+.team-access-filters {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 150px;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.team-access-filters label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line-200);
+  border-radius: 10px;
+  padding: 0 11px;
+  color: var(--ink-400);
+  background: #fbfdfd;
+}
+
+.team-access-filters input,
+.team-access-filters select {
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  color: var(--ink-700);
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  outline: 0;
+}
+
+.team-access-filters > select {
+  border: 1px solid var(--line-200);
+  border-radius: 10px;
+  padding: 0 10px;
+  background: #fbfdfd;
+}
+
 .team-user-list {
   display: grid;
   gap: 8px;
@@ -3657,7 +3694,7 @@ label {
 
 .team-user-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(290px, auto);
+  grid-template-columns: minmax(260px, 1fr) auto;
   align-items: center;
   gap: 16px;
   min-height: 68px;
@@ -3712,11 +3749,44 @@ label {
   white-space: nowrap;
 }
 
+.team-user-identity small + small { font-size: 9px; }
+
 .team-user-state,
 .team-user-actions {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+
+.team-module-access {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.team-module-access button {
+  min-height: 30px;
+  border: 1px solid var(--line-200);
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--ink-400);
+  background: #ffffff;
+  font: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.team-module-access button.active {
+  border-color: rgba(25, 139, 111, 0.32);
+  color: var(--teal-700);
+  background: #e7f7f1;
+}
+
+.team-module-access button:disabled { cursor: default; opacity: 0.72; }
+
+.team-user-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .role-chip,
@@ -3757,6 +3827,91 @@ label {
   padding: 0 11px;
   font-size: 10px;
   white-space: nowrap;
+}
+
+.team-password-reset {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  border-top: 1px dashed var(--line-200);
+  padding-top: 10px;
+}
+
+.team-password-reset input {
+  min-width: 240px;
+  min-height: 34px;
+  border: 1px solid var(--line-200);
+  border-radius: 9px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 10px;
+}
+
+.team-audit-log {
+  margin-top: 16px;
+  border-top: 1px solid var(--line-200);
+  padding-top: 14px;
+}
+
+.team-audit-log summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-700);
+  font-size: 11px;
+  font-weight: 760;
+  cursor: pointer;
+}
+
+.team-audit-log summary span { color: var(--ink-400); font-size: 9px; }
+.team-audit-log > div { display: grid; gap: 5px; margin-top: 10px; }
+.team-audit-log p {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  gap: 9px;
+  margin: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f7f9f9;
+  font-size: 9px;
+}
+.team-audit-log p span,
+.team-audit-log p small { color: var(--ink-500); }
+
+.session-permissions { display: flex; gap: 6px; }
+.session-permissions span {
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--ink-400);
+  background: #eef1f2;
+  font-size: 9px;
+}
+.session-permissions span.active { color: var(--teal-700); background: #e3f6ef; }
+.session-security { width: 100%; text-align: left; }
+.session-security summary { color: var(--ink-600); font-size: 10px; cursor: pointer; }
+.session-security form { display: grid; gap: 7px; margin: 9px 0 7px; }
+.session-security input {
+  min-height: 38px;
+  border: 1px solid var(--line-200);
+  border-radius: 9px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 10px;
+}
+.session-security > .danger-button { width: 100%; }
+
+.nav-copy strong { display: inline-flex; align-items: center; gap: 6px; }
+.nav-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #d97732;
+  font-size: 8px;
 }
 
 .command-trigger {
@@ -4018,8 +4173,8 @@ label {
   .auth-layout { grid-template-columns: 1fr; }
   .auth-showcase { min-height: 420px; }
   .auth-card { width: 100%; }
-  .team-user-row { grid-template-columns: minmax(180px, 1fr) auto minmax(260px, auto); }
-  .team-user-actions { grid-column: auto; }
+  .team-user-row { grid-template-columns: minmax(180px, 1fr) auto; }
+  .team-user-actions { grid-column: 1 / -1; }
   .stock-operations-bar { align-items: stretch; flex-direction: column; }
   .stock-quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); }
   .stock-quick-actions button { justify-content: center; }
@@ -4111,6 +4266,8 @@ label {
   .team-user-actions { grid-column: 1 / -1; justify-content: stretch; }
   .team-user-actions select,
   .team-user-actions button { flex: 1 1 50%; }
+  .team-access-filters { grid-template-columns: 1fr; }
+  .team-audit-log p { grid-template-columns: 1fr; gap: 2px; }
 }
 
 @media (max-width: 520px) {
@@ -4146,6 +4303,11 @@ label {
   .team-user-row { grid-template-columns: 1fr; gap: 9px; }
   .team-user-state { justify-content: flex-start; }
   .team-user-actions { grid-column: auto; }
+  .team-module-access,
+  .team-user-actions,
+  .team-password-reset { grid-column: auto; justify-content: stretch; }
+  .team-password-reset { display: grid; }
+  .team-password-reset input { min-width: 0; width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

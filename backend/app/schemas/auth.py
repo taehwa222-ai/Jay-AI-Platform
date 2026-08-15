@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -12,6 +12,8 @@ class UserPublic(BaseModel):
     role: str
     is_active: bool
     approval_status: str
+    can_access_stocks: bool
+    can_access_content_ops: bool
     created_at: str
     last_login_at: str | None = None
 
@@ -44,3 +46,29 @@ class SignupResponse(BaseModel):
 class AdminUserUpdateRequest(BaseModel):
     role: Literal["admin", "member"] | None = None
     is_active: bool | None = None
+    can_access_stocks: bool | None = None
+    can_access_content_ops: bool | None = None
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class PasswordResetRequest(BaseModel):
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class MessageResponse(BaseModel):
+    message: str
+
+
+class AuditLogPublic(BaseModel):
+    id: int
+    event_type: str
+    actor_user_id: int | None
+    actor_name: str | None
+    target_user_id: int | None
+    target_name: str | None
+    details: dict[str, Any]
+    created_at: str

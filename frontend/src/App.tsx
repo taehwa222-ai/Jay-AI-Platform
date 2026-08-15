@@ -17,6 +17,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
   analyzeStock,
+  changePassword,
   createStockHolding,
   createStockReportFromAnalysis,
   createStockWatchlistItem,
@@ -26,6 +27,7 @@ import {
   deleteStockWatchlistItem,
   downloadStockReport,
   getDisclosures,
+  getAuditLogs,
   getAdminUsers,
   getStockAnalysisRecords,
   getHealth,
@@ -36,6 +38,9 @@ import {
   getStockWatchlist,
   login,
   refreshStockHoldingPrices,
+  resetUserPassword,
+  revokeOwnSessions,
+  revokeUserSessions,
   scanStocks,
   signup,
   updateAdminUser,
@@ -71,6 +76,7 @@ import { formatPercent, formatWon, parseTickerList, safeFileName, toNumber } fro
 import type {
   AuthResponse,
   AdminUserUpdatePayload,
+  AuditLog,
   Disclosure,
   HealthStatus,
   StockAnalysisRecord,
@@ -137,6 +143,7 @@ export default function App() {
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [adminUpdatingId, setAdminUpdatingId] = useState<number | null>(null);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [holdings, setHoldings] = useState<StockHolding[]>([]);
   const [holdingForm, setHoldingForm] = useState<HoldingForm>(emptyHoldingForm);
   const [holdingMessage, setHoldingMessage] = useState<string | null>(null);
@@ -196,6 +203,9 @@ export default function App() {
 
   const isSignedIn = currentUser !== null;
   const canManageUsers = currentUser?.role === 'owner' || currentUser?.role === 'admin';
+  const canAccessStocks = Boolean(currentUser?.can_access_stocks);
+  const canAccessContentOps = Boolean(currentUser?.can_access_content_ops);
+  const pendingUserCount = adminUsers.filter((user) => user.approval_status === 'pending').length;
   const visibleStockTabs =
     currentUser?.role === 'member'
       ? STOCK_TABS.filter((tab) => tab.id !== 'notifications')
@@ -259,7 +269,7 @@ export default function App() {
     return matchesQuery && matchesRating;
   });
   const quickCommands: CommandItem[] = [
-    {
+    ...(canAccessStocks ? [{
       id: 'view-stocks',
       label: '주식 분석 Lab 열기',
       description: '포트폴리오와 종목 분석 워크스페이스로 이동',
@@ -268,8 +278,8 @@ export default function App() {
       shortcut: 'G S',
       keywords: 'stock portfolio 주식',
       onSelect: () => requestNavigate('stocks'),
-    },
-    {
+    } satisfies CommandItem] : []),
+    ...(canAccessContentOps ? [{
       id: 'view-content-ops',
       label: 'Content Ops 열기',
       description: 'YouTube와 이모티콘 문서 편집기로 이동',
@@ -278,7 +288,7 @@ export default function App() {
       shortcut: 'G C',
       keywords: 'content markdown 콘텐츠',
       onSelect: () => requestNavigate('contentOps'),
-    },
+    } satisfies CommandItem] : []),
     {
       id: 'view-account',
       label: '사내 계정 열기',
@@ -288,7 +298,7 @@ export default function App() {
       shortcut: 'G A',
       onSelect: () => requestNavigate('auth'),
     },
-    ...visibleStockTabs.map<CommandItem>((tab) => ({
+    ...(canAccessStocks ? visibleStockTabs.map<CommandItem>((tab) => ({
       id: `stock-${tab.id}`,
       label: `${tab.title} 열기`,
       description: tab.description,
@@ -299,8 +309,8 @@ export default function App() {
         setActiveStockTab(tab.id);
         requestNavigate('stocks');
       },
-    })),
-    {
+    })) : []),
+    ...(canAccessStocks ? [{
       id: 'refresh-stock-workspace',
       label: '주식 데이터 전체 동기화',
       description: '보유종목, 관심종목, 분석 기록과 리포트를 백그라운드에서 갱신',
@@ -309,7 +319,7 @@ export default function App() {
       shortcut: 'R S',
       keywords: 'refresh sync 동기화 갱신',
       onSelect: () => void refreshStockWorkspace(),
-    },
+    } satisfies CommandItem] : []),
     {
       id: 'refresh-health',
       label: '서버 상태 새로고침',
@@ -378,6 +388,16 @@ export default function App() {
   }, [token, canManageUsers]);
 
   useEffect(() => {
+    if (!currentUser) return;
+    if (
+      (activeView === 'stocks' && !canAccessStocks) ||
+      (activeView === 'contentOps' && !canAccessContentOps)
+    ) {
+      navigateToView('auth');
+    }
+  }, [activeView, canAccessContentOps, canAccessStocks, currentUser]);
+
+  useEffect(() => {
     if (currentUser?.role === 'member' && activeStockTab === 'notifications') {
       setActiveStockTab('holdings');
     }
@@ -401,7 +421,7 @@ export default function App() {
     try {
       const user = await getMe(savedToken);
       setCurrentUser(user);
-      await refreshStockWorkspace(savedToken, true);
+      if (user.can_access_stocks) await refreshStockWorkspace(savedToken, true);
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       setToken('');
@@ -453,8 +473,14 @@ export default function App() {
     localStorage.setItem(TOKEN_STORAGE_KEY, response.access_token);
     setToken(response.access_token);
     setCurrentUser(response.user);
-    void refreshStockWorkspace(response.access_token);
-    navigateToView('stocks');
+    if (response.user.can_access_stocks) {
+      void refreshStockWorkspace(response.access_token);
+      navigateToView('stocks');
+    } else if (response.user.can_access_content_ops) {
+      navigateToView('contentOps');
+    } else {
+      navigateToView('auth');
+    }
   }
 
   async function loadAdminUsers(activeToken = token) {
@@ -462,7 +488,12 @@ export default function App() {
     setAdminUsersLoading(true);
     setAdminMessage(null);
     try {
-      setAdminUsers(await getAdminUsers(activeToken));
+      const [users, logs] = await Promise.all([
+        getAdminUsers(activeToken),
+        getAuditLogs(activeToken),
+      ]);
+      setAdminUsers(users);
+      setAuditLogs(logs);
     } catch (requestError) {
       setAdminMessage(
         requestError instanceof Error ? requestError.message : '사용자 목록을 불러오지 못했습니다.',
@@ -479,17 +510,71 @@ export default function App() {
     try {
       const updated = await updateAdminUser(token, userId, payload);
       setAdminUsers((users) => users.map((user) => (user.id === updated.id ? updated : user)));
-      setAdminMessage(
-        updated.approval_status === 'approved' && updated.is_active
-          ? `${updated.name} 계정 접근을 승인했습니다.`
-          : `${updated.name} 계정 상태를 변경했습니다.`,
-      );
+      setAuditLogs(await getAuditLogs(token));
+      setAdminMessage(`${updated.name} 계정 설정을 변경했습니다.`);
     } catch (requestError) {
       setAdminMessage(
         requestError instanceof Error ? requestError.message : '계정 상태를 변경하지 못했습니다.',
       );
     } finally {
       setAdminUpdatingId(null);
+    }
+  }
+
+  async function handleRevokeUserSessions(userId: number) {
+    if (!token) return;
+    setAdminUpdatingId(userId);
+    setAdminMessage(null);
+    try {
+      await revokeUserSessions(token, userId);
+      setAdminMessage('선택한 사용자의 모든 세션을 종료했습니다.');
+      setAuditLogs(await getAuditLogs(token));
+    } catch (requestError) {
+      setAdminMessage(requestError instanceof Error ? requestError.message : '세션을 종료하지 못했습니다.');
+    } finally {
+      setAdminUpdatingId(null);
+    }
+  }
+
+  async function handleResetUserPassword(userId: number, newPassword: string) {
+    if (!token) return;
+    setAdminUpdatingId(userId);
+    setAdminMessage(null);
+    try {
+      await resetUserPassword(token, userId, newPassword);
+      setAdminMessage('임시 비밀번호를 설정하고 기존 세션을 종료했습니다.');
+      setAuditLogs(await getAuditLogs(token));
+    } catch (requestError) {
+      setAdminMessage(requestError instanceof Error ? requestError.message : '비밀번호를 초기화하지 못했습니다.');
+    } finally {
+      setAdminUpdatingId(null);
+    }
+  }
+
+  async function handleChangePassword(currentPassword: string, newPassword: string) {
+    if (!token) return;
+    setAuthLoading(true);
+    setAuthMessage(null);
+    try {
+      await changePassword(token, currentPassword, newPassword);
+      logout('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인하세요.');
+    } catch (requestError) {
+      setAuthMessage(requestError instanceof Error ? requestError.message : '비밀번호를 변경하지 못했습니다.');
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleRevokeOwnSessions() {
+    if (!token) return;
+    setAuthLoading(true);
+    try {
+      await revokeOwnSessions(token);
+      logout('모든 세션을 종료했습니다. 다시 로그인하세요.');
+    } catch (requestError) {
+      setAuthMessage(requestError instanceof Error ? requestError.message : '세션을 종료하지 못했습니다.');
+    } finally {
+      setAuthLoading(false);
     }
   }
 
@@ -1083,7 +1168,7 @@ export default function App() {
     }
   }
 
-  function logout() {
+  function logout(message = '로그아웃되었습니다.') {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     setToken('');
     setCurrentUser(null);
@@ -1095,8 +1180,9 @@ export default function App() {
     setAnalysisResult(null);
     setScanResult(null);
     setAdminUsers([]);
+    setAuditLogs([]);
     setAdminMessage(null);
-    setAuthMessage('로그아웃되었습니다.');
+    setAuthMessage(message);
     navigateToView('auth');
   }
 
@@ -1120,20 +1206,27 @@ export default function App() {
         <nav className="nav-list" aria-label="Primary">
           {hasSessionNavigation && (
             <>
-              <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks" onClick={(event) => { event.preventDefault(); requestNavigate('stocks'); }}>
-                <span className="nav-icon"><BarChartOutlined /></span>
-                <span className="nav-copy"><strong>주식 분석 Lab</strong><small>투자 리서치</small></span>
-              </a>
-              <a className={activeView === 'contentOps' ? 'active' : ''} href="#contentOps" onClick={(event) => { event.preventDefault(); requestNavigate('contentOps'); }}>
-                <span className="nav-icon"><VideoCameraOutlined /></span>
-                <span className="nav-copy"><strong>Content Ops</strong><small>콘텐츠 생산</small></span>
-              </a>
+              {canAccessStocks && (
+                <a className={activeView === 'stocks' ? 'active' : ''} href="#stocks" onClick={(event) => { event.preventDefault(); requestNavigate('stocks'); }}>
+                  <span className="nav-icon"><BarChartOutlined /></span>
+                  <span className="nav-copy"><strong>주식 분석 Lab</strong><small>투자 리서치</small></span>
+                </a>
+              )}
+              {canAccessContentOps && (
+                <a className={activeView === 'contentOps' ? 'active' : ''} href="#contentOps" onClick={(event) => { event.preventDefault(); requestNavigate('contentOps'); }}>
+                  <span className="nav-icon"><VideoCameraOutlined /></span>
+                  <span className="nav-copy"><strong>Content Ops</strong><small>콘텐츠 생산</small></span>
+                </a>
+              )}
             </>
           )}
           <a className={activeView === 'auth' ? 'active' : ''} href="#auth" onClick={(event) => { event.preventDefault(); requestNavigate('auth'); }}>
             <span className="nav-icon"><TeamOutlined /></span>
             <span className="nav-copy">
-              <strong>{isSignedIn ? '사내 계정' : sessionLoading ? '계정 확인 중' : '사내 로그인'}</strong>
+              <strong>
+                {isSignedIn ? '사내 계정' : sessionLoading ? '계정 확인 중' : '사내 로그인'}
+                {pendingUserCount > 0 && <span className="nav-count-badge">{pendingUserCount}</span>}
+              </strong>
               <small>{isSignedIn ? '세션·사용자 관리' : sessionLoading ? 'Restoring session' : 'Team access'}</small>
             </span>
           </a>
@@ -1194,7 +1287,7 @@ export default function App() {
         <AuthScreen
           active={activeView === 'auth'}
           currentUser={currentUser}
-          onLogout={logout}
+          onLogout={() => logout()}
           authMode={authMode}
           onAuthModeChange={setAuthMode}
           name={name}
@@ -1212,9 +1305,14 @@ export default function App() {
           adminMessage={adminMessage}
           onRefreshAdminUsers={() => void loadAdminUsers()}
           onUpdateAdminUser={(userId, payload) => void handleUpdateAdminUser(userId, payload)}
+          auditLogs={auditLogs}
+          onRevokeUserSessions={(userId) => void handleRevokeUserSessions(userId)}
+          onResetUserPassword={(userId, nextPassword) => void handleResetUserPassword(userId, nextPassword)}
+          onChangePassword={(currentPassword, nextPassword) => void handleChangePassword(currentPassword, nextPassword)}
+          onRevokeOwnSessions={() => void handleRevokeOwnSessions()}
         />
 
-        {isSignedIn && (
+        {isSignedIn && canAccessContentOps && (
           <ContentOpsScreen
             active={activeView === 'contentOps'}
             discardSignal={contentDiscardSignal}
@@ -1241,7 +1339,7 @@ export default function App() {
               <span className="loading-spinner" />
               <span><strong>사내 워크스페이스를 불러오는 중</strong><small>포트폴리오와 분석 기록을 안전하게 복원하고 있습니다.</small></span>
             </div>
-          ) : currentUser ? (
+          ) : currentUser && canAccessStocks ? (
             <div className="stock-tab-shell">
               <div className="stock-operations-bar" aria-label="주식 데이터 동기화 상태">
                 <div className="stock-sync-state">

@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from app.schemas.auth import (
     AuthResponse,
     LoginRequest,
+    MessageResponse,
+    PasswordChangeRequest,
     SignupRequest,
     SignupResponse,
     UserPublic,
@@ -36,6 +38,18 @@ def require_admin(user: Annotated[User, Depends(get_current_user)]) -> User:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin role is required.",
         )
+    return user
+
+
+def require_stock_access(user: Annotated[User, Depends(get_current_user)]) -> User:
+    if not user.can_access_stocks:
+        raise HTTPException(status_code=403, detail="Stock Lab access is required.")
+    return user
+
+
+def require_content_ops_access(user: Annotated[User, Depends(get_current_user)]) -> User:
+    if not user.can_access_content_ops:
+        raise HTTPException(status_code=403, detail="Content Ops access is required.")
     return user
 
 
@@ -73,3 +87,22 @@ async def login(
 @router.get("/me", response_model=UserPublic)
 async def me(user: Annotated[User, Depends(get_current_user)]) -> UserPublic:
     return UserPublic(**user.public())
+
+
+@router.post("/password", response_model=MessageResponse)
+async def change_password(
+    payload: PasswordChangeRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> MessageResponse:
+    auth_service.change_password(user, payload.current_password, payload.new_password)
+    return MessageResponse(message="Password changed. Sign in again.")
+
+
+@router.post("/sessions/revoke", response_model=MessageResponse)
+async def revoke_own_sessions(
+    user: Annotated[User, Depends(get_current_user)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> MessageResponse:
+    auth_service.revoke_sessions(user.id, user)
+    return MessageResponse(message="All sessions revoked.")

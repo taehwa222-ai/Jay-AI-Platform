@@ -1,6 +1,7 @@
 import type {
   AuthResponse,
   AdminUserUpdatePayload,
+  AuditLog,
   ContentDocument,
   ContentKind,
   Disclosure,
@@ -150,6 +151,49 @@ export function updateAdminUser(
     { method: 'PATCH', body: JSON.stringify(payload) },
     token,
   );
+}
+
+export function getAuditLogs(token: string): Promise<AuditLog[]> {
+  return request<AuditLog[]>('/api/v1/admin/audit-logs?limit=50', undefined, token);
+}
+
+export function revokeUserSessions(token: string, userId: number): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    `/api/v1/admin/users/${userId}/sessions/revoke`,
+    { method: 'POST' },
+    token,
+  );
+}
+
+export function resetUserPassword(
+  token: string,
+  userId: number,
+  newPassword: string,
+): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    `/api/v1/admin/users/${userId}/password/reset`,
+    { method: 'POST', body: JSON.stringify({ new_password: newPassword }) },
+    token,
+  );
+}
+
+export function changePassword(
+  token: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    '/api/v1/auth/password',
+    {
+      method: 'POST',
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    },
+    token,
+  );
+}
+
+export function revokeOwnSessions(token: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/api/v1/auth/sessions/revoke', { method: 'POST' }, token);
 }
 
 export function getContentDocuments(

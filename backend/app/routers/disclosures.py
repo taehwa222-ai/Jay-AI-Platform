@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
 
-from app.routers.auth import get_current_user
+from app.routers.auth import require_stock_access as get_current_user
 from app.schemas.disclosures import DisclosureItem
 from app.services.auth import User
 from app.services.disclosures import DisclosureService

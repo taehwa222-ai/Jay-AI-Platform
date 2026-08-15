@@ -11,6 +11,8 @@ const owner: UserAccount = {
   role: 'owner',
   is_active: true,
   approval_status: 'approved',
+  can_access_stocks: true,
+  can_access_content_ops: true,
   created_at: '2026-01-01T00:00:00Z',
   last_login_at: null,
 };
@@ -37,6 +39,11 @@ function props() {
     adminMessage: null,
     onRefreshAdminUsers: vi.fn(),
     onUpdateAdminUser: vi.fn(),
+    auditLogs: [],
+    onRevokeUserSessions: vi.fn(),
+    onResetUserPassword: vi.fn(),
+    onChangePassword: vi.fn(),
+    onRevokeOwnSessions: vi.fn(),
   };
 }
 
@@ -59,6 +66,6 @@ it('switches to login mode and shows the owner session with user management', as
   rerender(<AuthScreen {...base} currentUser={owner} />);
   expect(screen.getByText('owner@example.com')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: '사내 사용자 관리' })).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: /로그아웃/ }));
+  await user.click(screen.getAllByRole('button', { name: /로그아웃/ }).at(-1)!);
   expect(base.onLogout).toHaveBeenCalled();
 });

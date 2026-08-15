@@ -11,6 +11,7 @@ const api = vi.hoisted(() => ({
   getStockAnalysisRecords: vi.fn().mockResolvedValue([]),
   getStockReports: vi.fn().mockResolvedValue([]),
   getAdminUsers: vi.fn().mockResolvedValue([]),
+  getAuditLogs: vi.fn().mockResolvedValue([]),
   updateAdminUser: vi.fn(),
 }));
 
@@ -26,6 +27,8 @@ const owner = {
   role: 'owner',
   is_active: true,
   approval_status: 'approved',
+  can_access_stocks: true,
+  can_access_content_ops: true,
   created_at: '2026-01-01T00:00:00Z',
   last_login_at: null,
 };
@@ -57,6 +60,18 @@ it('shows only the two business modules after owner session restore', async () =
   expect(nav.queryByRole('link', { name: /관리자|수익화|대시보드/ })).not.toBeInTheDocument();
 });
 
+it('logs out an active session without rendering the click event', async () => {
+  const user = userEvent.setup();
+  localStorage.setItem('jay-ai-platform-token', 'owner-token');
+  window.history.replaceState(null, '', '/#auth');
+  render(<App />);
+
+  expect((await screen.findAllByText('owner@example.com')).length).toBeGreaterThan(0);
+  await user.click(screen.getAllByRole('button', { name: /로그아웃/ }).at(-1)!);
+  expect(await screen.findByRole('heading', { name: '사내 계정 가입 신청' })).toBeInTheDocument();
+  expect(screen.getByRole('status')).toHaveTextContent('로그아웃되었습니다.');
+});
+
 it('hides administrator notification controls from members', async () => {
   api.getMe.mockResolvedValue({ ...owner, id: 2, role: 'member' });
   localStorage.setItem('jay-ai-platform-token', 'member-token');
@@ -66,6 +81,24 @@ it('hides administrator notification controls from members', async () => {
   expect(await screen.findByRole('tab', { name: /보유종목/ })).toBeInTheDocument();
   expect(screen.queryByRole('tab', { name: /알림 센터/ })).not.toBeInTheDocument();
   expect(api.getAdminUsers).not.toHaveBeenCalled();
+});
+
+it('shows members only the modules granted by the owner', async () => {
+  api.getMe.mockResolvedValue({
+    ...owner,
+    id: 2,
+    role: 'member',
+    can_access_stocks: true,
+    can_access_content_ops: false,
+  });
+  localStorage.setItem('jay-ai-platform-token', 'member-token');
+  window.history.replaceState(null, '', '/#contentOps');
+  render(<App />);
+
+  await waitFor(() => expect(window.location.hash).toBe('#auth'));
+  const nav = within(screen.getByRole('navigation', { name: 'Primary' }));
+  expect(nav.getByRole('link', { name: /주식 분석 Lab/ })).toBeInTheDocument();
+  expect(nav.queryByRole('link', { name: /Content Ops/ })).not.toBeInTheDocument();
 });
 
 it('restores the last stock tab and opens quick navigation with Ctrl+K', async () => {

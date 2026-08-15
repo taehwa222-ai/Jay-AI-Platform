@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response, status
 
-from app.routers.auth import get_current_user
+from app.routers.auth import require_stock_access as get_current_user
 from app.schemas.stocks import (
     StockAnalysisRecordPublic,
     StockAnalysisRequest,

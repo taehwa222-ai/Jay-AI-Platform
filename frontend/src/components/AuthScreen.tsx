@@ -6,8 +6,9 @@ import {
   SafetyCertificateOutlined,
   UserAddOutlined,
 } from '@ant-design/icons';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
-import type { AdminUserUpdatePayload, UserAccount } from '../types';
+import type { AdminUserUpdatePayload, AuditLog, UserAccount } from '../types';
 import { TeamAccessPanel } from './TeamAccessPanel';
 
 export type AuthMode = 'signup' | 'login';
@@ -33,6 +34,11 @@ type Props = {
   adminMessage: string | null;
   onRefreshAdminUsers: () => void;
   onUpdateAdminUser: (userId: number, payload: AdminUserUpdatePayload) => void;
+  auditLogs: AuditLog[];
+  onRevokeUserSessions: (userId: number) => void;
+  onResetUserPassword: (userId: number, newPassword: string) => void;
+  onChangePassword: (currentPassword: string, newPassword: string) => void;
+  onRevokeOwnSessions: () => void;
 };
 
 export function AuthScreen({
@@ -56,7 +62,14 @@ export function AuthScreen({
   adminMessage,
   onRefreshAdminUsers,
   onUpdateAdminUser,
+  auditLogs,
+  onRevokeUserSessions,
+  onResetUserPassword,
+  onChangePassword,
+  onRevokeOwnSessions,
 }: Props) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   if (!active) return null;
 
   return (
@@ -84,7 +97,45 @@ export function AuthScreen({
             <h3>{currentUser.name}</h3>
             <p>{currentUser.email}</p>
           </div>
-          <p className="auth-helper">승인된 사내 계정으로 주식 분석 Lab과 Content Ops를 사용 중입니다.</p>
+          <p className="auth-helper">승인된 사내 계정입니다. 아래에 활성화된 모듈만 사용할 수 있습니다.</p>
+          <div className="session-permissions" aria-label="내 모듈 권한">
+            <span className={currentUser.can_access_stocks ? 'active' : ''}>주식 Lab</span>
+            <span className={currentUser.can_access_content_ops ? 'active' : ''}>Content Ops</span>
+          </div>
+          <details className="session-security">
+            <summary>보안 설정</summary>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                onChangePassword(currentPassword, newPassword);
+                setCurrentPassword('');
+                setNewPassword('');
+              }}
+            >
+              <input
+                aria-label="현재 비밀번호"
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                placeholder="현재 비밀번호"
+                required
+                type="password"
+                value={currentPassword}
+              />
+              <input
+                aria-label="새 비밀번호"
+                minLength={8}
+                onChange={(event) => setNewPassword(event.target.value)}
+                placeholder="새 비밀번호 (8자 이상)"
+                required
+                type="password"
+                value={newPassword}
+              />
+              <button className="primary-button compact-button" disabled={authLoading} type="submit">비밀번호 변경</button>
+            </form>
+            <button className="danger-button compact-button" disabled={authLoading} onClick={onRevokeOwnSessions} type="button">
+              모든 기기에서 로그아웃
+            </button>
+          </details>
+          {authMessage && <div className="inline-message" role="status">{authMessage}</div>}
           <button className="secondary-button" onClick={onLogout} type="button">
             <LogoutOutlined /> 로그아웃
           </button>
@@ -158,9 +209,12 @@ export function AuthScreen({
       {currentUser && ['owner', 'admin'].includes(currentUser.role) && (
         <TeamAccessPanel
           currentUser={currentUser}
+          auditLogs={auditLogs}
           loading={adminUsersLoading}
           message={adminMessage}
           onRefresh={onRefreshAdminUsers}
+          onResetPassword={onResetUserPassword}
+          onRevokeSessions={onRevokeUserSessions}
           onUpdate={onUpdateAdminUser}
           updatingId={adminUpdatingId}
           users={adminUsers}

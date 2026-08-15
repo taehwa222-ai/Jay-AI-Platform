@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.routers.auth import get_current_user
+from app.routers.auth import require_content_ops_access as get_current_user
 from app.schemas.content_ops import (
     ContentDocument,
     ContentDocumentUpdate,

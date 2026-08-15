@@ -42,6 +42,8 @@ export type UserAccount = {
   role: 'owner' | 'admin' | 'member';
   is_active: boolean;
   approval_status: 'approved' | 'pending' | 'disabled';
+  can_access_stocks: boolean;
+  can_access_content_ops: boolean;
   created_at: string;
   last_login_at: string | null;
 };
@@ -185,6 +187,19 @@ export type SignupResponse = {
 export type AdminUserUpdatePayload = {
   role?: 'admin' | 'member';
   is_active?: boolean;
+  can_access_stocks?: boolean;
+  can_access_content_ops?: boolean;
+};
+
+export type AuditLog = {
+  id: number;
+  event_type: string;
+  actor_user_id: number | null;
+  actor_name: string | null;
+  target_user_id: number | null;
+  target_name: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
 };
 
 export type StockMarketSnapshot = {
