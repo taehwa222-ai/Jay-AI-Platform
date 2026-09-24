@@ -179,7 +179,7 @@ Micro SaaS 검증 14일이 끝나면 통과 기준 3가지(인터뷰 15명 · �
 | 항목 | 상태 | 왜 |
 |---|---|---|
 | 랜딩 배포 반영 | **연동 대기** | 승인은 받았으나 `sites` 원격(`git.chatgpt-team.site`) 자격증명이 로컬에 없어 push 하지 못했다. 대표가 직접 push 해야 한다 |
-| 본 저장소 push | ✅ 2026-09-24 승인·push | `AUTO_DEPLOY_ENABLED` 값은 권한이 없어 확인 못 함 — 켜져 있었다면 VPS 배포도 함께 일어났다 |
+| 본 저장소 push | ✅ 2026-09-24 push·배포 성공 | 자동 배포가 켜져 있었다 — Deploy VPS 워크플로가 verify(ruff·pytest·frontend verify)와 deploy(SSH) 전 단계 통과. **외부 헬스체크는 못 했다** — 배포 주소가 저장소에 없고 GitHub Secret 이라 접근 불가 |
 | 대량 미디어 백업 | 범위 축소 | 이모티콘 폐기로 백업 의무 사라짐. YouTube 미디어 41MB 만 남음 |
 | `frontend/` 미커밋 변경 | 진행 중 | 다른 세션이 작업 중이라 건드리지 않았다 (7개 파일) |
 | README 화면 목록 | 대기 | 실제 화면 6개인데 2개만 적혀 있다. `frontend/` 개편이 끝난 뒤 맞추는 게 맞다 |
