@@ -36,12 +36,12 @@ async def run(args: argparse.Namespace) -> int:
         raise ValueError("The output file must stay inside the project folder.")
 
     if args.kind == "image":
-        output_path = output_path.with_suffix(".png")
+        output_path = output_path.with_suffix(".jpg")
         await GeminiImageProvider(settings).generate_image(args.prompt, output_path)
         asset = AssetRegister(
             asset_type="image",
             storage_uri=f"file://{output_path}",
-            mime_type="image/png",
+            mime_type="image/jpeg",
         )
     else:
         output_path = output_path.with_suffix(".mp3")

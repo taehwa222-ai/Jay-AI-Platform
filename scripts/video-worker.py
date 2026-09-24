@@ -1,7 +1,9 @@
-"""Run one queued local video render task.
+"""Run one queued local video task.
 
-Generated assets must be registered as file:// URIs inside the project's YouTube folder.
-Install FFmpeg on the development machine or VPS before running this worker:
+Use ``--type automation`` for the full image/voice/captions/render pipeline,
+``--type render`` for an already registered asset list, or
+``--type youtube_upload`` after a rendered video and upload intent are ready.
+Generated assets must stay inside the project's YouTube folder.
 
     python scripts/video-worker.py --once
 """
@@ -10,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import subprocess
 import sys
 import tempfile
@@ -36,7 +39,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Render one queued Jay YouTube video task.")
     parser.add_argument(
         "--type",
-        choices=("render", "youtube_upload"),
+        choices=("automation", "render", "youtube_upload"),
         default="render",
         help="Task type to process.",
     )
@@ -50,12 +53,40 @@ def main() -> int:
     service.init_db()
     task = service.claim_next_task(args.type)
     if task is None:
-        print("No queued render task.")
+        print("No queued video task.")
         return 0
 
     try:
         job = service.get_job(task.job_slug)
-        if args.type == "render":
+        if args.type == "automation":
+            output = run_automation(settings, task.job_slug, task.options)
+            service.register_asset(
+                task.job_slug,
+                AssetRegister(
+                    asset_type="rendered_video",
+                    storage_uri=f"file://{output}",
+                    mime_type="video/mp4",
+                    width=1080,
+                    height=1920,
+                ),
+            )
+            thumbnail = find_thumbnail_asset(
+                (settings.content_dir / "youtube" / task.job_slug).resolve()
+            )
+            if thumbnail is not None:
+                width, height = (1080, 1920) if job.format == "shorts" else (1280, 720)
+                service.register_asset(
+                    task.job_slug,
+                    AssetRegister(
+                        asset_type="thumbnail",
+                        storage_uri=f"file://{thumbnail}",
+                        mime_type="image/jpeg",
+                        width=width,
+                        height=height,
+                    ),
+                )
+            service.mark_render_ready(task.job_slug)
+        elif args.type == "render":
             output = render_job(settings.ffmpeg_binary, settings.content_dir, job)
             service.register_asset(
                 task.job_slug,
@@ -79,8 +110,24 @@ def main() -> int:
                 video_asset.storage_uri,
                 (settings.content_dir / "youtube" / task.job_slug).resolve(),
             )
+            thumbnail_asset = next(
+                (asset for asset in reversed(job.assets) if asset.asset_type == "thumbnail"),
+                None,
+            )
+            thumbnail_path = (
+                local_asset_path(
+                    thumbnail_asset.storage_uri,
+                    (settings.content_dir / "youtube" / task.job_slug).resolve(),
+                )
+                if thumbnail_asset is not None and job.format == "longform"
+                else None
+            )
             video_id = asyncio.run(
-                YouTubeUploadProvider(settings).upload_video(video_path, job.upload_intent)
+                YouTubeUploadProvider(settings).upload_video(
+                    video_path,
+                    job.upload_intent,
+                    thumbnail_path=thumbnail_path,
+                )
             )
             service.mark_upload_succeeded(task.id, video_id)
     except (
@@ -168,6 +215,62 @@ def render_job(ffmpeg_binary: str, content_dir: Path, job: VideoJobDetail) -> Pa
     if not output_path.is_file() or output_path.stat().st_size == 0:
         raise WorkerError("FFmpeg completed without producing a video file.")
     return output_path
+
+
+def run_automation(settings, slug: str, options: dict[str, bool]) -> Path:
+    project_dir = (settings.content_dir / "youtube" / slug).resolve()
+    automation_script = PROJECT_ROOT / "scripts" / "youtube-auto-pipeline.py"
+    if not automation_script.is_file():
+        raise WorkerError(f"The automation script does not exist: {automation_script}")
+    command = [
+        sys.executable,
+        str(automation_script),
+        "--project-dir",
+        str(project_dir),
+    ]
+    if options.get("regenerate_voice"):
+        command.append("--regenerate-voice")
+    if options.get("regenerate_images"):
+        command.append("--regenerate-images")
+    environment = dict(__import__("os").environ)
+    environment["PYTHONPATH"] = str(PROJECT_ROOT / "backend")
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=1_800,
+            env=environment,
+        )
+    except FileNotFoundError as error:
+        raise WorkerError(f"The automation interpreter was not found: {sys.executable}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip().splitlines()
+        raise WorkerError(detail[-1] if detail else "The automated pipeline failed.")
+    output_path = project_dir / "rendered" / f"{project_dir.name}.mp4"
+    if not output_path.is_file() or output_path.stat().st_size == 0:
+        raise WorkerError("The automated pipeline produced no rendered video.")
+    return output_path
+
+
+def find_thumbnail_asset(project_dir: Path) -> Path | None:
+    """Read the automation status and return its in-project JPEG thumbnail."""
+    status_path = project_dir / "pipeline-status.json"
+    candidate: Path | None = None
+    if status_path.is_file():
+        try:
+            payload = json.loads(status_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        raw_path = payload.get("thumbnail") if isinstance(payload, dict) else None
+        if isinstance(raw_path, str) and raw_path.strip():
+            candidate = Path(raw_path.strip())
+    candidate = candidate or (project_dir / "rendered" / "thumbnail.jpg")
+    resolved = candidate.expanduser().resolve()
+    if not resolved.is_relative_to(project_dir) or not resolved.is_file():
+        return None
+    return resolved
 
 
 def local_asset_path(storage_uri: str, project_dir: Path) -> Path:
