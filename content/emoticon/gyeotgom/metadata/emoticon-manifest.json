@@ -1,0 +1,771 @@
+{
+    "schema_version":  1,
+    "project":  {
+                    "slug":  "gyeotgom",
+                    "title":  "곁곰",
+                    "asset_policy":  "기존 파일을 읽기 전용 원본으로 취급하며 검수 도구가 이미지 내용을 변경하지 않는다.",
+                    "provenance_review":  "owner_review_required",
+                    "active_character_reference":  {
+                                                       "status":  "connected",
+                                                       "expected_path":  "assets/originals/gyeotgom-original-v3.png",
+                                                       "source_filename":  "ChatGPT Image 2026년 8월 15일 오후 09_18_21.png",
+                                                       "sha256":  "f3947b09cbeb02e993343dc6fa27094a4143e85cf567c5ef4bea445a33c1164f",
+                                                       "owner_confirmed_at":  "2026-08-15",
+                                                       "note":  "소유자가 이 파일을 기존 곁곰 v3 기준 디자인으로 확인했다. 원본 내용을 변경하지 않는다."
+                                                   },
+                    "current_asset_series":  {
+                                                 "id":  "v3-generated-basic-32",
+                                                 "status":  "needs_owner_visual_review",
+                                                 "master_path":  "assets/originals/gyeotgom-original-v3.png",
+                                                 "note":  "v3 기준 원본을 참조해 새로 제작한 개별 32종이다. 제출 전 소유자 육안 검토가 필요하다."
+                                             },
+                    "archived_asset_series":  {
+                                                  "id":  "v4-option2",
+                                                  "status":  "hold_reference_mismatch",
+                                                  "master_path":  "assets/ai-master/gyeotgom-master-v4-option2-v1.png",
+                                                  "note":  "v3 기준 원본과 불일치하여 보류된 기존 세트."
+                                              }
+                },
+    "project_rules":  {
+                          "filename_pattern":  "^(\\d{2})-[a-z0-9]+(?:-[a-z0-9]+)*-v(\\d+)\\.png$"
+                      },
+    "sets":  [
+                 {
+                     "set_id":  "basic-32",
+                     "title":  "곁곰 기본 32종 v3 재제작본",
+                     "expected_count":  32,
+                     "animation":  false,
+                     "source_document":  "set-basic-32.md",
+                     "asset_status":  "needs_owner_visual_review",
+                     "reference_master":  "assets/originals/gyeotgom-original-v3.png",
+                     "items":  [
+                                   {
+                                       "number":  1,
+                                       "filename":  "01-ok-v2.png",
+                                       "path":  "assets/generated-v3-basic-32/01-ok-v2.png",
+                                       "character":  "곁곰",
+                                       "situation":  "엄지 척",
+                                       "emotion":  "긍정",
+                                       "dialogue":  "오키",
+                                       "version":  2,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  2,
+                                       "filename":  "02-confirm-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/02-confirm-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "손 흔들며 확인",
+                                       "emotion":  "확인",
+                                       "dialogue":  "확인.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  3,
+                                       "filename":  "03-nod-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/03-nod-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "끄덕임",
+                                       "emotion":  "동의",
+                                       "dialogue":  "(끄덕)",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  4,
+                                       "filename":  "04-waiting-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/04-waiting-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "시계 보며 기다림",
+                                       "emotion":  "기다림",
+                                       "dialogue":  "기다림.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  5,
+                                       "filename":  "05-coffee-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/05-coffee-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "커피 들고",
+                                       "emotion":  "휴식",
+                                       "dialogue":  "커피.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  6,
+                                       "filename":  "06-leaving-work-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/06-leaving-work-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "곰돌이 인사",
+                                       "emotion":  "기대",
+                                       "dialogue":  "퇴근?",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  7,
+                                       "filename":  "07-hang-in-there-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/07-hang-in-there-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "버티는 표정",
+                                       "emotion":  "인내",
+                                       "dialogue":  "버틴다.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  8,
+                                       "filename":  "08-help-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/08-help-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "담요 덮고 엎드림",
+                                       "emotion":  "지침",
+                                       "dialogue":  "살려줘.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  9,
+                                       "filename":  "09-do-nothing-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/09-do-nothing-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "하트 안음",
+                                       "emotion":  "무기력",
+                                       "dialogue":  "아무것도 하기 싫어.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  10,
+                                       "filename":  "10-hiding-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/10-hiding-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "담요 뒤에 숨음",
+                                       "emotion":  "회피",
+                                       "dialogue":  "조용히 숨음.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  11,
+                                       "filename":  "11-blank-stare-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/11-blank-stare-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "창밖을 멍하니 바라봄",
+                                       "emotion":  "멍함",
+                                       "dialogue":  "멍...",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  12,
+                                       "filename":  "12-wink-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/12-wink-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "윙크",
+                                       "emotion":  "장난",
+                                       "dialogue":  "눈 깜빡.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  13,
+                                       "filename":  "13-still-alive-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/13-still-alive-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "상자 안에 앉음",
+                                       "emotion":  "무기력",
+                                       "dialogue":  "살아있음.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  14,
+                                       "filename":  "14-one-moment-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/14-one-moment-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "쉿",
+                                       "emotion":  "요청",
+                                       "dialogue":  "잠깐만.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  15,
+                                       "filename":  "15-thinking-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/15-thinking-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "눈 감음",
+                                       "emotion":  "생각",
+                                       "dialogue":  "음...",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  16,
+                                       "filename":  "16-surprised-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/16-surprised-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "놀람(!)",
+                                       "emotion":  "놀람",
+                                       "dialogue":  "어라?",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  17,
+                                       "filename":  "17-thanks-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/17-thanks-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "기도하듯 손 모음",
+                                       "emotion":  "감사",
+                                       "dialogue":  "고마워.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  18,
+                                       "filename":  "18-im-okay-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/18-im-okay-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "웃음",
+                                       "emotion":  "안심",
+                                       "dialogue":  "괜찮아.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  19,
+                                       "filename":  "19-tired-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/19-tired-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "눈물 글썽",
+                                       "emotion":  "피곤",
+                                       "dialogue":  "비곤해(피곤해).",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  20,
+                                       "filename":  "20-miss-you-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/20-miss-you-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "하트",
+                                       "emotion":  "그리움",
+                                       "dialogue":  "보고싶어.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  21,
+                                       "filename":  "21-pat-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/21-pat-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "담요 토닥",
+                                       "emotion":  "위로",
+                                       "dialogue":  "토닥토닥.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  22,
+                                       "filename":  "22-secret-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/22-secret-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "손으로 얼굴 가림 (쉿 제스처)",
+                                       "emotion":  "비밀",
+                                       "dialogue":  "비밀이야.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  23,
+                                       "filename":  "23-good-night-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/23-good-night-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "담요 덮고 잠",
+                                       "emotion":  "졸림",
+                                       "dialogue":  "잘자.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  24,
+                                       "filename":  "24-see-you-tomorrow-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/24-see-you-tomorrow-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "손 흔듦",
+                                       "emotion":  "인사",
+                                       "dialogue":  "내일 보자.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  25,
+                                       "filename":  "25-no-thanks-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/25-no-thanks-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "손 저으며 거절",
+                                       "emotion":  "거절",
+                                       "dialogue":  "아니, 괜찮아.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  26,
+                                       "filename":  "26-sorry-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/26-sorry-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "담요 끝 만지작이며 사과",
+                                       "emotion":  "미안함",
+                                       "dialogue":  "미안해.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  27,
+                                       "filename":  "27-i-hear-you-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/27-i-hear-you-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "고개 살짝 기울이며 귀 기울임",
+                                       "emotion":  "공감",
+                                       "dialogue":  "그랬구나.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  28,
+                                       "filename":  "28-sulky-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/28-sulky-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "팔짱 끼고 삐짐",
+                                       "emotion":  "삐짐",
+                                       "dialogue":  "삐졌어.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  29,
+                                       "filename":  "29-congrats-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/29-congrats-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "손뼉 치며 축하",
+                                       "emotion":  "축하",
+                                       "dialogue":  "축하해!",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  30,
+                                       "filename":  "30-hug-you-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/30-hug-you-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "두 팔 벌려 안음",
+                                       "emotion":  "위로",
+                                       "dialogue":  "안아줄게.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  31,
+                                       "filename":  "31-good-morning-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/31-good-morning-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "햇살 아래 기지개",
+                                       "emotion":  "상쾌함",
+                                       "dialogue":  "좋은 아침.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   },
+                                   {
+                                       "number":  32,
+                                       "filename":  "32-warm-milk-v1.png",
+                                       "path":  "assets/generated-v3-basic-32/32-warm-milk-v1.png",
+                                       "character":  "곁곰",
+                                       "situation":  "우유 컵 들고 후후",
+                                       "emotion":  "따뜻함",
+                                       "dialogue":  "후... 따뜻해.",
+                                       "version":  1,
+                                       "image":  {
+                                                     "width":  1254,
+                                                     "height":  1254,
+                                                     "format":  "PNG",
+                                                     "transparent_background":  true
+                                                 },
+                                       "review":  {
+                                                      "status":  "needs_review",
+                                                      "revision_required":  false,
+                                                      "note":  "v3 기준 원본 참조 생성 시안. 소유자 육안 확인 필요."
+                                                  }
+                                   }
+                               ]
+                 }
+             ],
+    "supporting_assets":  [
+                              {
+                                  "role":  "owner-confirmed-character-reference",
+                                  "path":  "assets/originals/gyeotgom-original-v3.png"
+                              },
+                              {
+                                  "role":  "concept",
+                                  "path":  "assets/ai-concepts/gyeotgom-concepts-5-v1.png"
+                              },
+                              {
+                                  "role":  "character-master",
+                                  "path":  "assets/ai-master/gyeotgom-master-v4-option2-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/01-ok-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/02-confirm-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/05-coffee-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/08-help-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/17-thanks-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/20-miss-you-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/21-pat-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/23-good-night-v1.png"
+                              },
+                              {
+                                  "role":  "pilot",
+                                  "path":  "assets/ai-pilots/bonus-best-v1.png"
+                              },
+                              {
+                                  "role":  "v3-generated-emoticon-series",
+                                  "path":  "assets/generated-v3-basic-32/"
+                              }
+                          ]
+}

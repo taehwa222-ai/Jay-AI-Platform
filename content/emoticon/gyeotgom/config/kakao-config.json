@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "profile_name": "kakao-manual-verification",
+  "verification": {
+    "status": "unverified",
+    "official_source_url": "",
+    "verified_at": null,
+    "verified_by": "",
+    "notes": "카카오 공식 사이트에서 최신 기준을 사람이 확인한 뒤 아래 값을 입력한다. 빈 값은 검사를 건너뛴다."
+  },
+  "static_image": {
+    "canvas_width": null,
+    "canvas_height": null,
+    "max_file_size_bytes": null,
+    "required_count": null,
+    "allowed_formats": [],
+    "require_alpha_channel": null,
+    "require_transparent_background": null
+  },
+  "animation": {
+    "required": null,
+    "allowed": null,
+    "max_frames": null,
+    "max_duration_ms": null,
+    "max_file_size_bytes": null,
+    "allowed_formats": []
+  },
+  "other_conditions": []
+}
