@@ -29,3 +29,24 @@ frontend/vite.config.d.ts
 .claude/worktrees/
 
 *.log
+
+# Generated emoticon validation and preview output
+content/emoticon/*/output/reports/
+content/emoticon/*/output/preview/
+
+# 중첩 저장소 — 검증 랜딩은 자체 git 저장소이며 자체 원격(sites)에 따로 올린다.
+# 여기서 추적하면 내용 없는 gitlink 만 들어가므로 제외한다.
+microsaas/validation/job-tracker-landing/
+
+# 대량 미디어 — AGENTS.md §6 방침: "최종 이미지·애니메이션 대량 파일은 용량을 고려해
+# 별도 로컬/드라이브에 보관한다". 기획·문구·설정(md/json)과 자막(srt/ass)은 추적한다.
+content/emoticon/*/assets/ai-basic-32/
+content/emoticon/*/assets/ai-pilots/
+content/emoticon/*/assets/generated-v3-basic-32/
+content/youtube/*/rendered/
+content/youtube/*/assets/source/
+content/youtube/*/assets/*.jpg
+content/youtube/*/assets/*.png
+content/youtube/*/assets/*.mp3
+content/youtube/*/assets/*.mp4
+content/youtube/*/assets/*.wav
