@@ -67,7 +67,15 @@
 > - 인터뷰 완료·구매 의향 2개 기준은 `판정 불가`로 표시한다 (0으로 적지 않는다)
 >
 > 설정 방법은 `microsaas/validation/job-tracker-landing/README.md` "검증 지표 읽기" 참고.
-> **남은 조건**: 이 변경을 랜딩 원격(`sites`)에 push 해야 배포에 반영된다 — 대표 승인 필요.
+> **남은 조건**: 커밋은 로컬에 있으나 아직 배포되지 않았다. `sites` 원격 자격증명이 로컬에
+> 없어 대표가 직접 push 해야 한다:
+>
+> ```powershell
+> cd microsaasalidationjob-tracker-landing
+> git push sites main
+> ```
+>
+> 그다음 호스팅 제어판에서 `VALIDATION_METRICS_TOKEN`(24자 이상)을 설정한다.
 
 **다음 행동 1개**: 랜딩 배포(push) + 토큰 설정 → 랜딩 공개 → 검증 일지 Day 1 기입
 
@@ -170,7 +178,7 @@ Micro SaaS 검증 14일이 끝나면 통과 기준 3가지(인터뷰 15명 · �
 
 | 항목 | 상태 | 왜 |
 |---|---|---|
-| 랜딩 배포 반영 | ✅ 2026-09-24 승인·push | 읽기 API 가 배포에 반영됨. 토큰 설정은 별도 |
+| 랜딩 배포 반영 | **연동 대기** | 승인은 받았으나 `sites` 원격(`git.chatgpt-team.site`) 자격증명이 로컬에 없어 push 하지 못했다. 대표가 직접 push 해야 한다 |
 | 본 저장소 push | ✅ 2026-09-24 승인·push | `AUTO_DEPLOY_ENABLED` 값은 권한이 없어 확인 못 함 — 켜져 있었다면 VPS 배포도 함께 일어났다 |
 | 대량 미디어 백업 | 범위 축소 | 이모티콘 폐기로 백업 의무 사라짐. YouTube 미디어 41MB 만 남음 |
 | `frontend/` 미커밋 변경 | 진행 중 | 다른 세션이 작업 중이라 건드리지 않았다 (7개 파일) |
