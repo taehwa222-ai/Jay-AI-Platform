@@ -10,6 +10,7 @@ from app.config import Settings
 from app.schemas.video_pipeline import (
     ApprovalUpdate,
     AssetRegister,
+    AutomationRequest,
     StageUpdate,
     UploadIntent,
     UploadIntentCreate,
@@ -60,11 +61,11 @@ class VideoPipelineConflict(ValueError):
 
 
 class VideoPipelineService:
-    """Persist safe, provider-neutral video production jobs.
+    """Persist approval-gated video jobs and provider-neutral worker tasks.
 
-    This service deliberately does not call an image model, renderer, or YouTube yet.
-    Workers can register generated files and consume upload intents without changing the
-    approval rules or exposing provider credentials to the frontend.
+    External providers run in the worker process. The API only records approved
+    stages, local assets, automation options, and upload intents, so credentials
+    never cross into the browser.
     """
 
     def __init__(self, settings: Settings):
@@ -139,6 +140,7 @@ class VideoPipelineService:
                 )
                 """
             )
+            ensure_column(connection, "video_tasks", "options_json", "TEXT")
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_video_jobs_updated ON video_jobs(updated_at DESC)"
             )
@@ -221,7 +223,8 @@ class VideoPipelineService:
             ).fetchone()
             task_rows = connection.execute(
                 """
-                SELECT id, task_type, status, error, created_at, started_at, finished_at
+                SELECT id, task_type, status, error, created_at, started_at, finished_at,
+                       options_json
                 FROM video_tasks
                 WHERE job_id = ?
                 ORDER BY id DESC
@@ -238,6 +241,7 @@ class VideoPipelineService:
             approval_note=row["approval_note"],
             assets=[self._asset(item) for item in assets],
             upload_intent=self._upload_intent(upload_row) if upload_row else None,
+            automation_task=tasks_by_type.get("automation"),
             render_task=tasks_by_type.get("render"),
             upload_task=tasks_by_type.get("youtube_upload"),
         )
@@ -357,6 +361,64 @@ class VideoPipelineService:
             self._set_stage(connection, int(row["id"]), "rendering")
         return self.get_job(slug)
 
+    def request_automation(self, slug: str, payload: AutomationRequest) -> VideoJobDetail:
+        """Queue the complete local media pipeline for an approved production plan."""
+        with self.connect() as connection:
+            row = self._get_row(connection, slug)
+            if row["stage"] != "production":
+                raise VideoPipelineConflict(
+                    "Automation can start only after the production plan is ready."
+                )
+            project_dir = self.youtube_dir / slug
+            for filename in ("script.md", "production.md"):
+                if not (project_dir / filename).is_file():
+                    raise VideoPipelineConflict(
+                        f"{filename} is required before starting the automated pipeline."
+                    )
+            if payload.pipeline_config is None and not (project_dir / "pipeline.json").is_file():
+                raise VideoPipelineConflict(
+                    "pipeline.json is required before starting the automated pipeline."
+                )
+            pending_task = connection.execute(
+                """
+                SELECT 1 FROM video_tasks
+                WHERE job_id = ? AND task_type = 'automation'
+                  AND status IN ('queued', 'running')
+                LIMIT 1
+                """,
+                (row["id"],),
+            ).fetchone()
+            if pending_task is not None:
+                raise VideoPipelineConflict(
+                    "An automated pipeline task is already queued or running."
+                )
+            if payload.pipeline_config is not None:
+                (project_dir / "pipeline.json").write_text(
+                    json.dumps(payload.pipeline_config, ensure_ascii=False, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+            now = now_iso()
+            connection.execute(
+                """
+                INSERT INTO video_tasks
+                    (job_id, task_type, status, options_json, created_at)
+                VALUES (?, 'automation', 'queued', ?, ?)
+                """,
+                (
+                    row["id"],
+                    json.dumps(
+                        {
+                            "regenerate_voice": payload.regenerate_voice,
+                            "regenerate_images": payload.regenerate_images,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    now,
+                ),
+            )
+            self._set_stage(connection, int(row["id"]), "rendering")
+        return self.get_job(slug)
+
     def mark_render_ready(self, slug: str) -> VideoJobDetail:
         with self.connect() as connection:
             row = self._get_row(connection, slug)
@@ -378,7 +440,7 @@ class VideoPipelineService:
                 """
                 SELECT id, status
                 FROM video_tasks
-                WHERE job_id = ? AND task_type = 'render'
+                WHERE job_id = ? AND task_type IN ('render', 'automation')
                 ORDER BY id DESC
                 LIMIT 1
                 """,
@@ -478,7 +540,7 @@ class VideoPipelineService:
         return self._upload_intent(intent) if intent else None
 
     def claim_next_task(self, task_type: str = "render") -> VideoTask | None:
-        if task_type not in {"render", "youtube_upload"}:
+        if task_type not in {"automation", "render", "youtube_upload"}:
             raise ValueError("Unsupported task type.")
         with self.connect() as connection:
             row = connection.execute(
@@ -517,7 +579,8 @@ class VideoPipelineService:
                 """
                 SELECT video_tasks.id, video_jobs.slug AS job_slug,
                        video_tasks.task_type, video_tasks.status, video_tasks.error,
-                       video_tasks.created_at, video_tasks.started_at, video_tasks.finished_at
+                       video_tasks.created_at, video_tasks.started_at, video_tasks.finished_at,
+                       video_tasks.options_json
                 FROM video_tasks
                 JOIN video_jobs ON video_jobs.id = video_tasks.job_id
                 WHERE video_tasks.id = ?
@@ -672,6 +735,8 @@ class VideoPipelineService:
 
     @staticmethod
     def _task(row: sqlite3.Row, job_slug: str) -> VideoTask:
+        raw_options = json.loads(str(row["options_json"])) if row["options_json"] else {}
+        options = raw_options if isinstance(raw_options, dict) else {}
         return VideoTask(
             id=int(row["id"]),
             job_slug=job_slug,
@@ -681,6 +746,7 @@ class VideoPipelineService:
             created_at=str(row["created_at"]),
             started_at=str(row["started_at"]) if row["started_at"] else None,
             finished_at=str(row["finished_at"]) if row["finished_at"] else None,
+            options={key: bool(value) for key, value in options.items() if isinstance(key, str)},
         )
 
 

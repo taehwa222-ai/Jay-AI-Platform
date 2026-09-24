@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -24,7 +24,7 @@ VideoFormat = Literal["shorts", "longform"]
 ApprovalDecision = Literal["approve", "request_changes", "hold", "discard"]
 AssetType = Literal["image", "video", "audio", "captions", "thumbnail", "rendered_video"]
 UploadVisibility = Literal["private", "unlisted", "public"]
-TaskType = Literal["render", "youtube_upload"]
+TaskType = Literal["automation", "render", "youtube_upload"]
 TaskStatus = Literal["queued", "running", "succeeded", "failed"]
 
 
@@ -93,6 +93,7 @@ class VideoTask(BaseModel):
     created_at: str
     started_at: str | None
     finished_at: str | None
+    options: dict[str, bool] = Field(default_factory=dict)
 
 
 class VideoJobSummary(BaseModel):
@@ -108,10 +109,29 @@ class VideoJobDetail(VideoJobSummary):
     approval_note: str | None
     assets: list[VideoAsset]
     upload_intent: UploadIntent | None
+    automation_task: VideoTask | None
     render_task: VideoTask | None
     upload_task: VideoTask | None
 
 
 class UploadIntentResponse(BaseModel):
+    job: VideoJobDetail
+    message: str
+
+
+class AutomationRequest(BaseModel):
+    regenerate_voice: bool = False
+    regenerate_images: bool = False
+    pipeline_config: dict[str, Any] | None = None
+
+
+class ProviderStatus(BaseModel):
+    gemini_image_configured: bool
+    narration_configured: bool
+    youtube_oauth_configured: bool
+    ffmpeg_configured: bool
+
+
+class AutomationResponse(BaseModel):
     job: VideoJobDetail
     message: str

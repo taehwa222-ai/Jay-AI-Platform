@@ -129,6 +129,55 @@ def test_video_pipeline_requires_admin_authentication():
     assert response.status_code == 401
 
 
+def test_video_pipeline_queues_automated_media_and_preserves_options():
+    with TestClient(app) as client:
+        token = create_admin(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        slug = "2026-08-15-automation"
+        created = client.post(
+            "/api/v1/video-pipeline/youtube/jobs",
+            headers=headers,
+            json={"topic": "자동 영상 제작", "format": "shorts", "slug": slug},
+        )
+        assert created.status_code == 201
+        for stage in ("planning", "qa", "awaiting_approval"):
+            response = client.post(
+                f"/api/v1/video-pipeline/youtube/jobs/{slug}/stage",
+                headers=headers,
+                json={"stage": stage},
+            )
+            assert response.status_code == 200
+        approved = client.post(
+            f"/api/v1/video-pipeline/youtube/jobs/{slug}/approval",
+            headers=headers,
+            json={"decision": "approve"},
+        )
+        assert approved.status_code == 200
+        for stage in ("script", "production"):
+            response = client.post(
+                f"/api/v1/video-pipeline/youtube/jobs/{slug}/stage",
+                headers=headers,
+                json={"stage": stage},
+            )
+            assert response.status_code == 200
+
+        project_dir = get_settings().content_dir / "youtube" / slug
+        (project_dir / "pipeline.json").write_text("{}", encoding="utf-8")
+        automation = client.post(
+            f"/api/v1/video-pipeline/youtube/jobs/{slug}/automate",
+            headers=headers,
+            json={"regenerate_voice": True, "regenerate_images": False},
+        )
+        assert automation.status_code == 200
+        assert automation.json()["job"]["stage"] == "rendering"
+        assert automation.json()["job"]["automation_task"]["task_type"] == "automation"
+
+        claimed = VideoPipelineService(get_settings()).claim_next_task("automation")
+        assert claimed is not None
+        assert claimed.job_slug == slug
+        assert claimed.options == {"regenerate_voice": True, "regenerate_images": False}
+
+
 def test_external_providers_fail_closed_without_credentials():
     settings = get_settings()
     with pytest.raises(ProviderNotConfigured):
@@ -153,3 +202,21 @@ def test_external_providers_fail_closed_without_credentials():
         asyncio.run(
             YouTubeUploadProvider(settings).upload_video(Path("missing.mp4"), intent)
         )
+
+
+def test_gemini_rest_response_extracts_image_from_model_output_step():
+    image_data = GeminiImageProvider._image_data_from_response(
+        {
+            "status": "completed",
+            "steps": [
+                {
+                    "type": "model_output",
+                    "content": [
+                        {"type": "text", "text": "Done"},
+                        {"type": "image", "data": "ZmFrZQ=="},
+                    ],
+                }
+            ],
+        }
+    )
+    assert image_data == "ZmFrZQ=="
