@@ -1,0 +1,106 @@
+{
+  "format": "shorts",
+  "thumbnail": {
+    "file": "assets/official-cover-3members.jpg",
+    "set_on_youtube": false
+  },
+  "narration_text": "빅뱅 20주년, 다시 무대에 설까요? 지드래곤, 태양, 대성이 9년 만에 공식 트리오로 돌아옵니다. 4월 코첼라와 20주년 무대를 예고했고, 국내 공연은 8월 21일부터 23일까지 고양에서 열립니다. 공식 발표 기준은 세 멤버입니다. 다음 소식을 가장 먼저 확인하세요.",
+  "voice": {
+    "path": "assets/narration-ko-neural.mp3",
+    "name": "ko-KR-InJoonNeural",
+    "rate": "+0%",
+    "pitch": "+0Hz"
+  },
+  "scenes": [
+    {
+      "file": "assets/official-cover-3members.jpg",
+      "duration_seconds": 3
+    },
+    {
+      "file": "assets/clean-01.jpg",
+      "duration_seconds": 4
+    },
+    {
+      "file": "assets/clean-02-final.jpg",
+      "duration_seconds": 4
+    },
+    {
+      "file": "assets/clean-03.jpg",
+      "duration_seconds": 3
+    },
+    {
+      "file": "assets/scene-04.jpg",
+      "duration_seconds": 4
+    },
+    {
+      "file": "assets/clean-04-final.jpg",
+      "duration_seconds": 3
+    },
+    {
+      "file": "assets/clean-05.jpg",
+      "duration_seconds": 3
+    },
+    {
+      "file": "assets/scene-07.jpg",
+      "duration_seconds": 3
+    }
+  ],
+  "caption_segments": [
+    {
+      "start": 0,
+      "end": 3,
+      "text": "빅뱅 20주년, 다시 무대에 설까요?"
+    },
+    {
+      "start": 3,
+      "end": 7,
+      "text": "지드래곤·태양·대성, 9년 만의 공식 트리오"
+    },
+    {
+      "start": 7,
+      "end": 11,
+      "text": "4월 코첼라와 20주년 기념 무대 예고"
+    },
+    {
+      "start": 11,
+      "end": 14,
+      "text": "국내 첫 공연은 8월 21~23일 고양"
+    },
+    {
+      "start": 14,
+      "end": 18,
+      "text": "현재 공식 발표 기준은 세 멤버입니다"
+    },
+    {
+      "start": 18,
+      "end": 21,
+      "text": "확인되지 않은 참여 소식은 단정하지 않기"
+    },
+    {
+      "start": 21,
+      "end": 24,
+      "text": "빅뱅의 다음 장면, 가장 먼저 확인하세요"
+    },
+    {
+      "start": 24,
+      "end": 27,
+      "text": "구독과 좋아요로 다음 소식을 받아보세요"
+    }
+  ],
+  "metadata": {
+    "title": "BIGBANG 20주년, 지드래곤·태양·대성 3인 체제로 돌아온다?",
+    "description": "BIGBANG 20주년을 맞아 지드래곤·태양·대성 3인 체제로 진행되는 공식 소식과 공연 일정을 짧게 정리했습니다.\n\n공식 출처:\n- https://yg-life.com/archives/196601?lang=en\n- https://ygfamily.com/ko/news/notice/5876\n\n사진·로고의 공개 사용 권리는 각 권리자에게 있습니다. 업로드 전 최종 권리 확인이 필요합니다.",
+    "tags": [
+      "BIGBANG",
+      "빅뱅",
+      "지드래곤",
+      "태양",
+      "대성",
+      "KPOP",
+      "빅뱅 20주년",
+      "고양 콘서트"
+    ],
+    "pinned_comment": "빅뱅 20주년, 여러분이 가장 기대하는 노래는 무엇인가요?",
+    "visibility": "private"
+  }
+}

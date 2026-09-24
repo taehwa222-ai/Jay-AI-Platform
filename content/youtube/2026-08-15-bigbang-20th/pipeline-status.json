@@ -1,0 +1,13 @@
+{
+  "updated_at": "2026-08-15T12:27:05.451068+00:00",
+  "stage": "ready_for_upload",
+  "project_dir": "C:\\projects\\Jay-Ai-Company\\content\\youtube\\2026-08-15-bigbang-20th",
+  "video": "C:\\projects\\Jay-Ai-Company\\content\\youtube\\2026-08-15-bigbang-20th\\rendered\\2026-08-15-bigbang-20th.mp4",
+  "thumbnail": "C:\\projects\\Jay-Ai-Company\\content\\youtube\\2026-08-15-bigbang-20th\\rendered\\thumbnail.jpg",
+  "thumbnail_mode": "first_frame_cover",
+  "captions": "C:\\projects\\Jay-Ai-Company\\content\\youtube\\2026-08-15-bigbang-20th\\assets\\captions.srt",
+  "metadata": "C:\\projects\\Jay-Ai-Company\\content\\youtube\\2026-08-15-bigbang-20th\\upload-metadata.md",
+  "approval_required": true,
+  "uploaded": false,
+  "thumbnail_uploaded": false
+}
